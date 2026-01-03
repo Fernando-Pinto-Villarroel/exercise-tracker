@@ -1,10 +1,12 @@
 import { FontAwesome5, Ionicons, MaterialIcons } from "@expo/vector-icons";
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Exercise } from "../types";
 
 interface ExerciseListProps {
   exercises: Exercise[];
+  onEdit?: (exercise: Exercise) => void;
+  onDelete?: (id: number) => void;
 }
 
 const iconFamilies = {
@@ -13,7 +15,11 @@ const iconFamilies = {
   FontAwesome5,
 };
 
-export default function ExerciseList({ exercises }: ExerciseListProps) {
+export default function ExerciseList({
+  exercises,
+  onEdit,
+  onDelete,
+}: ExerciseListProps) {
   const getIconComponent = (family: string, name: string) => {
     const IconFamily =
       iconFamilies[family as keyof typeof iconFamilies] || Ionicons;
@@ -34,6 +40,27 @@ export default function ExerciseList({ exercises }: ExerciseListProps) {
               {exercise.sets} sets × {exercise.reps} reps
             </Text>
           </View>
+
+          {(onEdit || onDelete) && (
+            <View style={styles.exerciseActions}>
+              {onEdit && (
+                <TouchableOpacity
+                  onPress={() => onEdit(exercise)}
+                  style={styles.actionButton}
+                >
+                  <Ionicons name="create-outline" size={24} color="#3b82f6" />
+                </TouchableOpacity>
+              )}
+              {onDelete && exercise.id && (
+                <TouchableOpacity
+                  onPress={() => onDelete(exercise.id!)}
+                  style={styles.actionButton}
+                >
+                  <Ionicons name="trash-outline" size={24} color="#ef4444" />
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
         </View>
       ))}
     </View>
@@ -77,5 +104,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#6b7280",
     marginTop: 4,
+  },
+  exerciseActions: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  actionButton: {
+    padding: 4,
   },
 });

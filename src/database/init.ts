@@ -29,7 +29,7 @@ export async function initDatabase() {
 
     CREATE TABLE IF NOT EXISTS daily_snapshot (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      date TEXT NOT NULL UNIQUE,
+      date TEXT NOT NULL,
       exercise_name TEXT NOT NULL,
       icon_name TEXT NOT NULL,
       icon_family TEXT NOT NULL,
@@ -64,5 +64,29 @@ export async function addMissingColumns() {
   } catch (error) {
     // Column already exists or other error - ignore
     console.log("Column addition result:", (error as Error).message);
+  }
+
+  // Fix daily_snapshot unique constraint
+  try {
+    // Check if the table has the wrong schema
+    const result = await db.getFirstAsync("PRAGMA table_info(daily_snapshot)");
+    if (result) {
+      // Drop and recreate
+      await db.execAsync(`
+        DROP TABLE daily_snapshot;
+        CREATE TABLE daily_snapshot (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          date TEXT NOT NULL,
+          exercise_name TEXT NOT NULL,
+          icon_name TEXT NOT NULL,
+          icon_family TEXT NOT NULL,
+          sets INTEGER NOT NULL,
+          reps INTEGER NOT NULL,
+          sort_order INTEGER NOT NULL
+        );
+      `);
+    }
+  } catch (error) {
+    console.log("Daily snapshot fix result:", (error as Error).message);
   }
 }

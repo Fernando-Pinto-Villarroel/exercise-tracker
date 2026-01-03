@@ -19,6 +19,8 @@ export default function TodayScreen() {
     loadTodayData,
     createTodaySnapshot,
     toggleTodayCompletion,
+    weeklyPlanCounter,
+    loadWeeklyPlan,
   } = useExerciseStore();
 
   useFocusEffect(
@@ -27,8 +29,13 @@ export default function TodayScreen() {
     }, [])
   );
 
+  React.useEffect(() => {
+    createTodaySnapshot();
+  }, [weeklyPlanCounter]);
+
   const initializeToday = async () => {
-    await createTodaySnapshot();
+    // Ensure weekly plan is loaded first
+    await loadWeeklyPlan();
     await loadTodayData();
   };
 

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import {
+  Alert,
   Modal,
   ScrollView,
   StyleSheet,
@@ -9,8 +10,9 @@ import {
   View,
 } from "react-native";
 import ExerciseList from "../components/ExerciseList";
+import ExerciseModal from "../components/ExerciseModal";
 import { useExerciseStore } from "../store/exerciseStore";
-import { DailyCompletion, DailySnapshot } from "../types";
+import { DailyCompletion, DailySnapshot, Exercise } from "../types";
 
 const formatTime = (totalSeconds: number) => {
   const hrs = Math.floor(totalSeconds / 3600);
@@ -25,23 +27,69 @@ const formatTime = (totalSeconds: number) => {
   return `${mins}:${secs.toString().padStart(2, "0")}`;
 };
 
+const getTodayDate = (): string => {
+  const now = new Date();
+  const timezoneOffset = now.getTimezoneOffset() * 60000;
+  const localDate = new Date(now.getTime() - timezoneOffset);
+  return localDate.toISOString().split("T")[0];
+};
+
+const isFutureDate = (dateStr: string): boolean => {
+  const today = getTodayDate();
+  return dateStr > today;
+};
+
+const isPastDate = (dateStr: string): boolean => {
+  const today = getTodayDate();
+  return dateStr < today;
+};
+
 export default function DayDetailScreen({ route }: any) {
   const { date } = route.params;
-  const { loadDayData, toggleDayCompletion, updateDayElapsedTime } =
-    useExerciseStore();
+  const {
+    loadDayData,
+    toggleDayCompletion,
+    updateDayElapsedTime,
+    weeklyPlan,
+    weeklyPlanCounter,
+    completionCounter,
+    updateDailyExercise,
+    saveDailyExercise,
+    deleteDailyExercise,
+  } = useExerciseStore();
   const [snapshot, setSnapshot] = useState<DailySnapshot[]>([]);
   const [completion, setCompletion] = useState<DailyCompletion | null>(null);
   const [showTimeModal, setShowTimeModal] = useState(false);
   const [editMinutes, setEditMinutes] = useState("");
   const [editSeconds, setEditSeconds] = useState("");
+  const [isFuture, setIsFuture] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingExercise, setEditingExercise] = useState<DailySnapshot | null>(
+    null
+  );
 
   useEffect(() => {
+    setIsFuture(isFutureDate(date));
     loadData();
-  }, [date]);
+  }, [date, weeklyPlanCounter, completionCounter]);
 
   const loadData = async () => {
     const data = await loadDayData(date);
-    setSnapshot(data.snapshot);
+    let exercises = data.snapshot;
+
+    // If no snapshot exists and it's a future date, load the planned exercises
+    if (exercises.length === 0 && isFutureDate(date)) {
+      const dateObj = new Date(date + "T00:00:00");
+      const dayOfWeek = dateObj.getDay();
+      const adjustedDay = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Monday = 0
+      const plan = weeklyPlan[adjustedDay] || [];
+      exercises = plan.map((ex) => ({
+        ...ex,
+        date: date,
+      }));
+    }
+
+    setSnapshot(exercises);
     setCompletion(data.completion);
   };
 
@@ -73,6 +121,55 @@ export default function DayDetailScreen({ route }: any) {
     setShowTimeModal(false);
   };
 
+  const handleEditExercise = (exercise: Exercise) => {
+    setEditingExercise(exercise as DailySnapshot);
+    setShowEditModal(true);
+  };
+
+  const handleDeleteExercise = async (id: number) => {
+    Alert.alert(
+      "Delete Exercise",
+      "Are you sure you want to delete this exercise?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteDailyExercise(id);
+              await loadData();
+            } catch (error) {
+              console.error("Error deleting exercise:", error);
+              Alert.alert(
+                "Error",
+                error instanceof Error
+                  ? error.message
+                  : "Failed to delete exercise."
+              );
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleSaveDaily = async (
+    exerciseData: Omit<DailySnapshot, "id" | "date">
+  ) => {
+    try {
+      if (editingExercise?.id) {
+        await updateDailyExercise(editingExercise.id, exerciseData);
+      } else {
+        await saveDailyExercise(date, exerciseData);
+      }
+      await loadData();
+    } catch (error) {
+      console.error("Error saving exercise:", error);
+      throw error; // Let the modal handle it
+    }
+  };
+
   const isCompleted = completion?.is_completed || false;
 
   return (
@@ -86,22 +183,40 @@ export default function DayDetailScreen({ route }: any) {
             <Text style={styles.emptyText}>No exercises for this day</Text>
           </View>
         ) : (
-          <ExerciseList exercises={snapshot} />
+          <ExerciseList
+            exercises={snapshot}
+            onEdit={isPastDate(date) ? handleEditExercise : undefined}
+            onDelete={isPastDate(date) ? handleDeleteExercise : undefined}
+          />
         )}
 
-        <TouchableOpacity
-          style={[
-            styles.completeButton,
-            isCompleted && styles.completeButtonDone,
-          ]}
-          onPress={handleToggle}
-        >
-          <Text style={styles.completeButtonText}>
-            {isCompleted ? "Mark as Undone" : "Mark as Done"}
-          </Text>
-        </TouchableOpacity>
+        {isPastDate(date) && (
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={() => {
+              setEditingExercise(null);
+              setShowEditModal(true);
+            }}
+          >
+            <Text style={styles.addButtonText}>Add Exercise</Text>
+          </TouchableOpacity>
+        )}
 
-        {isCompleted && (
+        {!isFuture && (
+          <TouchableOpacity
+            style={[
+              styles.completeButton,
+              isCompleted && styles.completeButtonDone,
+            ]}
+            onPress={handleToggle}
+          >
+            <Text style={styles.completeButtonText}>
+              {isCompleted ? "Mark as Undone" : "Mark as Done"}
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        {isCompleted && !isFuture && (
           <TouchableOpacity
             style={styles.timeEditButton}
             onPress={handleEditTime}
@@ -159,6 +274,13 @@ export default function DayDetailScreen({ route }: any) {
             </View>
           </View>
         </Modal>
+
+        <ExerciseModal
+          visible={showEditModal}
+          onClose={() => setShowEditModal(false)}
+          exercise={editingExercise}
+          onSaveDaily={handleSaveDaily}
+        />
       </ScrollView>
     </View>
   );
@@ -196,6 +318,19 @@ const styles = StyleSheet.create({
     backgroundColor: "#16a34a",
   },
   completeButtonText: {
+    textAlign: "center",
+    color: "#ffffff",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  addButton: {
+    marginTop: 24,
+    paddingVertical: 16,
+    borderRadius: 8,
+    backgroundColor: "#2563eb",
+    marginBottom: 12,
+  },
+  addButtonText: {
     textAlign: "center",
     color: "#ffffff",
     fontSize: 16,

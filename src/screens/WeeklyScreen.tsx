@@ -19,11 +19,11 @@ const Stack = createNativeStackNavigator();
 
 function WeeklyOverview({ navigation }: any) {
   const [weekData, setWeekData] = useState<DailyCompletion[]>([]);
-  const { refreshCounter } = useExerciseStore();
+  const { weeklyPlanCounter, completionCounter } = useExerciseStore();
 
   useEffect(() => {
     loadWeekData();
-  }, [refreshCounter]);
+  }, [weeklyPlanCounter, completionCounter]);
 
   const loadWeekData = async () => {
     const dates = getWeekDates();
@@ -107,11 +107,8 @@ function WeeklyOverview({ navigation }: any) {
                 isFutureDate(day.date) && styles.dayCardDisabled,
               ]}
               onPress={() => {
-                if (!isFutureDate(day.date)) {
-                  navigation.navigate("DayDetail", { date: day.date });
-                }
+                navigation.navigate("DayDetail", { date: day.date });
               }}
-              disabled={isFutureDate(day.date)}
             >
               <View style={styles.dayCardContent}>
                 <View style={styles.dayHeader}>

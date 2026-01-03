@@ -35,7 +35,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#3b82f6",
+    backgroundColor: "#c2c3c5ff",
     height: 50,
     paddingHorizontal: 16,
   },

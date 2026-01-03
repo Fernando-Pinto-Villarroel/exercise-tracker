@@ -1,6 +1,7 @@
 import { FontAwesome5, Ionicons, MaterialIcons } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
 import {
+  Alert,
   Modal,
   ScrollView,
   StyleSheet,
@@ -9,14 +10,16 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { getDatabase } from "../database/init";
 import { useExerciseStore } from "../store/exerciseStore";
-import { WeeklyPlanExercise } from "../types";
+import { DailySnapshot, WeeklyPlanExercise } from "../types";
 
 interface ExerciseModalProps {
   visible: boolean;
   onClose: () => void;
-  dayOfWeek: number;
-  exercise: WeeklyPlanExercise | null;
+  dayOfWeek?: number;
+  exercise: WeeklyPlanExercise | DailySnapshot | null;
+  onSaveDaily?: (exercise: Omit<DailySnapshot, "id" | "date">) => void;
 }
 
 const ICON_OPTIONS = [
@@ -56,6 +59,7 @@ export default function ExerciseModal({
   onClose,
   dayOfWeek,
   exercise,
+  onSaveDaily,
 }: ExerciseModalProps) {
   const { saveExerciseToDay, updateExercise } = useExerciseStore();
   const [name, setName] = useState("");
@@ -84,22 +88,59 @@ export default function ExerciseModal({
   const handleSave = async () => {
     if (!name.trim() || !sets || !reps) return;
 
-    const exerciseData = {
-      exercise_name: name.trim(),
-      icon_name: selectedIcon.name,
-      icon_family: selectedIcon.family,
-      sets: parseInt(sets),
-      reps: parseInt(reps),
-      sort_order: 0,
-    };
+    try {
+      const trimmedName = name.trim();
 
-    if (exercise?.id) {
-      await updateExercise(exercise.id, exerciseData);
-    } else {
-      await saveExerciseToDay(dayOfWeek, exerciseData);
+      // Check for duplicate names
+      if (!onSaveDaily && dayOfWeek !== undefined) {
+        const db = getDatabase();
+        const existing = await db.getFirstAsync(
+          "SELECT id FROM weekly_plan WHERE day_of_week = ? AND exercise_name = ? AND id != ?",
+          [dayOfWeek, trimmedName, exercise?.id || 0]
+        );
+        if (existing) {
+          Alert.alert(
+            "Error",
+            "An exercise with this name already exists for this day."
+          );
+          return;
+        }
+      }
+
+      const exerciseData = {
+        exercise_name: trimmedName,
+        icon_name: selectedIcon.name,
+        icon_family: selectedIcon.family,
+        sets: parseInt(sets),
+        reps: parseInt(reps),
+        sort_order: 0,
+      };
+
+      if (onSaveDaily) {
+        await onSaveDaily(exerciseData);
+      } else {
+        if (dayOfWeek === undefined) return;
+        const weeklyData = {
+          ...exerciseData,
+          sort_order: 0,
+        };
+        if (exercise?.id) {
+          await updateExercise(exercise.id, weeklyData);
+        } else {
+          await saveExerciseToDay(dayOfWeek, weeklyData);
+        }
+      }
+
+      onClose();
+    } catch (error) {
+      console.error("Error saving exercise:", error);
+      Alert.alert(
+        "Error",
+        error instanceof Error
+          ? error.message
+          : "Failed to save exercise. Please try again."
+      );
     }
-
-    onClose();
   };
 
   const isValid = name.trim() && sets && reps;

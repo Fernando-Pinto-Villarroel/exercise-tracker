@@ -7,6 +7,11 @@ interface ExerciseStore {
   todaySnapshot: DailySnapshot[];
   todayCompletion: DailyCompletion | null;
   refreshCounter: number;
+  weeklyPlanCounter: number;
+  completionCounter: number;
+
+  incrementWeeklyPlanCounter: () => void;
+  incrementCompletionCounter: () => void;
 
   loadWeeklyPlan: () => Promise<void>;
   saveExerciseToDay: (
@@ -32,6 +37,15 @@ interface ExerciseStore {
     completion: DailyCompletion | null;
   }>;
   toggleDayCompletion: (date: string) => Promise<void>;
+  updateDailyExercise: (
+    id: number,
+    exercise: Omit<DailySnapshot, "id" | "date">
+  ) => Promise<void>;
+  saveDailyExercise: (
+    date: string,
+    exercise: Omit<DailySnapshot, "id" | "date">
+  ) => Promise<void>;
+  deleteDailyExercise: (id: number) => Promise<void>;
   incrementRefreshCounter: () => void;
 }
 
@@ -47,6 +61,8 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
   todaySnapshot: [],
   todayCompletion: null,
   refreshCounter: 0,
+  weeklyPlanCounter: 0,
+  completionCounter: 0,
 
   loadWeeklyPlan: async () => {
     const db = getDatabase();
@@ -67,67 +83,123 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
   },
 
   saveExerciseToDay: async (dayOfWeek, exercise) => {
-    const db = getDatabase();
-    const maxOrder = await db.getFirstAsync<{ max_order: number }>(
-      "SELECT COALESCE(MAX(sort_order), -1) as max_order FROM weekly_plan WHERE day_of_week = ?",
-      [dayOfWeek]
-    );
+    try {
+      const db = getDatabase();
+      const maxOrder = await db.getFirstAsync<{ max_order: number }>(
+        "SELECT COALESCE(MAX(sort_order), -1) as max_order FROM weekly_plan WHERE day_of_week = ?",
+        [dayOfWeek]
+      );
 
-    const newOrder = (maxOrder?.max_order ?? -1) + 1;
+      const newOrder = (maxOrder?.max_order ?? -1) + 1;
 
-    await db.runAsync(
-      "INSERT INTO weekly_plan (day_of_week, exercise_name, icon_name, icon_family, sets, reps, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)",
-      [
-        dayOfWeek,
-        exercise.exercise_name,
-        exercise.icon_name,
-        exercise.icon_family,
-        exercise.sets,
-        exercise.reps,
-        newOrder,
-      ]
-    );
+      await db.runAsync(
+        "INSERT INTO weekly_plan (day_of_week, exercise_name, icon_name, icon_family, sets, reps, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        [
+          dayOfWeek,
+          exercise.exercise_name,
+          exercise.icon_name,
+          exercise.icon_family,
+          exercise.sets,
+          exercise.reps,
+          newOrder,
+        ]
+      );
 
-    await get().loadWeeklyPlan();
+      await get().loadWeeklyPlan();
+
+      // If adding to today's day, recreate today snapshot
+      const today = new Date();
+      const timezoneOffset = today.getTimezoneOffset() * 60000;
+      const localDate = new Date(today.getTime() - timezoneOffset);
+      const todayDayOfWeek = localDate.getDay();
+      const adjustedTodayDay = todayDayOfWeek === 0 ? 6 : todayDayOfWeek - 1;
+
+      if (dayOfWeek === adjustedTodayDay) {
+        await get().createTodaySnapshot();
+        get().incrementWeeklyPlanCounter();
+      }
+    } catch (error) {
+      console.error("Error saving exercise to day:", error);
+      throw new Error("Failed to save exercise. Please try again.");
+    }
   },
 
   updateExercise: async (id, exercise) => {
-    const db = getDatabase();
-    await db.runAsync(
-      "UPDATE weekly_plan SET exercise_name = ?, icon_name = ?, icon_family = ?, sets = ?, reps = ? WHERE id = ?",
-      [
-        exercise.exercise_name,
-        exercise.icon_name,
-        exercise.icon_family,
-        exercise.sets,
-        exercise.reps,
-        id,
-      ]
-    );
+    try {
+      const db = getDatabase();
+      await db.runAsync(
+        "UPDATE weekly_plan SET exercise_name = ?, icon_name = ?, icon_family = ?, sets = ?, reps = ? WHERE id = ?",
+        [
+          exercise.exercise_name,
+          exercise.icon_name,
+          exercise.icon_family,
+          exercise.sets,
+          exercise.reps,
+          id,
+        ]
+      );
 
-    await get().loadWeeklyPlan();
+      await get().loadWeeklyPlan();
+
+      // If updating today's day, refresh today data
+      const today = new Date();
+      const timezoneOffset = today.getTimezoneOffset() * 60000;
+      const localDate = new Date(today.getTime() - timezoneOffset);
+      const todayDayOfWeek = localDate.getDay();
+      const adjustedTodayDay = todayDayOfWeek === 0 ? 6 : todayDayOfWeek - 1;
+
+      const exerciseDay = await db.getFirstAsync<{ day_of_week: number }>(
+        "SELECT day_of_week FROM weekly_plan WHERE id = ?",
+        [id]
+      );
+
+      if (exerciseDay?.day_of_week === adjustedTodayDay) {
+        await get().createTodaySnapshot();
+        get().incrementWeeklyPlanCounter();
+      }
+    } catch (error) {
+      console.error("Error updating exercise:", error);
+      throw new Error("Failed to update exercise. Please try again.");
+    }
   },
 
   deleteExercise: async (id, dayOfWeek) => {
-    const db = getDatabase();
-    await db.runAsync("DELETE FROM weekly_plan WHERE id = ?", [id]);
+    try {
+      const db = getDatabase();
+      await db.runAsync("DELETE FROM weekly_plan WHERE id = ?", [id]);
 
-    const remaining = await db.getAllAsync<WeeklyPlanExercise>(
-      "SELECT * FROM weekly_plan WHERE day_of_week = ? ORDER BY sort_order",
-      [dayOfWeek]
-    );
+      const remaining = await db.getAllAsync<WeeklyPlanExercise>(
+        "SELECT * FROM weekly_plan WHERE day_of_week = ? ORDER BY sort_order",
+        [dayOfWeek]
+      );
 
-    for (let i = 0; i < remaining.length; i++) {
-      const id = remaining[i].id;
-      if (id !== undefined) {
-        await db.runAsync(
-          "UPDATE weekly_plan SET sort_order = ? WHERE id = ?",
-          [i, id]
-        );
+      for (let i = 0; i < remaining.length; i++) {
+        const id = remaining[i].id;
+        if (id !== undefined) {
+          await db.runAsync(
+            "UPDATE weekly_plan SET sort_order = ? WHERE id = ?",
+            [i, id]
+          );
+        }
       }
-    }
 
-    await get().loadWeeklyPlan();
+      await get().loadWeeklyPlan();
+
+      // If deleting from today's day, refresh today data
+      const today = new Date();
+      const timezoneOffset = today.getTimezoneOffset() * 60000;
+      const localDate = new Date(today.getTime() - timezoneOffset);
+      const todayDayOfWeek = localDate.getDay();
+      const adjustedTodayDay = todayDayOfWeek === 0 ? 6 : todayDayOfWeek - 1;
+
+      if (dayOfWeek === adjustedTodayDay) {
+        await get().createTodaySnapshot();
+        get().incrementWeeklyPlanCounter();
+      }
+    } catch (error) {
+      console.error("Error deleting exercise:", error);
+      throw new Error("Failed to delete exercise. Please try again.");
+    }
   },
 
   copyDayPlan: async (fromDay, toDay) => {
@@ -179,54 +251,59 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
   },
 
   createTodaySnapshot: async () => {
-    const today = getTodayDate();
-    const db = getDatabase();
+    try {
+      const today = getTodayDate();
+      const db = getDatabase();
 
-    const existing = await db.getFirstAsync(
-      "SELECT id FROM daily_snapshot WHERE date = ?",
-      [today]
-    );
+      // Always recreate today's snapshot from weekly plan
+      await db.runAsync("DELETE FROM daily_snapshot WHERE date = ?", [today]);
 
-    if (existing) {
-      return;
-    }
+      const dayOfWeek = new Date().getDay();
+      const adjustedDay = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
 
-    const dayOfWeek = new Date().getDay();
-    const adjustedDay = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-
-    const plan = await db.getAllAsync<WeeklyPlanExercise>(
-      "SELECT * FROM weekly_plan WHERE day_of_week = ? ORDER BY sort_order",
-      [adjustedDay]
-    );
-
-    for (const ex of plan) {
-      await db.runAsync(
-        "INSERT INTO daily_snapshot (date, exercise_name, icon_name, icon_family, sets, reps, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        [
-          today,
-          ex.exercise_name,
-          ex.icon_name,
-          ex.icon_family,
-          ex.sets,
-          ex.reps,
-          ex.sort_order,
-        ]
+      const plan = await db.getAllAsync<WeeklyPlanExercise>(
+        "SELECT * FROM weekly_plan WHERE day_of_week = ? ORDER BY sort_order",
+        [adjustedDay]
       );
-    }
 
-    const completionExists = await db.getFirstAsync(
-      "SELECT id FROM daily_completion WHERE date = ?",
-      [today]
-    );
+      console.log(
+        `Creating snapshot for day ${adjustedDay}, found ${plan.length} exercises`
+      );
 
-    if (!completionExists) {
-      await db.runAsync(
-        "INSERT INTO daily_completion (date, is_completed, elapsed_seconds) VALUES (?, 0, 0)",
+      for (const ex of plan) {
+        await db.runAsync(
+          "INSERT INTO daily_snapshot (date, exercise_name, icon_name, icon_family, sets, reps, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)",
+          [
+            today,
+            ex.exercise_name,
+            ex.icon_name,
+            ex.icon_family,
+            ex.sets,
+            ex.reps,
+            ex.sort_order,
+          ]
+        );
+      }
+
+      const completionExists = await db.getFirstAsync(
+        "SELECT id FROM daily_completion WHERE date = ?",
         [today]
       );
-    }
 
-    await get().loadTodayData();
+      if (!completionExists) {
+        await db.runAsync(
+          "INSERT INTO daily_completion (date, is_completed, elapsed_seconds) VALUES (?, 0, 0)",
+          [today]
+        );
+      }
+
+      await get().loadTodayData();
+    } catch (error) {
+      console.error("Error creating today snapshot:", error);
+      throw new Error(
+        "Failed to create today's workout plan. Please try again."
+      );
+    }
   },
 
   toggleTodayCompletion: async () => {
@@ -250,7 +327,7 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
     }
 
     await get().loadTodayData();
-    get().incrementRefreshCounter();
+    get().incrementCompletionCounter();
   },
 
   updateElapsedTime: async (seconds) => {
@@ -286,7 +363,7 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
     );
 
     await get().loadDayData(date);
-    get().incrementRefreshCounter();
+    get().incrementCompletionCounter();
   },
 
   loadDayData: async (date) => {
@@ -330,10 +407,82 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
       );
     }
 
-    get().incrementRefreshCounter();
+    get().incrementCompletionCounter();
+  },
+
+  updateDailyExercise: async (id, exercise) => {
+    try {
+      const db = getDatabase();
+      await db.runAsync(
+        "UPDATE daily_snapshot SET exercise_name = ?, icon_name = ?, icon_family = ?, sets = ?, reps = ? WHERE id = ?",
+        [
+          exercise.exercise_name,
+          exercise.icon_name,
+          exercise.icon_family,
+          exercise.sets,
+          exercise.reps,
+          id,
+        ]
+      );
+
+      get().incrementCompletionCounter();
+    } catch (error) {
+      console.error("Error updating daily exercise:", error);
+      throw new Error("Failed to update exercise. Please try again.");
+    }
+  },
+
+  saveDailyExercise: async (date, exercise) => {
+    try {
+      const db = getDatabase();
+      const maxOrder = await db.getFirstAsync<{ max_order: number }>(
+        "SELECT COALESCE(MAX(sort_order), -1) as max_order FROM daily_snapshot WHERE date = ?",
+        [date]
+      );
+
+      const newOrder = (maxOrder?.max_order ?? -1) + 1;
+
+      await db.runAsync(
+        "INSERT INTO daily_snapshot (date, exercise_name, icon_name, icon_family, sets, reps, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        [
+          date,
+          exercise.exercise_name,
+          exercise.icon_name,
+          exercise.icon_family,
+          exercise.sets,
+          exercise.reps,
+          newOrder,
+        ]
+      );
+
+      get().incrementCompletionCounter();
+    } catch (error) {
+      console.error("Error saving daily exercise:", error);
+      throw new Error("Failed to save exercise. Please try again.");
+    }
+  },
+
+  deleteDailyExercise: async (id) => {
+    try {
+      const db = getDatabase();
+      await db.runAsync("DELETE FROM daily_snapshot WHERE id = ?", [id]);
+
+      get().incrementRefreshCounter();
+    } catch (error) {
+      console.error("Error deleting daily exercise:", error);
+      throw new Error("Failed to delete exercise. Please try again.");
+    }
   },
 
   incrementRefreshCounter: () => {
     set({ refreshCounter: get().refreshCounter + 1 });
+  },
+
+  incrementWeeklyPlanCounter: () => {
+    set({ weeklyPlanCounter: get().weeklyPlanCounter + 1 });
+  },
+
+  incrementCompletionCounter: () => {
+    set({ completionCounter: get().completionCounter + 1 });
   },
 }));

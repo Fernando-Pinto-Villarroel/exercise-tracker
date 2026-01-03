@@ -22,11 +22,11 @@ function MonthlyOverview({ navigation }: any) {
   const [monthData, setMonthData] = useState<Record<string, DailyCompletion>>(
     {}
   );
-  const { refreshCounter } = useExerciseStore();
+  const { completionCounter } = useExerciseStore();
 
   useEffect(() => {
     loadMonthData();
-  }, [currentMonth, refreshCounter]);
+  }, [currentMonth, completionCounter]);
 
   const loadMonthData = async () => {
     const dates = getMonthDates(currentMonth);
@@ -159,11 +159,8 @@ function MonthlyOverview({ navigation }: any) {
                   key={date}
                   style={styles.calendarDay}
                   onPress={() => {
-                    if (!isFutureDate(date)) {
-                      navigation.navigate("DayDetail", { date });
-                    }
+                    navigation.navigate("DayDetail", { date });
                   }}
-                  disabled={isFutureDate(date)}
                 >
                   <View
                     style={[

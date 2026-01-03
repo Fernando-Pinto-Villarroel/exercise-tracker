@@ -1,4 +1,6 @@
-import { Ionicons } from "@expo/vector-icons";
+import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import React, { useEffect, useState } from "react";
 import {
   Alert,
@@ -21,6 +23,18 @@ const DAYS = [
   "Saturday",
   "Sunday",
 ];
+
+const iconFamilies = {
+  Ionicons,
+  MaterialIcons,
+  FontAwesome5,
+};
+
+const getIconComponent = (family: string, name: string) => {
+  const IconFamily =
+    iconFamilies[family as keyof typeof iconFamilies] || Ionicons;
+  return <IconFamily name={name as any} size={32} color="#3b82f6" />;
+};
 
 export default function MyExercisesScreen() {
   const { weeklyPlan, loadWeeklyPlan, deleteExercise, copyDayPlan } =
@@ -137,6 +151,10 @@ export default function MyExercisesScreen() {
           <View style={styles.exercisesList}>
             {exercises.map((exercise) => (
               <View key={exercise.id} style={styles.exerciseCard}>
+                <View style={styles.iconContainer}>
+                  {getIconComponent(exercise.icon_family, exercise.icon_name)}
+                </View>
+
                 <View style={styles.exerciseInfo}>
                   <Text style={styles.exerciseName}>
                     {exercise.exercise_name}
@@ -267,6 +285,15 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 2,
+  },
+  iconContainer: {
+    width: 48,
+    height: 48,
+    backgroundColor: "#eff6ff",
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 16,
   },
   exerciseInfo: {
     flex: 1,
