@@ -1,5 +1,6 @@
 import { FontAwesome5, Ionicons, MaterialIcons } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Alert,
   Dimensions,
@@ -11,7 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-
+import { useTheme } from "../contexts/ThemeContext";
 import { getDatabase } from "../database/init";
 import { useExerciseStore } from "../store/exerciseStore";
 import { DailySnapshot, WeeklyPlanExercise } from "../types";
@@ -66,6 +67,8 @@ export default function ExerciseModal({
   exercise,
   onSaveDaily,
 }: ExerciseModalProps) {
+  const { t } = useTranslation();
+  const { theme } = useTheme();
   const { saveExerciseToDay, updateExercise } = useExerciseStore();
   const [name, setName] = useState("");
   const [measurementType, setMeasurementType] =
@@ -142,8 +145,8 @@ export default function ExerciseModal({
         );
         if (existing) {
           Alert.alert(
-            "Error",
-            "An exercise with this name already exists for this day."
+            t("exerciseModal.error"),
+            t("exerciseModal.exerciseExists")
           );
           return;
         }
@@ -188,7 +191,7 @@ export default function ExerciseModal({
     } catch (error) {
       console.error("Error saving exercise:", error);
       Alert.alert(
-        "Error",
+        t("exerciseModal.error"),
         error instanceof Error
           ? error.message
           : "Failed to save exercise. Please try again."
@@ -211,14 +214,18 @@ export default function ExerciseModal({
 
   const getIconComponent = (option: (typeof ICON_OPTIONS)[0]) => {
     if (option.type === "image") {
-      return <SvgIcon name={option.name} color="#3b82f6" size={28} />;
+      return <SvgIcon name={option.name} color={theme.primary} size={28} />;
     } else {
       const iconFamilies = { Ionicons, MaterialIcons, FontAwesome5 };
       const IconFamily =
         iconFamilies[option.family as keyof typeof iconFamilies];
-      return <IconFamily name={option.name as any} size={28} color="#3b82f6" />;
+      return (
+        <IconFamily name={option.name as any} size={28} color={theme.primary} />
+      );
     }
   };
+
+  const styles = createStyles(theme);
 
   return (
     <Modal visible={visible} transparent animationType="slide">
@@ -226,26 +233,33 @@ export default function ExerciseModal({
         <View style={styles.modalContent}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>
-              {exercise ? "Edit Exercise" : "Add Exercise"}
+              {exercise
+                ? t("exerciseModal.editExercise")
+                : t("exerciseModal.addExercise")}
             </Text>
             <TouchableOpacity onPress={onClose}>
-              <Ionicons name="close" size={28} color="#6b7280" />
+              <Ionicons name="close" size={28} color={theme.textSecondary} />
             </TouchableOpacity>
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false}>
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Exercise Name</Text>
+              <Text style={styles.label}>
+                {t("exerciseModal.exerciseName")}
+              </Text>
               <TextInput
                 style={styles.input}
-                placeholder="e.g., Push-ups"
+                placeholder={t("exerciseModal.exerciseNamePlaceholder")}
+                placeholderTextColor={theme.textTertiary}
                 value={name}
                 onChangeText={setName}
               />
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Measurement Type</Text>
+              <Text style={styles.label}>
+                {t("exerciseModal.measurementType")}
+              </Text>
               <View style={styles.measurementTypeContainer}>
                 <TouchableOpacity
                   style={[
@@ -262,7 +276,7 @@ export default function ExerciseModal({
                         styles.measurementTypeTextSelected,
                     ]}
                   >
-                    Sets & Reps
+                    {t("exerciseModal.setsReps")}
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -280,7 +294,7 @@ export default function ExerciseModal({
                         styles.measurementTypeTextSelected,
                     ]}
                   >
-                    Time
+                    {t("exerciseModal.time")}
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -298,7 +312,7 @@ export default function ExerciseModal({
                         styles.measurementTypeTextSelected,
                     ]}
                   >
-                    Both
+                    {t("exerciseModal.both")}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -308,10 +322,11 @@ export default function ExerciseModal({
               measurementType === "both") && (
               <View style={styles.inputRow}>
                 <View style={styles.inputGroupHalf}>
-                  <Text style={styles.label}>Sets</Text>
+                  <Text style={styles.label}>{t("exerciseModal.sets")}</Text>
                   <TextInput
                     style={styles.input}
                     placeholder="3"
+                    placeholderTextColor={theme.textTertiary}
                     value={sets}
                     onChangeText={setSets}
                     keyboardType="numeric"
@@ -319,10 +334,11 @@ export default function ExerciseModal({
                 </View>
 
                 <View style={styles.inputGroupHalf}>
-                  <Text style={styles.label}>Reps</Text>
+                  <Text style={styles.label}>{t("exerciseModal.reps")}</Text>
                   <TextInput
                     style={styles.input}
                     placeholder="10"
+                    placeholderTextColor={theme.textTertiary}
                     value={reps}
                     onChangeText={setReps}
                     keyboardType="numeric"
@@ -334,25 +350,33 @@ export default function ExerciseModal({
             {(measurementType === "time" || measurementType === "both") && (
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>
-                  Estimated Time (minutes:seconds)
+                  {t("exerciseModal.estimatedTime")}
                 </Text>
                 <View style={styles.inputRow}>
                   <View style={styles.inputGroupHalf}>
                     <TextInput
                       style={styles.input}
                       placeholder="MM"
+                      placeholderTextColor={theme.textTertiary}
                       value={estimatedTimeMinutes}
                       onChangeText={setEstimatedTimeMinutes}
                       keyboardType="numeric"
                     />
                   </View>
-                  <Text style={{ alignSelf: "center", marginHorizontal: 8 }}>
+                  <Text
+                    style={{
+                      alignSelf: "center",
+                      marginHorizontal: 8,
+                      color: theme.text,
+                    }}
+                  >
                     :
                   </Text>
                   <View style={styles.inputGroupHalf}>
                     <TextInput
                       style={styles.input}
                       placeholder="SS"
+                      placeholderTextColor={theme.textTertiary}
                       value={estimatedTimeSeconds}
                       onChangeText={setEstimatedTimeSeconds}
                       keyboardType="numeric"
@@ -363,7 +387,7 @@ export default function ExerciseModal({
             )}
 
             <View style={styles.iconSection}>
-              <Text style={styles.label}>Select Icon</Text>
+              <Text style={styles.label}>{t("exerciseModal.selectIcon")}</Text>
               <View style={styles.iconGrid}>
                 {ICON_OPTIONS.map((option, index) => (
                   <TouchableOpacity
@@ -394,7 +418,9 @@ export default function ExerciseModal({
               disabled={!isValid}
             >
               <Text style={styles.saveButtonText}>
-                {exercise ? "Update Exercise" : "Add Exercise"}
+                {exercise
+                  ? t("exerciseModal.updateExercise")
+                  : t("exerciseModal.addExercise")}
               </Text>
             </TouchableOpacity>
           </ScrollView>
@@ -404,116 +430,119 @@ export default function ExerciseModal({
   );
 }
 
-const styles = StyleSheet.create({
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "flex-end",
-  },
-  modalContent: {
-    backgroundColor: "#ffffff",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
-    maxHeight: "90%",
-  },
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 24,
-  },
-  modalTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#111827",
-  },
-  inputGroup: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#374151",
-    marginBottom: 8,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
-  },
-  inputRow: {
-    flexDirection: "row",
-    gap: 12,
-    marginBottom: 16,
-  },
-  inputGroupHalf: {
-    flex: 1,
-  },
-  iconSection: {
-    marginBottom: 0,
-  },
-  iconGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-  },
-  iconButton: {
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 8,
-    backgroundColor: "#f3f4f6",
-    padding: 4,
-  },
-  iconButtonSelected: {
-    backgroundColor: "#dbeafe",
-    borderWidth: 2,
-    borderColor: "#3b82f6",
-  },
-  saveButton: {
-    paddingVertical: 16,
-    borderRadius: 8,
-    backgroundColor: "#2563eb",
-    marginTop: 16,
-    marginBottom: 0,
-  },
-  saveButtonDisabled: {
-    backgroundColor: "#d1d5db",
-  },
-  saveButtonText: {
-    textAlign: "center",
-    color: "#ffffff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  measurementTypeContainer: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  measurementTypeButton: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    backgroundColor: "#f3f4f6",
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  measurementTypeButtonSelected: {
-    backgroundColor: "#dbeafe",
-    borderColor: "#3b82f6",
-  },
-  measurementTypeText: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#374151",
-    textAlign: "center",
-  },
-  measurementTypeTextSelected: {
-    color: "#3b82f6",
-  },
-});
+const createStyles = (theme: any) =>
+  StyleSheet.create({
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: theme.modalOverlay,
+      justifyContent: "flex-end",
+    },
+    modalContent: {
+      backgroundColor: theme.card,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      padding: 24,
+      maxHeight: "90%",
+    },
+    modalHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 24,
+    },
+    modalTitle: {
+      fontSize: 24,
+      fontWeight: "bold",
+      color: theme.text,
+    },
+    inputGroup: {
+      marginBottom: 16,
+    },
+    label: {
+      fontSize: 14,
+      fontWeight: "500",
+      color: theme.text,
+      marginBottom: 8,
+    },
+    input: {
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: 8,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      fontSize: 16,
+      color: theme.text,
+      backgroundColor: theme.background,
+    },
+    inputRow: {
+      flexDirection: "row",
+      gap: 12,
+      marginBottom: 16,
+    },
+    inputGroupHalf: {
+      flex: 1,
+    },
+    iconSection: {
+      marginBottom: 0,
+    },
+    iconGrid: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+    },
+    iconButton: {
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: 8,
+      backgroundColor: theme.iconBackground,
+      padding: 4,
+    },
+    iconButtonSelected: {
+      backgroundColor: theme.primaryLight,
+      borderWidth: 2,
+      borderColor: theme.primary,
+    },
+    saveButton: {
+      paddingVertical: 16,
+      borderRadius: 8,
+      backgroundColor: theme.primary,
+      marginTop: 16,
+      marginBottom: 0,
+    },
+    saveButtonDisabled: {
+      backgroundColor: theme.buttonDisabled,
+    },
+    saveButtonText: {
+      textAlign: "center",
+      color: "#ffffff",
+      fontSize: 16,
+      fontWeight: "600",
+    },
+    measurementTypeContainer: {
+      flexDirection: "row",
+      gap: 8,
+    },
+    measurementTypeButton: {
+      flex: 1,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      borderRadius: 8,
+      backgroundColor: theme.iconBackground,
+      borderWidth: 1,
+      borderColor: theme.border,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    measurementTypeButtonSelected: {
+      backgroundColor: theme.primaryLight,
+      borderColor: theme.primary,
+    },
+    measurementTypeText: {
+      fontSize: 14,
+      fontWeight: "500",
+      color: theme.text,
+      textAlign: "center",
+    },
+    measurementTypeTextSelected: {
+      color: theme.primary,
+    },
+  });

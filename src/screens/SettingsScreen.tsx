@@ -3,15 +3,18 @@ import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Alert,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { useTheme } from "../contexts/ThemeContext";
 import { getDatabase } from "../database/init";
 import { useUserStore } from "../store/userStore";
 import {
@@ -23,9 +26,15 @@ import {
 } from "../types";
 
 export default function SettingsScreen() {
-  const { userInfo, resetUserData } = useUserStore();
+  const { t, i18n } = useTranslation();
+  const { userInfo, resetUserData, updateLanguage } = useUserStore();
+  const { theme, isDark, toggleTheme } = useTheme();
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+
+  const handleLanguageChange = async (language: string) => {
+    await updateLanguage(language);
+  };
 
   const handleExport = async () => {
     try {
@@ -67,10 +76,10 @@ export default function SettingsScreen() {
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(filePath);
       } else {
-        Alert.alert("Success", `Data exported to ${filePath}`);
+        Alert.alert(t("settings.success"), t("settings.dataExported"));
       }
     } catch (error) {
-      Alert.alert("Error", "Failed to export data");
+      Alert.alert(t("settings.error"), t("settings.exportError"));
       console.error(error);
     } finally {
       setIsExporting(false);
@@ -97,32 +106,28 @@ export default function SettingsScreen() {
       const importData: ExportData = JSON.parse(fileContent);
 
       if (!importData.version) {
-        Alert.alert("Error", "Invalid backup file");
+        Alert.alert(t("exerciseModal.error"), t("settings.invalidBackup"));
         setIsImporting(false);
         return;
       }
 
-      Alert.alert(
-        "Confirm Import",
-        "This will replace all existing data. Continue?",
-        [
-          {
-            text: "Cancel",
-            style: "cancel",
-            onPress: () => setIsImporting(false),
+      Alert.alert(t("settings.importConfirm"), t("settings.importMessage"), [
+        {
+          text: t("common.cancel"),
+          style: "cancel",
+          onPress: () => setIsImporting(false),
+        },
+        {
+          text: t("settings.import"),
+          style: "destructive",
+          onPress: async () => {
+            await performImport(importData);
+            setIsImporting(false);
           },
-          {
-            text: "Import",
-            style: "destructive",
-            onPress: async () => {
-              await performImport(importData);
-              setIsImporting(false);
-            },
-          },
-        ]
-      );
+        },
+      ]);
     } catch (error) {
-      Alert.alert("Error", "Failed to import data");
+      Alert.alert(t("exerciseModal.error"), t("settings.importError"));
       console.error(error);
       setIsImporting(false);
     }
@@ -140,13 +145,15 @@ export default function SettingsScreen() {
 
     if (data.user_info) {
       await db.runAsync(
-        "INSERT INTO user_info (full_name, age, height, weight, created_at) VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO user_info (full_name, age, height, weight, created_at, language, theme) VALUES (?, ?, ?, ?, ?, ?, ?)",
         [
           data.user_info.full_name,
           data.user_info.age,
           data.user_info.height,
           data.user_info.weight,
           data.user_info.created_at,
+          data.user_info.language || "en",
+          data.user_info.theme || "light",
         ]
       );
     }
@@ -195,54 +202,51 @@ export default function SettingsScreen() {
       );
     }
 
-    Alert.alert(
-      "Success",
-      "Data imported successfully. Please restart the app."
-    );
+    Alert.alert(t("settings.success"), t("settings.dataImported"));
   };
 
   const handleReset = () => {
-    Alert.alert(
-      "Reset App",
-      "This will permanently delete all your data. This action cannot be undone.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete All Data",
-          style: "destructive",
-          onPress: async () => {
+    Alert.alert(t("settings.resetConfirm"), t("settings.resetMessage"), [
+      { text: t("common.cancel"), style: "cancel" },
+      {
+        text: t("settings.deleteAllData"),
+        style: "destructive",
+        onPress: async () => {
+          try {
             await resetUserData();
-            Alert.alert(
-              "Success",
-              "All data has been deleted. The app will restart."
-            );
-          },
+            Alert.alert(t("settings.success"), t("settings.allDataDeleted"));
+          } catch (error) {
+            console.error("Error resetting app:", error);
+            Alert.alert(t("settings.error"), t("settings.resetError"));
+          }
         },
-      ]
-    );
+      },
+    ]);
   };
+
+  const styles = createStyles(theme);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>User Profile</Text>
+        <Text style={styles.cardTitle}>{t("settings.userProfile")}</Text>
 
         {userInfo && (
           <View style={styles.profileContainer}>
             <View style={styles.profileRow}>
-              <Text style={styles.profileLabel}>Name</Text>
+              <Text style={styles.profileLabel}>{t("settings.name")}</Text>
               <Text style={styles.profileValue}>{userInfo.full_name}</Text>
             </View>
             <View style={styles.profileRow}>
-              <Text style={styles.profileLabel}>Age</Text>
+              <Text style={styles.profileLabel}>{t("settings.age")}</Text>
               <Text style={styles.profileValue}>{userInfo.age}</Text>
             </View>
             <View style={styles.profileRow}>
-              <Text style={styles.profileLabel}>Height</Text>
+              <Text style={styles.profileLabel}>{t("settings.height")}</Text>
               <Text style={styles.profileValue}>{userInfo.height} cm</Text>
             </View>
             <View style={styles.profileRow}>
-              <Text style={styles.profileLabel}>Weight</Text>
+              <Text style={styles.profileLabel}>{t("settings.weight")}</Text>
               <Text style={styles.profileValue}>{userInfo.weight} kg</Text>
             </View>
           </View>
@@ -250,7 +254,68 @@ export default function SettingsScreen() {
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Data Management</Text>
+        <Text style={styles.cardTitle}>{t("settings.preferences")}</Text>
+
+        <View style={styles.preferenceSection}>
+          <View style={styles.preferenceRow}>
+            <Text style={styles.preferenceLabel}>{t("settings.language")}</Text>
+          </View>
+          <View style={styles.languageButtons}>
+            <TouchableOpacity
+              style={[
+                styles.languageButton,
+                i18n.language === "en" && styles.languageButtonActive,
+              ]}
+              onPress={() => handleLanguageChange("en")}
+            >
+              <Text
+                style={[
+                  styles.languageButtonText,
+                  i18n.language === "en" && styles.languageButtonTextActive,
+                ]}
+              >
+                English
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.languageButton,
+                i18n.language === "es" && styles.languageButtonActive,
+              ]}
+              onPress={() => handleLanguageChange("es")}
+            >
+              <Text
+                style={[
+                  styles.languageButtonText,
+                  i18n.language === "es" && styles.languageButtonTextActive,
+                ]}
+              >
+                Español
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <View style={styles.divider} />
+
+        <View style={styles.preferenceRow}>
+          <View>
+            <Text style={styles.preferenceLabel}>{t("settings.theme")}</Text>
+            <Text style={styles.preferenceSubLabel}>
+              {isDark ? t("settings.darkMode") : t("settings.lightMode")}
+            </Text>
+          </View>
+          <Switch
+            value={isDark}
+            onValueChange={toggleTheme}
+            trackColor={{ false: theme.borderLight, true: theme.primary }}
+            thumbColor={isDark ? theme.primaryLight : theme.card}
+          />
+        </View>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>{t("settings.dataManagement")}</Text>
 
         <TouchableOpacity
           style={styles.exportButton}
@@ -262,7 +327,9 @@ export default function SettingsScreen() {
           ) : (
             <>
               <Ionicons name="download-outline" size={20} color="#fff" />
-              <Text style={styles.exportButtonText}>Export Data</Text>
+              <Text style={styles.exportButtonText}>
+                {t("settings.exportData")}
+              </Text>
             </>
           )}
         </TouchableOpacity>
@@ -277,136 +344,176 @@ export default function SettingsScreen() {
           ) : (
             <>
               <Ionicons name="cloud-upload-outline" size={20} color="#fff" />
-              <Text style={styles.importButtonText}>Import Data</Text>
+              <Text style={styles.importButtonText}>
+                {t("settings.importData")}
+              </Text>
             </>
           )}
         </TouchableOpacity>
 
         <View style={styles.divider} />
 
-        <Text style={styles.infoText}>
-          Export your data to backup or transfer to another device. Import to
-          restore from a previous backup.
-        </Text>
+        <Text style={styles.infoText}>{t("settings.exportInfo")}</Text>
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Danger Zone</Text>
+        <Text style={styles.cardTitle}>{t("settings.dangerZone")}</Text>
 
         <TouchableOpacity style={styles.resetButton} onPress={handleReset}>
           <Ionicons name="trash-outline" size={20} color="#fff" />
-          <Text style={styles.resetButtonText}>
-            Reset App & Delete All Data
-          </Text>
+          <Text style={styles.resetButtonText}>{t("settings.resetApp")}</Text>
         </TouchableOpacity>
 
-        <Text style={styles.warningText}>
-          This will permanently delete all your data including user profile,
-          exercises, and training history. This action cannot be undone.
-        </Text>
+        <Text style={styles.warningText}>{t("settings.resetWarning")}</Text>
       </View>
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f9fafb",
-  },
-  content: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-  },
-  card: {
-    backgroundColor: "#ffffff",
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  cardTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#111827",
-    marginBottom: 16,
-  },
-  profileContainer: {
-    gap: 8,
-  },
-  profileRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  profileLabel: {
-    color: "#6b7280",
-  },
-  profileValue: {
-    fontWeight: "600",
-    color: "#111827",
-  },
-  exportButton: {
-    backgroundColor: "#2563eb",
-    paddingVertical: 16,
-    borderRadius: 8,
-    marginBottom: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-  },
-  exportButtonText: {
-    color: "#ffffff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  importButton: {
-    backgroundColor: "#16a34a",
-    paddingVertical: 16,
-    borderRadius: 8,
-    marginBottom: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-  },
-  importButtonText: {
-    color: "#ffffff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  divider: {
-    borderTopWidth: 1,
-    borderTopColor: "#e5e7eb",
-    paddingTop: 16,
-    marginTop: 8,
-  },
-  infoText: {
-    fontSize: 14,
-    color: "#6b7280",
-    marginBottom: 12,
-  },
-  resetButton: {
-    backgroundColor: "#dc2626",
-    paddingVertical: 16,
-    borderRadius: 8,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-  },
-  resetButtonText: {
-    color: "#ffffff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  warningText: {
-    fontSize: 14,
-    color: "#6b7280",
-    marginTop: 12,
-  },
-});
+const createStyles = (theme: any) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.background,
+    },
+    content: {
+      paddingHorizontal: 16,
+      paddingTop: 16,
+    },
+    card: {
+      backgroundColor: theme.card,
+      borderRadius: 8,
+      padding: 16,
+      marginBottom: 16,
+      shadowColor: theme.shadow,
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.1,
+      shadowRadius: 2,
+      elevation: 2,
+    },
+    cardTitle: {
+      fontSize: 20,
+      fontWeight: "bold",
+      color: theme.text,
+      marginBottom: 16,
+    },
+    profileContainer: {
+      gap: 8,
+    },
+    profileRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+    },
+    profileLabel: {
+      color: theme.textSecondary,
+    },
+    profileValue: {
+      fontWeight: "600",
+      color: theme.text,
+    },
+    preferenceSection: {
+      marginBottom: 16,
+    },
+    preferenceRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+    },
+    preferenceLabel: {
+      fontSize: 16,
+      fontWeight: "500",
+      color: theme.text,
+    },
+    preferenceSubLabel: {
+      fontSize: 14,
+      color: theme.textSecondary,
+      marginTop: 4,
+    },
+    languageButtons: {
+      flexDirection: "row",
+      gap: 8,
+      marginTop: 12,
+    },
+    languageButton: {
+      flex: 1,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      borderRadius: 8,
+      backgroundColor: theme.iconBackground,
+      borderWidth: 2,
+      borderColor: theme.border,
+      alignItems: "center",
+    },
+    languageButtonActive: {
+      backgroundColor: theme.primaryLight,
+      borderColor: theme.primary,
+    },
+    languageButtonText: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: theme.text,
+    },
+    languageButtonTextActive: {
+      color: theme.primary,
+    },
+    exportButton: {
+      backgroundColor: theme.primary,
+      paddingVertical: 16,
+      borderRadius: 8,
+      marginBottom: 12,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+    },
+    exportButtonText: {
+      color: "#ffffff",
+      fontSize: 16,
+      fontWeight: "600",
+    },
+    importButton: {
+      backgroundColor: theme.success,
+      paddingVertical: 16,
+      borderRadius: 8,
+      marginBottom: 12,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+    },
+    importButtonText: {
+      color: "#ffffff",
+      fontSize: 16,
+      fontWeight: "600",
+    },
+    divider: {
+      borderTopWidth: 1,
+      borderTopColor: theme.borderLight,
+      paddingTop: 16,
+      marginTop: 8,
+    },
+    infoText: {
+      fontSize: 14,
+      color: theme.textSecondary,
+      marginBottom: 12,
+    },
+    resetButton: {
+      backgroundColor: theme.errorDark,
+      paddingVertical: 16,
+      borderRadius: 8,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+    },
+    resetButtonText: {
+      color: "#ffffff",
+      fontSize: 16,
+      fontWeight: "600",
+    },
+    warningText: {
+      fontSize: 14,
+      color: theme.textSecondary,
+      marginTop: 12,
+    },
+  });

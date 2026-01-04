@@ -1,6 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import React from "react";
+import { useTranslation } from "react-i18next";
+import { useTheme } from "../contexts/ThemeContext";
 import MonthlyScreen from "../screens/MonthlyScreen";
 import MyExercisesScreen from "../screens/MyExercisesScreen";
 import SettingsScreen from "../screens/SettingsScreen";
@@ -10,14 +12,24 @@ import WeeklyScreen from "../screens/WeeklyScreen";
 const Tab = createBottomTabNavigator();
 
 export default function MainTabs() {
+  const { t } = useTranslation();
+  const { theme } = useTheme();
+
   return (
     <Tab.Navigator
-      screenOptions={{
+      screenOptions={({ navigation }) => ({
         headerStyle: { backgroundColor: "#3b82f6" },
         headerTintColor: "#fff",
         tabBarActiveTintColor: "#3b82f6",
         tabBarInactiveTintColor: "#9ca3af",
-      }}
+        tabBarStyle: {
+          backgroundColor: theme.card,
+          borderTopColor: theme.border,
+        },
+        sceneStyle: {
+          backgroundColor: theme.background,
+        },
+      })}
     >
       <Tab.Screen
         name="Today"
@@ -26,6 +38,7 @@ export default function MainTabs() {
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="today" size={size} color={color} />
           ),
+          title: t("tabs.today"),
         }}
       />
       <Tab.Screen
@@ -35,6 +48,7 @@ export default function MainTabs() {
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="calendar" size={size} color={color} />
           ),
+          title: t("tabs.weekly"),
         }}
       />
       <Tab.Screen
@@ -44,6 +58,7 @@ export default function MainTabs() {
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="calendar-outline" size={size} color={color} />
           ),
+          title: t("tabs.monthly"),
         }}
       />
       <Tab.Screen
@@ -53,6 +68,7 @@ export default function MainTabs() {
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="fitness" size={size} color={color} />
           ),
+          title: t("tabs.myExercises"),
         }}
       />
       <Tab.Screen
@@ -62,6 +78,7 @@ export default function MainTabs() {
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="settings" size={size} color={color} />
           ),
+          title: t("tabs.settings"),
         }}
       />
     </Tab.Navigator>

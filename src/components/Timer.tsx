@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Modal,
   StyleSheet,
@@ -8,9 +9,12 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useTheme } from "../contexts/ThemeContext";
 import { useExerciseStore } from "../store/exerciseStore";
 
 export default function Timer() {
+  const { t } = useTranslation();
+  const { theme } = useTheme();
   const { todayCompletion, updateElapsedTime, updateTimerStartTime } =
     useExerciseStore();
   const [isRunning, setIsRunning] = useState(false);
@@ -74,27 +78,24 @@ export default function Timer() {
       setRemainingSeconds(totalSeconds);
       setOriginalSeconds(totalSeconds);
 
-      // Update elapsed time first
       await updateElapsedTime(totalSeconds);
 
-      // Update timer start time (this might fail if column doesn't exist yet)
       try {
         await updateTimerStartTime(totalSeconds);
       } catch (error) {
         console.error("Failed to update timer start time:", error);
-        // Don't let this prevent the modal from closing
       }
 
-      // Close modal on success
       setShowEditModal(false);
     } catch (error) {
       console.error("Failed to save timer:", error);
-      // Ensure modal closes even if there's an error
       setShowEditModal(false);
     } finally {
       setIsSaving(false);
     }
   };
+
+  const styles = createStyles(theme);
 
   return (
     <>
@@ -104,14 +105,18 @@ export default function Timer() {
             <Ionicons
               name={isRunning ? "pause" : "play"}
               size={28}
-              color="#3b82f6"
+              color={theme.primary}
             />
           </TouchableOpacity>
 
           <Text style={styles.timerText}>{formatTime(remainingSeconds)}</Text>
 
           <TouchableOpacity onPress={handleEdit}>
-            <Ionicons name="create-outline" size={24} color="#6b7280" />
+            <Ionicons
+              name="create-outline"
+              size={24}
+              color={theme.textSecondary}
+            />
           </TouchableOpacity>
         </View>
       </View>
@@ -119,26 +124,28 @@ export default function Timer() {
       <Modal visible={showEditModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Edit Time</Text>
+            <Text style={styles.modalTitle}>{t("timer.editTime")}</Text>
 
             <View style={styles.modalInputRow}>
               <View style={styles.modalInputGroup}>
-                <Text style={styles.modalLabel}>Minutes</Text>
+                <Text style={styles.modalLabel}>{t("dayDetail.minutes")}</Text>
                 <TextInput
                   style={styles.modalInput}
                   value={editMinutes}
                   onChangeText={setEditMinutes}
                   keyboardType="numeric"
+                  placeholderTextColor={theme.textTertiary}
                 />
               </View>
 
               <View style={styles.modalInputGroup}>
-                <Text style={styles.modalLabel}>Seconds</Text>
+                <Text style={styles.modalLabel}>{t("dayDetail.seconds")}</Text>
                 <TextInput
                   style={styles.modalInput}
                   value={editSeconds}
                   onChangeText={setEditSeconds}
                   keyboardType="numeric"
+                  placeholderTextColor={theme.textTertiary}
                 />
               </View>
             </View>
@@ -148,7 +155,7 @@ export default function Timer() {
                 style={styles.modalCancelButton}
                 onPress={() => setShowEditModal(false)}
               >
-                <Text style={styles.modalCancelText}>Cancel</Text>
+                <Text style={styles.modalCancelText}>{t("common.cancel")}</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -157,7 +164,7 @@ export default function Timer() {
                 disabled={isSaving}
               >
                 <Text style={styles.modalSaveText}>
-                  {isSaving ? "Saving..." : "Save"}
+                  {isSaving ? t("common.saving") : t("common.save")}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -168,95 +175,100 @@ export default function Timer() {
   );
 }
 
-const styles = StyleSheet.create({
-  timerContainer: {
-    position: "absolute",
-    bottom: 80,
-    left: 0,
-    right: 0,
-    alignItems: "center",
-  },
-  timerContent: {
-    backgroundColor: "#ffffff",
-    borderRadius: 50,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 5,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 16,
-  },
-  timerText: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#111827",
-    minWidth: 80,
-    textAlign: "center",
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  modalContent: {
-    backgroundColor: "#ffffff",
-    borderRadius: 8,
-    padding: 24,
-    width: 320,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginBottom: 16,
-  },
-  modalInputRow: {
-    flexDirection: "row",
-    gap: 12,
-    marginBottom: 24,
-  },
-  modalInputGroup: {
-    flex: 1,
-  },
-  modalLabel: {
-    fontSize: 14,
-    color: "#6b7280",
-    marginBottom: 4,
-  },
-  modalInput: {
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  modalButtonRow: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  modalCancelButton: {
-    flex: 1,
-    paddingVertical: 12,
-    backgroundColor: "#e5e7eb",
-    borderRadius: 4,
-  },
-  modalCancelText: {
-    textAlign: "center",
-    fontWeight: "600",
-  },
-  modalSaveButton: {
-    flex: 1,
-    paddingVertical: 12,
-    backgroundColor: "#2563eb",
-    borderRadius: 4,
-  },
-  modalSaveText: {
-    textAlign: "center",
-    color: "#ffffff",
-    fontWeight: "600",
-  },
-});
+const createStyles = (theme: any) =>
+  StyleSheet.create({
+    timerContainer: {
+      position: "absolute",
+      bottom: 80,
+      left: 0,
+      right: 0,
+      alignItems: "center",
+    },
+    timerContent: {
+      backgroundColor: theme.card,
+      borderRadius: 50,
+      shadowColor: theme.shadow,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.25,
+      shadowRadius: 8,
+      elevation: 5,
+      paddingHorizontal: 24,
+      paddingVertical: 12,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 16,
+    },
+    timerText: {
+      fontSize: 24,
+      fontWeight: "bold",
+      color: theme.text,
+      minWidth: 80,
+      textAlign: "center",
+    },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: theme.modalOverlay,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    modalContent: {
+      backgroundColor: theme.card,
+      borderRadius: 8,
+      padding: 24,
+      width: 320,
+    },
+    modalTitle: {
+      fontSize: 20,
+      fontWeight: "bold",
+      marginBottom: 16,
+      color: theme.text,
+    },
+    modalInputRow: {
+      flexDirection: "row",
+      gap: 12,
+      marginBottom: 24,
+    },
+    modalInputGroup: {
+      flex: 1,
+    },
+    modalLabel: {
+      fontSize: 14,
+      color: theme.textSecondary,
+      marginBottom: 4,
+    },
+    modalInput: {
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: 4,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      color: theme.text,
+      backgroundColor: theme.background,
+    },
+    modalButtonRow: {
+      flexDirection: "row",
+      gap: 12,
+    },
+    modalCancelButton: {
+      flex: 1,
+      paddingVertical: 12,
+      backgroundColor: theme.borderLight,
+      borderRadius: 4,
+    },
+    modalCancelText: {
+      textAlign: "center",
+      fontWeight: "600",
+      color: theme.text,
+    },
+    modalSaveButton: {
+      flex: 1,
+      paddingVertical: 12,
+      backgroundColor: theme.primary,
+      borderRadius: 4,
+    },
+    modalSaveText: {
+      textAlign: "center",
+      color: "#ffffff",
+      fontWeight: "600",
+    },
+  });

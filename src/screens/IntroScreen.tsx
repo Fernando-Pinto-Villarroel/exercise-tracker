@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   KeyboardAvoidingView,
   Platform,
@@ -9,10 +10,13 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useTheme } from "../contexts/ThemeContext";
 import { useUserStore } from "../store/userStore";
 
 export default function IntroScreen() {
+  const { t } = useTranslation();
   const { saveUserInfo } = useUserStore();
+  const { theme } = useTheme();
   const [fullName, setFullName] = useState("");
   const [age, setAge] = useState("");
   const [height, setHeight] = useState("");
@@ -28,10 +32,14 @@ export default function IntroScreen() {
       age: parseInt(age),
       height: parseFloat(height),
       weight: parseFloat(weight),
+      language: "en",
+      theme: "light",
     });
   };
 
   const isValid = fullName.trim() && age && height && weight;
+
+  const styles = createStyles(theme);
 
   return (
     <KeyboardAvoidingView
@@ -40,27 +48,27 @@ export default function IntroScreen() {
     >
       <ScrollView style={styles.scrollView}>
         <View style={styles.content}>
-          <Text style={styles.title}>Welcome to Exercise Tracker</Text>
-          <Text style={styles.subtitle}>
-            Let&apos;s get started by setting up your profile
-          </Text>
+          <Text style={styles.title}>{t("intro.title")}</Text>
+          <Text style={styles.subtitle}>{t("intro.subtitle")}</Text>
 
           <View style={styles.formContainer}>
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Full Name</Text>
+              <Text style={styles.label}>{t("intro.fullName")}</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Enter your full name"
+                placeholder={t("intro.fullNamePlaceholder")}
+                placeholderTextColor={theme.textTertiary}
                 value={fullName}
                 onChangeText={setFullName}
               />
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Age</Text>
+              <Text style={styles.label}>{t("intro.age")}</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Enter your age"
+                placeholder={t("intro.agePlaceholder")}
+                placeholderTextColor={theme.textTertiary}
                 value={age}
                 onChangeText={setAge}
                 keyboardType="numeric"
@@ -68,10 +76,11 @@ export default function IntroScreen() {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Height (cm)</Text>
+              <Text style={styles.label}>{t("intro.height")}</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Enter your height"
+                placeholder={t("intro.heightPlaceholder")}
+                placeholderTextColor={theme.textTertiary}
                 value={height}
                 onChangeText={setHeight}
                 keyboardType="decimal-pad"
@@ -79,10 +88,11 @@ export default function IntroScreen() {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Weight (kg)</Text>
+              <Text style={styles.label}>{t("intro.weight")}</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Enter your weight"
+                placeholder={t("intro.weightPlaceholder")}
+                placeholderTextColor={theme.textTertiary}
                 value={weight}
                 onChangeText={setWeight}
                 keyboardType="decimal-pad"
@@ -95,7 +105,7 @@ export default function IntroScreen() {
             onPress={handleSubmit}
             disabled={!isValid}
           >
-            <Text style={styles.buttonText}>Continue</Text>
+            <Text style={styles.buttonText}>{t("intro.continue")}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -103,64 +113,67 @@ export default function IntroScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  scrollView: {
-    flex: 1,
-    backgroundColor: "#ffffff",
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 80,
-    paddingBottom: 40,
-  },
-  title: {
-    fontSize: 30,
-    fontWeight: "bold",
-    color: "#111827",
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: "#6b7280",
-    marginBottom: 40,
-  },
-  formContainer: {
-    gap: 12,
-  },
-  inputGroup: {
-    marginBottom: 12,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#374151",
-    marginBottom: 8,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
-  },
-  button: {
-    marginTop: 40,
-    paddingVertical: 16,
-    borderRadius: 8,
-    backgroundColor: "#2563eb",
-  },
-  buttonDisabled: {
-    backgroundColor: "#d1d5db",
-  },
-  buttonText: {
-    textAlign: "center",
-    color: "#ffffff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-});
+const createStyles = (theme: any) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+    },
+    scrollView: {
+      flex: 1,
+      backgroundColor: theme.background,
+    },
+    content: {
+      flex: 1,
+      paddingHorizontal: 24,
+      paddingTop: 80,
+      paddingBottom: 40,
+    },
+    title: {
+      fontSize: 30,
+      fontWeight: "bold",
+      color: theme.text,
+      marginBottom: 8,
+    },
+    subtitle: {
+      fontSize: 16,
+      color: theme.textSecondary,
+      marginBottom: 40,
+    },
+    formContainer: {
+      gap: 12,
+    },
+    inputGroup: {
+      marginBottom: 12,
+    },
+    label: {
+      fontSize: 14,
+      fontWeight: "500",
+      color: theme.text,
+      marginBottom: 8,
+    },
+    input: {
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: 8,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      fontSize: 16,
+      color: theme.text,
+      backgroundColor: theme.card,
+    },
+    button: {
+      marginTop: 40,
+      paddingVertical: 16,
+      borderRadius: 8,
+      backgroundColor: theme.primary,
+    },
+    buttonDisabled: {
+      backgroundColor: theme.buttonDisabled,
+    },
+    buttonText: {
+      textAlign: "center",
+      color: "#ffffff",
+      fontSize: 16,
+      fontWeight: "600",
+    },
+  });

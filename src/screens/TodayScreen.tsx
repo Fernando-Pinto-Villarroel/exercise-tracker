@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import React from "react";
+import { useTranslation } from "react-i18next";
 import {
   ScrollView,
   StyleSheet,
@@ -10,9 +11,12 @@ import {
 } from "react-native";
 import ExerciseList from "../components/ExerciseList";
 import Timer from "../components/Timer";
+import { useTheme } from "../contexts/ThemeContext";
 import { useExerciseStore } from "../store/exerciseStore";
 
 export default function TodayScreen() {
+  const { t } = useTranslation();
+  const { theme } = useTheme();
   const {
     todaySnapshot,
     todayCompletion,
@@ -30,7 +34,6 @@ export default function TodayScreen() {
   );
 
   const initializeToday = async () => {
-    // Ensure weekly plan is loaded first
     await loadWeeklyPlan();
     await createTodaySnapshot();
   };
@@ -41,6 +44,8 @@ export default function TodayScreen() {
 
   const isCompleted = todayCompletion?.is_completed || false;
 
+  const styles = createStyles(theme);
+
   return (
     <View style={styles.container}>
       <ScrollView
@@ -49,10 +54,14 @@ export default function TodayScreen() {
       >
         {todaySnapshot.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <Ionicons name="fitness-outline" size={64} color="#9ca3af" />
-            <Text style={styles.emptyText}>No exercises planned for today</Text>
+            <Ionicons
+              name="fitness-outline"
+              size={64}
+              color={theme.textTertiary}
+            />
+            <Text style={styles.emptyText}>{t("today.noExercises")}</Text>
             <Text style={styles.emptySubtext}>
-              Add exercises in &quot;My Exercises&quot; tab
+              {t("today.addExercisesHint")}
             </Text>
           </View>
         ) : (
@@ -67,7 +76,7 @@ export default function TodayScreen() {
           onPress={handleToggleCompletion}
         >
           <Text style={styles.completeButtonText}>
-            {isCompleted ? "Mark as Undone" : "Mark as Done"}
+            {isCompleted ? t("today.markAsUndone") : t("today.markAsDone")}
           </Text>
         </TouchableOpacity>
       </ScrollView>
@@ -77,47 +86,48 @@ export default function TodayScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f9fafb",
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 128,
-  },
-  emptyContainer: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 80,
-  },
-  emptyText: {
-    color: "#6b7280",
-    fontSize: 18,
-    marginTop: 16,
-  },
-  emptySubtext: {
-    color: "#9ca3af",
-    fontSize: 14,
-    marginTop: 8,
-  },
-  completeButton: {
-    marginTop: 24,
-    paddingVertical: 16,
-    borderRadius: 8,
-    backgroundColor: "#2563eb",
-  },
-  completeButtonDone: {
-    backgroundColor: "#16a34a",
-  },
-  completeButtonText: {
-    textAlign: "center",
-    color: "#ffffff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-});
+const createStyles = (theme: any) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.background,
+    },
+    scrollView: {
+      flex: 1,
+    },
+    scrollContent: {
+      paddingHorizontal: 16,
+      paddingTop: 16,
+      paddingBottom: 128,
+    },
+    emptyContainer: {
+      alignItems: "center",
+      justifyContent: "center",
+      paddingVertical: 80,
+    },
+    emptyText: {
+      color: theme.textSecondary,
+      fontSize: 18,
+      marginTop: 16,
+    },
+    emptySubtext: {
+      color: theme.textTertiary,
+      fontSize: 14,
+      marginTop: 8,
+    },
+    completeButton: {
+      marginTop: 24,
+      paddingVertical: 16,
+      borderRadius: 8,
+      backgroundColor: theme.primary,
+    },
+    completeButtonDone: {
+      backgroundColor: theme.success,
+    },
+    completeButtonText: {
+      textAlign: "center",
+      color: "#ffffff",
+      fontSize: 16,
+      fontWeight: "600",
+    },
+  });

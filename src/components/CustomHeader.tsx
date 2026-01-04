@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useTheme } from "../contexts/ThemeContext";
 
 interface CustomHeaderProps {
   title: string;
@@ -13,6 +14,9 @@ export default function CustomHeader({
   showBackButton = true,
 }: CustomHeaderProps) {
   const navigation = useNavigation();
+  const { theme } = useTheme();
+
+  const styles = createStyles(theme);
 
   return (
     <View style={styles.headerContainer}>
@@ -21,7 +25,7 @@ export default function CustomHeader({
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="chevron-back" size={24} color="#fff" />
+          <Ionicons name="chevron-back" size={24} color={theme.headerText} />
         </TouchableOpacity>
       )}
       <Text style={styles.headerTitle}>{title}</Text>
@@ -30,26 +34,27 @@ export default function CustomHeader({
   );
 }
 
-const styles = StyleSheet.create({
-  headerContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: "#c2c3c5ff",
-    height: 50,
-    paddingHorizontal: 16,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  headerTitle: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "bold",
-    textAlign: "center",
-    flex: 1,
-  },
-});
+const createStyles = (theme: any) =>
+  StyleSheet.create({
+    headerContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      backgroundColor: theme.headerBackground,
+      height: 50,
+      paddingHorizontal: 16,
+    },
+    backButton: {
+      width: 40,
+      height: 40,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    headerTitle: {
+      color: theme.headerText,
+      fontSize: 18,
+      fontWeight: "bold",
+      textAlign: "center",
+      flex: 1,
+    },
+  });

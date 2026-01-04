@@ -12,7 +12,9 @@ export async function initDatabase() {
       age INTEGER NOT NULL,
       height REAL NOT NULL,
       weight REAL NOT NULL,
-      created_at TEXT NOT NULL
+      created_at TEXT NOT NULL,
+      language TEXT DEFAULT 'en',
+      theme TEXT DEFAULT 'light'
     );
 
     CREATE TABLE IF NOT EXISTS weekly_plan (
@@ -50,6 +52,8 @@ export async function initDatabase() {
     );
   `);
 
+  // await addMissingColumns();
+
   return db;
 }
 
@@ -57,49 +61,56 @@ export function getDatabase() {
   return db;
 }
 
-// Add column if it doesn't exist for existing databases
 export async function addMissingColumns() {
   try {
     await db.execAsync(`
       ALTER TABLE daily_completion ADD COLUMN timer_start_seconds INTEGER;
     `);
   } catch (error) {
-    // Column already exists or other error - ignore
-    console.log("Column addition result:", (error as Error).message);
+    console.log("Column timer_start_seconds result:", (error as Error).message);
   }
 
-  // Add estimated_time column to weekly_plan if it doesn't exist
   try {
     await db.execAsync(`
       ALTER TABLE weekly_plan ADD COLUMN estimated_time INTEGER;
     `);
   } catch (error) {
-    // Column already exists or other error - ignore
     console.log(
       "Weekly plan estimated_time addition result:",
       (error as Error).message
     );
   }
 
-  // Add estimated_time column to daily_snapshot if it doesn't exist
   try {
     await db.execAsync(`
       ALTER TABLE daily_snapshot ADD COLUMN estimated_time INTEGER;
     `);
   } catch (error) {
-    // Column already exists or other error - ignore
     console.log(
       "Daily snapshot estimated_time addition result:",
       (error as Error).message
     );
   }
 
-  // Fix daily_snapshot unique constraint and update schema
   try {
-    // Check if the table has the wrong schema
+    await db.execAsync(`
+      ALTER TABLE user_info ADD COLUMN language TEXT DEFAULT 'en';
+    `);
+  } catch (error) {
+    console.log("User language column result:", (error as Error).message);
+  }
+
+  try {
+    await db.execAsync(`
+      ALTER TABLE user_info ADD COLUMN theme TEXT DEFAULT 'light';
+    `);
+  } catch (error) {
+    console.log("User theme column result:", (error as Error).message);
+  }
+
+  try {
     const result = await db.getFirstAsync("PRAGMA table_info(daily_snapshot)");
     if (result) {
-      // Drop and recreate with new schema
       await db.execAsync(`
         DROP TABLE daily_snapshot;
         CREATE TABLE daily_snapshot (

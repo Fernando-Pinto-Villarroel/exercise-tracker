@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   ScrollView,
   StyleSheet,
@@ -9,7 +10,9 @@ import {
   View,
 } from "react-native";
 import CustomHeader from "../components/CustomHeader";
+import { useTheme } from "../contexts/ThemeContext";
 import { getDatabase } from "../database/init";
+import i18n from "../i18n";
 import { useExerciseStore } from "../store/exerciseStore";
 import { DailyCompletion } from "../types";
 import DayDetailScreen from "./DayDetailScreen";
@@ -18,6 +21,8 @@ import MonthlyStatsScreen from "./MonthlyStatsScreen";
 const Stack = createNativeStackNavigator();
 
 function MonthlyOverview({ navigation }: any) {
+  const { t } = useTranslation();
+  const { theme } = useTheme();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [monthData, setMonthData] = useState<Record<string, DailyCompletion>>(
     {}
@@ -106,15 +111,16 @@ function MonthlyOverview({ navigation }: any) {
     const localDate = new Date(today.getTime() - timezoneOffset);
     const targetDate = new Date(dateStr + "T00:00:00");
 
-    // Only disable dates that are strictly after today (tomorrow and beyond)
     return targetDate > localDate && !isToday(dateStr);
   };
 
-  const monthName = currentMonth.toLocaleDateString("en-US", {
+  const monthName = currentMonth.toLocaleDateString(i18n.language, {
     month: "long",
     year: "numeric",
   });
   const calendarDays = getCalendarDays();
+
+  const styles = createStyles(theme);
 
   return (
     <View style={styles.container}>
@@ -125,20 +131,32 @@ function MonthlyOverview({ navigation }: any) {
         <View style={styles.card}>
           <View style={styles.monthHeader}>
             <TouchableOpacity onPress={previousMonth}>
-              <Ionicons name="chevron-back" size={24} color="#3b82f6" />
+              <Ionicons name="chevron-back" size={24} color={theme.primary} />
             </TouchableOpacity>
 
             <Text style={styles.monthTitle}>{monthName.toString()}</Text>
 
             <TouchableOpacity onPress={nextMonth}>
-              <Ionicons name="chevron-forward" size={24} color="#3b82f6" />
+              <Ionicons
+                name="chevron-forward"
+                size={24}
+                color={theme.primary}
+              />
             </TouchableOpacity>
           </View>
 
           <View style={styles.weekDaysRow}>
-            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-              <View key={day} style={styles.weekDay}>
-                <Text style={styles.weekDayText}>{day.toString()}</Text>
+            {[
+              t("myExercises.days.sunday"),
+              t("myExercises.days.monday"),
+              t("myExercises.days.tuesday"),
+              t("myExercises.days.wednesday"),
+              t("myExercises.days.thursday"),
+              t("myExercises.days.friday"),
+              t("myExercises.days.saturday"),
+            ].map((day, index) => (
+              <View key={index} style={styles.weekDay}>
+                <Text style={styles.weekDayText}>{day.substring(0, 3)}</Text>
               </View>
             ))}
           </View>
@@ -194,7 +212,9 @@ function MonthlyOverview({ navigation }: any) {
             })
           }
         >
-          <Text style={styles.statsButtonText}>View Monthly Statistics</Text>
+          <Text style={styles.statsButtonText}>
+            {t("monthly.viewMonthlyStats")}
+          </Text>
         </TouchableOpacity>
       </ScrollView>
     </View>
@@ -202,17 +222,25 @@ function MonthlyOverview({ navigation }: any) {
 }
 
 export default function MonthlyScreen() {
+  const { theme } = useTheme();
+  const { t } = useTranslation();
+
   return (
     <Stack.Navigator
       screenOptions={{
         headerStyle: {
-          backgroundColor: "#3b82f6",
+          backgroundColor: theme.headerBackground,
         },
-        headerTintColor: "#fff",
+        headerTintColor: theme.headerText,
         headerTitleStyle: {
           fontWeight: "bold",
         },
         headerTitleAlign: "center",
+        contentStyle: {
+          backgroundColor: theme.background,
+        },
+        animation: "none",
+        presentation: "card",
       }}
     >
       <Stack.Screen
@@ -224,115 +252,116 @@ export default function MonthlyScreen() {
         name="DayDetail"
         component={DayDetailScreen}
         options={{
-          title: "Day Details",
-          header: () => <CustomHeader title="Day Details" />,
+          title: t("dayDetail.title"),
+          header: () => <CustomHeader title={t("dayDetail.title")} />,
         }}
       />
       <Stack.Screen
         name="MonthlyStats"
         component={MonthlyStatsScreen}
         options={{
-          title: "Monthly Statistics",
-          header: () => <CustomHeader title="Monthly Statistics" />,
+          title: t("monthly.monthlyOverview"),
+          header: () => <CustomHeader title={t("monthly.monthlyOverview")} />,
         }}
       />
     </Stack.Navigator>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f9fafb",
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-  },
-  card: {
-    backgroundColor: "#ffffff",
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  monthHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  monthTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#111827",
-  },
-  weekDaysRow: {
-    flexDirection: "row",
-    marginBottom: 8,
-  },
-  weekDay: {
-    flex: 1,
-    alignItems: "center",
-  },
-  weekDayText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#6b7280",
-  },
-  calendarGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-  },
-  calendarDay: {
-    width: "14.28%",
-    aspectRatio: 1,
-    padding: 4,
-  },
-  dayContent: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 4,
-    backgroundColor: "#f9fafb",
-  },
-  dayContentToday: {
-    backgroundColor: "#dbeafe",
-    borderWidth: 2,
-    borderColor: "#3b82f6",
-  },
-  dayContentDisabled: {
-    backgroundColor: "#f3f4f6",
-    opacity: 0.6,
-  },
-  dayNumber: {
-    fontSize: 14,
-    color: "#111827",
-  },
-  dayNumberDisabled: {
-    color: "#9ca3af",
-  },
-  dayNumberToday: {
-    fontWeight: "bold",
-    color: "#2563eb",
-  },
-  statsButton: {
-    backgroundColor: "#2563eb",
-    paddingVertical: 16,
-    borderRadius: 8,
-    marginBottom: 24,
-  },
-  statsButtonText: {
-    textAlign: "center",
-    color: "#ffffff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-});
+const createStyles = (theme: any) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.background,
+    },
+    scrollView: {
+      flex: 1,
+    },
+    scrollContent: {
+      paddingHorizontal: 16,
+      paddingTop: 16,
+    },
+    card: {
+      backgroundColor: theme.card,
+      borderRadius: 8,
+      padding: 16,
+      marginBottom: 16,
+      shadowColor: theme.shadow,
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.1,
+      shadowRadius: 2,
+      elevation: 2,
+    },
+    monthHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 16,
+    },
+    monthTitle: {
+      fontSize: 18,
+      fontWeight: "bold",
+      color: theme.text,
+    },
+    weekDaysRow: {
+      flexDirection: "row",
+      marginBottom: 8,
+    },
+    weekDay: {
+      flex: 1,
+      alignItems: "center",
+    },
+    weekDayText: {
+      fontSize: 12,
+      fontWeight: "600",
+      color: theme.textSecondary,
+    },
+    calendarGrid: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+    },
+    calendarDay: {
+      width: "14.28%",
+      aspectRatio: 1,
+      padding: 4,
+    },
+    dayContent: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: 4,
+      backgroundColor: theme.background,
+    },
+    dayContentToday: {
+      backgroundColor: theme.primaryLight,
+      borderWidth: 2,
+      borderColor: theme.primary,
+    },
+    dayContentDisabled: {
+      backgroundColor: theme.background,
+      opacity: 0.6,
+    },
+    dayNumber: {
+      fontSize: 14,
+      color: theme.text,
+    },
+    dayNumberDisabled: {
+      color: theme.textTertiary,
+    },
+    dayNumberToday: {
+      fontWeight: "bold",
+      color: theme.primary,
+    },
+    statsButton: {
+      backgroundColor: theme.primary,
+      paddingVertical: 16,
+      borderRadius: 8,
+      marginBottom: 24,
+    },
+    statsButtonText: {
+      textAlign: "center",
+      color: "#ffffff",
+      fontSize: 16,
+      fontWeight: "600",
+    },
+  });

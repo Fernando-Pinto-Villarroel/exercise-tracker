@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { useTheme } from "../contexts/ThemeContext";
 import { getDatabase } from "../database/init";
 import { DailyCompletion, DailySnapshot } from "../types";
 
@@ -10,6 +12,8 @@ interface ExerciseStats {
 }
 
 export default function MonthlyStatsScreen({ route }: any) {
+  const { t } = useTranslation();
+  const { theme } = useTheme();
   const { month } = route.params;
   const [stats, setStats] = useState<{
     daysCompleted: number;
@@ -58,7 +62,6 @@ export default function MonthlyStatsScreen({ route }: any) {
         );
 
         exercises.forEach((ex) => {
-          // Only count exercises that have sets and reps defined
           if (ex.sets !== undefined && ex.reps !== undefined) {
             const existing = exerciseMap.get(ex.exercise_name);
             if (existing) {
@@ -134,21 +137,23 @@ export default function MonthlyStatsScreen({ route }: any) {
     return hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
   };
 
+  const styles = createStyles(theme);
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Monthly Overview</Text>
+        <Text style={styles.cardTitle}>{t("monthly.monthlyOverview")}</Text>
 
         <View style={styles.statsContainer}>
           <View style={styles.statRow}>
-            <Text style={styles.statLabel}>Days Completed</Text>
+            <Text style={styles.statLabel}>{t("weekly.daysCompleted")}</Text>
             <Text style={styles.statValue}>
               {stats.daysCompleted} / {stats.totalDays}
             </Text>
           </View>
 
           <View style={styles.statRow}>
-            <Text style={styles.statLabel}>Completion Rate</Text>
+            <Text style={styles.statLabel}>{t("monthly.completionRate")}</Text>
             <Text style={styles.statValue}>
               {stats.totalDays > 0
                 ? Math.round((stats.daysCompleted / stats.totalDays) * 100)
@@ -158,25 +163,31 @@ export default function MonthlyStatsScreen({ route }: any) {
           </View>
 
           <View style={styles.statRow}>
-            <Text style={styles.statLabel}>Total Training Time</Text>
+            <Text style={styles.statLabel}>
+              {t("weekly.totalTrainingTime")}
+            </Text>
             <Text style={styles.statValue}>{formatTime(stats.totalTime)}</Text>
           </View>
 
           <View style={styles.statRow}>
-            <Text style={styles.statLabel}>Longest Streak</Text>
-            <Text style={styles.statValue}>{stats.longestStreak} days</Text>
+            <Text style={styles.statLabel}>{t("monthly.longestStreak")}</Text>
+            <Text style={styles.statValue}>
+              {stats.longestStreak} {t("monthly.days")}
+            </Text>
           </View>
 
           <View style={styles.statRow}>
-            <Text style={styles.statLabel}>Current Streak</Text>
-            <Text style={styles.statValue}>{stats.currentStreak} days</Text>
+            <Text style={styles.statLabel}>{t("monthly.currentStreak")}</Text>
+            <Text style={styles.statValue}>
+              {stats.currentStreak} {t("monthly.days")}
+            </Text>
           </View>
         </View>
       </View>
 
       {stats.exerciseStats.length > 0 && (
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Exercise Breakdown</Text>
+          <Text style={styles.cardTitle}>{t("weekly.exerciseBreakdown")}</Text>
 
           <View style={styles.exerciseList}>
             {stats.exerciseStats.map((ex, index) => (
@@ -184,10 +195,10 @@ export default function MonthlyStatsScreen({ route }: any) {
                 <Text style={styles.exerciseName}>{ex.name}</Text>
                 <View style={styles.exerciseStatsRow}>
                   <Text style={styles.exerciseStat}>
-                    Total Sets: {ex.totalSets}
+                    {t("weekly.totalSets")}: {ex.totalSets}
                   </Text>
                   <Text style={styles.exerciseStat}>
-                    Total Reps: {ex.totalReps}
+                    {t("weekly.totalReps")}: {ex.totalReps}
                   </Text>
                 </View>
               </View>
@@ -199,65 +210,66 @@ export default function MonthlyStatsScreen({ route }: any) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f9fafb",
-  },
-  content: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-  },
-  card: {
-    backgroundColor: "#ffffff",
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  cardTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#111827",
-    marginBottom: 16,
-  },
-  statsContainer: {
-    gap: 12,
-  },
-  statRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  statLabel: {
-    color: "#6b7280",
-  },
-  statValue: {
-    fontWeight: "600",
-    color: "#111827",
-  },
-  exerciseList: {
-    gap: 12,
-  },
-  exerciseItem: {
-    borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
-    paddingBottom: 12,
-  },
-  exerciseName: {
-    fontWeight: "600",
-    color: "#111827",
-    marginBottom: 4,
-  },
-  exerciseStatsRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  exerciseStat: {
-    fontSize: 14,
-    color: "#6b7280",
-  },
-});
+const createStyles = (theme: any) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.background,
+    },
+    content: {
+      paddingHorizontal: 16,
+      paddingTop: 16,
+    },
+    card: {
+      backgroundColor: theme.card,
+      borderRadius: 8,
+      padding: 16,
+      marginBottom: 16,
+      shadowColor: theme.shadow,
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.1,
+      shadowRadius: 2,
+      elevation: 2,
+    },
+    cardTitle: {
+      fontSize: 20,
+      fontWeight: "bold",
+      color: theme.text,
+      marginBottom: 16,
+    },
+    statsContainer: {
+      gap: 12,
+    },
+    statRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+    },
+    statLabel: {
+      color: theme.textSecondary,
+    },
+    statValue: {
+      fontWeight: "600",
+      color: theme.text,
+    },
+    exerciseList: {
+      gap: 12,
+    },
+    exerciseItem: {
+      borderBottomWidth: 1,
+      borderBottomColor: theme.borderLight,
+      paddingBottom: 12,
+    },
+    exerciseName: {
+      fontWeight: "600",
+      color: theme.text,
+      marginBottom: 4,
+    },
+    exerciseStatsRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+    },
+    exerciseStat: {
+      fontSize: 14,
+      color: theme.textSecondary,
+    },
+  });
