@@ -9,6 +9,7 @@ interface ExerciseStats {
   name: string;
   totalSets: number;
   totalReps: number;
+  totalTime: number;
 }
 
 export default function WeeklyStatsScreen() {
@@ -75,16 +76,31 @@ export default function WeeklyStatsScreen() {
         );
 
         exercises.forEach((ex) => {
-          if (ex.sets !== undefined && ex.reps !== undefined) {
+          if (
+            (ex.sets && ex.reps && ex.sets > 0 && ex.reps > 0) ||
+            (ex.estimated_time && ex.estimated_time > 0)
+          ) {
             const existing = exerciseMap.get(ex.exercise_name);
             if (existing) {
-              existing.totalSets += ex.sets;
-              existing.totalReps += ex.sets * ex.reps;
+              if (ex.sets && ex.reps && ex.sets > 0 && ex.reps > 0) {
+                existing.totalSets += ex.sets;
+                existing.totalReps += ex.sets * ex.reps;
+              }
+              if (ex.estimated_time) {
+                existing.totalTime += ex.estimated_time;
+              }
             } else {
               exerciseMap.set(ex.exercise_name, {
                 name: ex.exercise_name,
-                totalSets: ex.sets,
-                totalReps: ex.sets * ex.reps,
+                totalSets:
+                  ex.sets && ex.reps && ex.sets > 0 && ex.reps > 0
+                    ? ex.sets
+                    : 0,
+                totalReps:
+                  ex.sets && ex.reps && ex.sets > 0 && ex.reps > 0
+                    ? ex.sets * ex.reps
+                    : 0,
+                totalTime: ex.estimated_time || 0,
               });
             }
           }
@@ -173,15 +189,17 @@ export default function WeeklyStatsScreen() {
                     {t("weekly.totalSets")}: {ex.totalSets}
                   </Text>
                   <Text style={styles.exerciseStat}>
-                    {" "}
-                    {t("weekly.totalReps")}: {ex.totalReps}{" "}
-                  </Text>{" "}
-                </View>{" "}
+                    {t("weekly.totalReps")}: {ex.totalReps}
+                  </Text>
+                  <Text style={styles.exerciseStat}>
+                    {t("weekly.totalTime")}: {formatTime(ex.totalTime)}
+                  </Text>
+                </View>
               </View>
-            ))}{" "}
-          </View>{" "}
+            ))}
+          </View>
         </View>
-      )}{" "}
+      )}
     </ScrollView>
   );
 }
@@ -240,8 +258,8 @@ const createStyles = (theme: any) =>
       marginBottom: 4,
     },
     exerciseStatsRow: {
-      flexDirection: "row",
-      justifyContent: "space-between",
+      flexDirection: "column",
+      gap: 4,
     },
     exerciseStat: {
       fontSize: 14,

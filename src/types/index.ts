@@ -40,7 +40,7 @@ export interface DailyCompletion {
 export interface ExportData {
   version: string;
   exported_at: string;
-  user_info: UserInfo | null;
+  user_info: UserInfo[];
   weekly_plan: WeeklyPlanExercise[];
   daily_snapshots: DailySnapshot[];
   daily_completions: DailyCompletion[];

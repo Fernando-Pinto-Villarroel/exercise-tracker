@@ -41,8 +41,8 @@ export default function SettingsScreen() {
       setIsExporting(true);
       const db = getDatabase();
 
-      const user = await db.getFirstAsync<UserInfo>(
-        "SELECT * FROM user_info ORDER BY id DESC LIMIT 1"
+      const userInfo = await db.getAllAsync<UserInfo>(
+        "SELECT * FROM user_info"
       );
       const weeklyPlan = await db.getAllAsync<WeeklyPlanExercise>(
         "SELECT * FROM weekly_plan"
@@ -57,7 +57,7 @@ export default function SettingsScreen() {
       const exportData: ExportData = {
         version: "1.0",
         exported_at: new Date().toISOString(),
-        user_info: user || null,
+        user_info: userInfo,
         weekly_plan: weeklyPlan,
         daily_snapshots: dailySnapshots,
         daily_completions: dailyCompletions,
@@ -143,17 +143,17 @@ export default function SettingsScreen() {
       DELETE FROM daily_completion;
     `);
 
-    if (data.user_info) {
+    for (const user of data.user_info) {
       await db.runAsync(
         "INSERT INTO user_info (full_name, age, height, weight, created_at, language, theme) VALUES (?, ?, ?, ?, ?, ?, ?)",
         [
-          data.user_info.full_name,
-          data.user_info.age,
-          data.user_info.height,
-          data.user_info.weight,
-          data.user_info.created_at,
-          data.user_info.language || "en",
-          data.user_info.theme || "light",
+          user.full_name,
+          user.age,
+          user.height,
+          user.weight,
+          user.created_at,
+          user.language || "en",
+          user.theme || "light",
         ]
       );
     }
@@ -192,12 +192,13 @@ export default function SettingsScreen() {
 
     for (const completion of data.daily_completions) {
       await db.runAsync(
-        "INSERT INTO daily_completion (date, is_completed, completed_at, elapsed_seconds) VALUES (?, ?, ?, ?)",
+        "INSERT INTO daily_completion (date, is_completed, completed_at, elapsed_seconds, timer_start_seconds) VALUES (?, ?, ?, ?, ?)",
         [
           completion.date,
           completion.is_completed ? 1 : 0,
           completion.completed_at ?? null,
           completion.elapsed_seconds,
+          completion.timer_start_seconds ?? null,
         ]
       );
     }

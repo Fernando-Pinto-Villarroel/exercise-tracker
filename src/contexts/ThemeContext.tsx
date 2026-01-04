@@ -28,7 +28,7 @@ export const lightTheme = {
   borderLight: "#e5e7eb",
   iconBackground: "#eff6ff",
   shadow: "#000",
-  headerBackground: "#3b82f6",
+  headerBackground: "#9ca3af",
   headerText: "#fff",
   buttonDisabled: "#d1d5db",
   modalOverlay: "rgba(0,0,0,0.5)",

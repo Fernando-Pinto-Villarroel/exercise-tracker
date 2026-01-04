@@ -37,7 +37,8 @@
     "weeklyOverview": "Weekly Overview",
     "exerciseBreakdown": "Exercise Breakdown",
     "totalSets": "Total Sets",
-    "totalReps": "Total Reps"
+    "totalReps": "Total Reps",
+    "totalTime": "Total Estimated Time"
   },
   "monthly": {
     "viewMonthlyStats": "View Monthly Statistics",

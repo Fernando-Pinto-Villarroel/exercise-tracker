@@ -37,7 +37,8 @@
     "weeklyOverview": "Resumen Semanal",
     "exerciseBreakdown": "Desglose de Ejercicios",
     "totalSets": "Series Totales",
-    "totalReps": "Repeticiones Totales"
+    "totalReps": "Repeticiones Totales",
+    "totalTime": "Tiempo Total Estimado"
   },
   "monthly": {
     "viewMonthlyStats": "Ver Estadísticas Mensuales",

@@ -506,7 +506,7 @@ const createStyles = (theme: any) =>
       borderRadius: 8,
       backgroundColor: theme.primary,
       marginTop: 16,
-      marginBottom: 0,
+      marginBottom: 48,
     },
     saveButtonDisabled: {
       backgroundColor: theme.buttonDisabled,
