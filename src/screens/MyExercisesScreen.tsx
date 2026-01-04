@@ -122,8 +122,8 @@ export default function MyExercisesScreen() {
         data={DAYS}
         initialScrollIndex={selectedDay}
         getItemLayout={(data, index) => ({
-          length: 80, // approximate width
-          offset: 80 * index,
+          length: 95, // approximate width
+          offset: 95 * index,
           index,
         })}
         renderItem={({ item, index }) => (
