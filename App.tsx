@@ -16,7 +16,6 @@ export default function App() {
   useEffect(() => {
     async function initialize() {
       await initDatabase();
-      // await addMissingColumns();
       await loadUserData();
       setIsReady(true);
     }

@@ -1,5 +1,6 @@
+import * as SQLite from "expo-sqlite";
 import { create } from "zustand";
-import { getDatabase } from "../database/init";
+import { getDatabase, initDatabase } from "../database/init";
 import { UserInfo } from "../types";
 
 interface UserStore {
@@ -40,12 +41,9 @@ export const useUserStore = create<UserStore>((set) => ({
 
   resetUserData: async () => {
     const db = getDatabase();
-    await db.execAsync(`
-      DELETE FROM user_info;
-      DELETE FROM weekly_plan;
-      DELETE FROM daily_snapshot;
-      DELETE FROM daily_completion;
-    `);
+    await db.closeAsync();
+    await SQLite.deleteDatabaseAsync("exercise_tracker.db");
+    await initDatabase();
     set({ userInfo: null, isOnboarded: false });
   },
 }));

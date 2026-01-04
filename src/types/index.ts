@@ -8,13 +8,14 @@ export interface UserInfo {
 }
 
 export interface Exercise {
-  id?: number;
-  exercise_name: string;
-  icon_name: string;
-  icon_family: string;
-  sets: number;
-  reps: number;
-  sort_order: number;
+   id?: number;
+   exercise_name: string;
+   icon_name: string;
+   icon_family: string;
+   sets?: number;
+   reps?: number;
+   estimated_time?: number; // in seconds
+   sort_order: number;
 }
 
 export interface WeeklyPlanExercise extends Exercise {

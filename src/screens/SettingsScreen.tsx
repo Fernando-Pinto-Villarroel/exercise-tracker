@@ -153,14 +153,15 @@ export default function SettingsScreen() {
 
     for (const plan of data.weekly_plan) {
       await db.runAsync(
-        "INSERT INTO weekly_plan (day_of_week, exercise_name, icon_name, icon_family, sets, reps, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO weekly_plan (day_of_week, exercise_name, icon_name, icon_family, sets, reps, estimated_time, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         [
           plan.day_of_week,
           plan.exercise_name,
           plan.icon_name,
           plan.icon_family,
-          plan.sets,
-          plan.reps,
+          plan.sets ?? null,
+          plan.reps ?? null,
+          plan.estimated_time ?? null,
           plan.sort_order,
         ]
       );
@@ -168,14 +169,15 @@ export default function SettingsScreen() {
 
     for (const snapshot of data.daily_snapshots) {
       await db.runAsync(
-        "INSERT INTO daily_snapshot (date, exercise_name, icon_name, icon_family, sets, reps, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO daily_snapshot (date, exercise_name, icon_name, icon_family, sets, reps, estimated_time, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         [
           snapshot.date,
           snapshot.exercise_name,
           snapshot.icon_name,
           snapshot.icon_family,
-          snapshot.sets,
-          snapshot.reps,
+          snapshot.sets ?? null,
+          snapshot.reps ?? null,
+          snapshot.estimated_time ?? null,
           snapshot.sort_order,
         ]
       );

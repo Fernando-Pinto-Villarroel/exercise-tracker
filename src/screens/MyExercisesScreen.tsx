@@ -4,6 +4,7 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import React, { useEffect, useState } from "react";
 import {
   Alert,
+  FlatList,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,6 +12,7 @@ import {
   View,
 } from "react-native";
 import ExerciseModal from "../components/ExerciseModal";
+import { SvgIcon } from "../components/SvgIcons";
 import { useExerciseStore } from "../store/exerciseStore";
 import { WeeklyPlanExercise } from "../types";
 
@@ -31,6 +33,9 @@ const iconFamilies = {
 };
 
 const getIconComponent = (family: string, name: string) => {
+  if (family === "image") {
+    return <SvgIcon name={name} color="#3b82f6" size={32} />;
+  }
   const IconFamily =
     iconFamilies[family as keyof typeof iconFamilies] || Ionicons;
   return <IconFamily name={name as any} size={32} color="#3b82f6" />;
@@ -39,7 +44,10 @@ const getIconComponent = (family: string, name: string) => {
 export default function MyExercisesScreen() {
   const { weeklyPlan, loadWeeklyPlan, deleteExercise, copyDayPlan } =
     useExerciseStore();
-  const [selectedDay, setSelectedDay] = useState(0);
+  const [selectedDay, setSelectedDay] = useState(() => {
+    const today = new Date().getDay();
+    return today === 0 ? 6 : today - 1;
+  });
   const [showModal, setShowModal] = useState(false);
   const [editingExercise, setEditingExercise] =
     useState<WeeklyPlanExercise | null>(null);
@@ -107,33 +115,37 @@ export default function MyExercisesScreen() {
 
   return (
     <View style={styles.container}>
-      <ScrollView
+      <FlatList
         horizontal
         showsHorizontalScrollIndicator={false}
         style={styles.daysScrollView}
-      >
-        <View style={styles.daysContainer}>
-          {DAYS.map((day, index) => (
-            <TouchableOpacity
-              key={index}
+        data={DAYS}
+        initialScrollIndex={selectedDay}
+        getItemLayout={(data, index) => ({
+          length: 80, // approximate width
+          offset: 80 * index,
+          index,
+        })}
+        renderItem={({ item, index }) => (
+          <TouchableOpacity
+            style={[
+              styles.dayButton,
+              selectedDay === index && styles.dayButtonActive,
+            ]}
+            onPress={() => setSelectedDay(index)}
+          >
+            <Text
               style={[
-                styles.dayButton,
-                selectedDay === index && styles.dayButtonActive,
+                styles.dayButtonText,
+                selectedDay === index && styles.dayButtonTextActive,
               ]}
-              onPress={() => setSelectedDay(index)}
             >
-              <Text
-                style={[
-                  styles.dayButtonText,
-                  selectedDay === index && styles.dayButtonTextActive,
-                ]}
-              >
-                {day}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </ScrollView>
+              {item}
+            </Text>
+          </TouchableOpacity>
+        )}
+        keyExtractor={(item, index) => index.toString()}
+      />
 
       <ScrollView
         style={styles.scrollView}

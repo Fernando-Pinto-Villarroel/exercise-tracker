@@ -29,9 +29,10 @@ const formatTime = (totalSeconds: number) => {
 
 const getTodayDate = (): string => {
   const now = new Date();
-  const timezoneOffset = now.getTimezoneOffset() * 60000;
-  const localDate = new Date(now.getTime() - timezoneOffset);
-  return localDate.toISOString().split("T")[0];
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 };
 
 const isFutureDate = (dateStr: string): boolean => {

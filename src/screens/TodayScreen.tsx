@@ -26,17 +26,13 @@ export default function TodayScreen() {
   useFocusEffect(
     React.useCallback(() => {
       initializeToday();
-    }, [])
+    }, [weeklyPlanCounter])
   );
-
-  React.useEffect(() => {
-    createTodaySnapshot();
-  }, [weeklyPlanCounter]);
 
   const initializeToday = async () => {
     // Ensure weekly plan is loaded first
     await loadWeeklyPlan();
-    await loadTodayData();
+    await createTodaySnapshot();
   };
 
   const handleToggleCompletion = async () => {

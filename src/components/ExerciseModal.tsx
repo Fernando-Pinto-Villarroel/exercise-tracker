@@ -2,6 +2,7 @@ import { FontAwesome5, Ionicons, MaterialIcons } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
 import {
   Alert,
+  Dimensions,
   Modal,
   ScrollView,
   StyleSheet,
@@ -10,9 +11,11 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+
 import { getDatabase } from "../database/init";
 import { useExerciseStore } from "../store/exerciseStore";
 import { DailySnapshot, WeeklyPlanExercise } from "../types";
+import { SvgIcon } from "./SvgIcons";
 
 interface ExerciseModalProps {
   visible: boolean;
@@ -23,36 +26,38 @@ interface ExerciseModalProps {
 }
 
 const ICON_OPTIONS = [
-  // Strength Training
-  { family: "Ionicons", name: "barbell", label: "Barbell" },
-  { family: "MaterialIcons", name: "fitness-center", label: "Dumbbell" },
-
-  // Calisthenics
+  { type: "image", name: "gym-dumbbell", label: "Dumbbell" },
+  { type: "image", name: "gym-bar", label: "Barbell" },
+  { type: "image", name: "gym-hand-press", label: "Gym Hand Press" },
+  { type: "image", name: "gym-rumbell", label: "Gym Rumbell" },
+  { type: "image", name: "gym-station", label: "Gym Station" },
+  { type: "image", name: "calisthenics-bar", label: "Calisthenics Bar" },
   { family: "MaterialIcons", name: "sports-gymnastics", label: "Kettlebell" },
-  { family: "Ionicons", name: "body", label: "Body" },
-  { family: "FontAwesome5", name: "child", label: "Plank" },
-
-  // Cardio
   { family: "Ionicons", name: "walk", label: "Walk" },
   { family: "FontAwesome5", name: "running", label: "Running" },
+  { family: "Ionicons", name: "body", label: "Body" },
+  { family: "FontAwesome5", name: "child", label: "Plank" },
   { family: "MaterialIcons", name: "directions-bike", label: "Cycling" },
   { family: "FontAwesome5", name: "swimmer", label: "Swimming" },
-
-  // Sports
+  { type: "image", name: "jumping-rope", label: "Jumping Rope" },
   { family: "FontAwesome5", name: "basketball-ball", label: "Basketball" },
   { family: "FontAwesome5", name: "futbol", label: "Soccer" },
   { family: "FontAwesome5", name: "volleyball-ball", label: "Volleyball" },
   { family: "FontAwesome5", name: "table-tennis", label: "Ping Pong" },
   { family: "FontAwesome5", name: "baseball-ball", label: "Baseball" },
   { family: "FontAwesome5", name: "football-ball", label: "Football" },
-
-  // Yoga & Flexibility
+  { type: "image", name: "boxing-gloves", label: "Boxing Gloves" },
   { family: "MaterialIcons", name: "self-improvement", label: "Yoga" },
-
-  // Outdoor Activities
+  { type: "image", name: "gymnastics-hoops", label: "Gymnastics Hoops" },
+  { type: "image", name: "buck", label: "Buck" },
   { family: "FontAwesome5", name: "hiking", label: "Hiking" },
   { family: "FontAwesome5", name: "skiing", label: "Skiing" },
 ];
+
+type MeasurementType = "sets_reps" | "time" | "both";
+
+const { width } = Dimensions.get("window");
+const ICON_SIZE = (width - 48 - 24) / 4;
 
 export default function ExerciseModal({
   visible,
@@ -63,15 +68,43 @@ export default function ExerciseModal({
 }: ExerciseModalProps) {
   const { saveExerciseToDay, updateExercise } = useExerciseStore();
   const [name, setName] = useState("");
+  const [measurementType, setMeasurementType] =
+    useState<MeasurementType>("sets_reps");
   const [sets, setSets] = useState("");
   const [reps, setReps] = useState("");
+  const [estimatedTimeMinutes, setEstimatedTimeMinutes] = useState("");
+  const [estimatedTimeSeconds, setEstimatedTimeSeconds] = useState("");
   const [selectedIcon, setSelectedIcon] = useState(ICON_OPTIONS[0]);
 
   useEffect(() => {
     if (exercise) {
       setName(exercise.exercise_name);
-      setSets(exercise.sets.toString());
-      setReps(exercise.reps.toString());
+
+      const hasSetsReps =
+        exercise.sets !== undefined && exercise.reps !== undefined;
+      const hasTime = exercise.estimated_time !== undefined;
+
+      if (hasSetsReps && hasTime) {
+        setMeasurementType("both");
+      } else if (hasTime) {
+        setMeasurementType("time");
+      } else {
+        setMeasurementType("sets_reps");
+      }
+
+      setSets(exercise.sets?.toString() || "");
+      setReps(exercise.reps?.toString() || "");
+      if (exercise.estimated_time) {
+        const totalSeconds = exercise.estimated_time;
+        const minutes = Math.floor(totalSeconds / 60).toString();
+        const seconds = (totalSeconds % 60).toString();
+        setEstimatedTimeMinutes(minutes);
+        setEstimatedTimeSeconds(seconds);
+      } else {
+        setEstimatedTimeMinutes("");
+        setEstimatedTimeSeconds("");
+      }
+
       const icon = ICON_OPTIONS.find(
         (opt) =>
           opt.family === exercise.icon_family && opt.name === exercise.icon_name
@@ -79,19 +112,28 @@ export default function ExerciseModal({
       if (icon) setSelectedIcon(icon);
     } else {
       setName("");
+      setMeasurementType("sets_reps");
       setSets("");
       setReps("");
+      setEstimatedTimeMinutes("");
+      setEstimatedTimeSeconds("");
       setSelectedIcon(ICON_OPTIONS[0]);
     }
   }, [exercise, visible]);
 
   const handleSave = async () => {
-    if (!name.trim() || !sets || !reps) return;
+    if (!name.trim()) return;
+
+    if (measurementType === "sets_reps" || measurementType === "both") {
+      if (!sets || !reps) return;
+    }
+    if (measurementType === "time" || measurementType === "both") {
+      if (!estimatedTimeMinutes || !estimatedTimeSeconds) return;
+    }
 
     try {
       const trimmedName = name.trim();
 
-      // Check for duplicate names
       if (!onSaveDaily && dayOfWeek !== undefined) {
         const db = getDatabase();
         const existing = await db.getFirstAsync(
@@ -110,9 +152,20 @@ export default function ExerciseModal({
       const exerciseData = {
         exercise_name: trimmedName,
         icon_name: selectedIcon.name,
-        icon_family: selectedIcon.family,
-        sets: parseInt(sets),
-        reps: parseInt(reps),
+        icon_family: selectedIcon.family || "image",
+        sets:
+          measurementType === "sets_reps" || measurementType === "both"
+            ? parseInt(sets)
+            : undefined,
+        reps:
+          measurementType === "sets_reps" || measurementType === "both"
+            ? parseInt(reps)
+            : undefined,
+        estimated_time:
+          measurementType === "time" || measurementType === "both"
+            ? parseInt(estimatedTimeMinutes) * 60 +
+              parseInt(estimatedTimeSeconds)
+            : undefined,
         sort_order: 0,
       };
 
@@ -143,12 +196,28 @@ export default function ExerciseModal({
     }
   };
 
-  const isValid = name.trim() && sets && reps;
+  const isValid = (() => {
+    if (!name.trim()) return false;
+
+    if (measurementType === "sets_reps" || measurementType === "both") {
+      if (!sets || !reps) return false;
+    }
+    if (measurementType === "time" || measurementType === "both") {
+      if (!estimatedTimeMinutes || !estimatedTimeSeconds) return false;
+    }
+
+    return true;
+  })();
 
   const getIconComponent = (option: (typeof ICON_OPTIONS)[0]) => {
-    const iconFamilies = { Ionicons, MaterialIcons, FontAwesome5 };
-    const IconFamily = iconFamilies[option.family as keyof typeof iconFamilies];
-    return <IconFamily name={option.name as any} size={32} color="#3b82f6" />;
+    if (option.type === "image") {
+      return <SvgIcon name={option.name} color="#3b82f6" size={28} />;
+    } else {
+      const iconFamilies = { Ionicons, MaterialIcons, FontAwesome5 };
+      const IconFamily =
+        iconFamilies[option.family as keyof typeof iconFamilies];
+      return <IconFamily name={option.name as any} size={28} color="#3b82f6" />;
+    }
   };
 
   return (
@@ -175,38 +244,138 @@ export default function ExerciseModal({
               />
             </View>
 
-            <View style={styles.inputRow}>
-              <View style={styles.inputGroupHalf}>
-                <Text style={styles.label}>Sets</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="3"
-                  value={sets}
-                  onChangeText={setSets}
-                  keyboardType="numeric"
-                />
-              </View>
-
-              <View style={styles.inputGroupHalf}>
-                <Text style={styles.label}>Reps</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="10"
-                  value={reps}
-                  onChangeText={setReps}
-                  keyboardType="numeric"
-                />
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Measurement Type</Text>
+              <View style={styles.measurementTypeContainer}>
+                <TouchableOpacity
+                  style={[
+                    styles.measurementTypeButton,
+                    measurementType === "sets_reps" &&
+                      styles.measurementTypeButtonSelected,
+                  ]}
+                  onPress={() => setMeasurementType("sets_reps")}
+                >
+                  <Text
+                    style={[
+                      styles.measurementTypeText,
+                      measurementType === "sets_reps" &&
+                        styles.measurementTypeTextSelected,
+                    ]}
+                  >
+                    Sets & Reps
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.measurementTypeButton,
+                    measurementType === "time" &&
+                      styles.measurementTypeButtonSelected,
+                  ]}
+                  onPress={() => setMeasurementType("time")}
+                >
+                  <Text
+                    style={[
+                      styles.measurementTypeText,
+                      measurementType === "time" &&
+                        styles.measurementTypeTextSelected,
+                    ]}
+                  >
+                    Time
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.measurementTypeButton,
+                    measurementType === "both" &&
+                      styles.measurementTypeButtonSelected,
+                  ]}
+                  onPress={() => setMeasurementType("both")}
+                >
+                  <Text
+                    style={[
+                      styles.measurementTypeText,
+                      measurementType === "both" &&
+                        styles.measurementTypeTextSelected,
+                    ]}
+                  >
+                    Both
+                  </Text>
+                </TouchableOpacity>
               </View>
             </View>
+
+            {(measurementType === "sets_reps" ||
+              measurementType === "both") && (
+              <View style={styles.inputRow}>
+                <View style={styles.inputGroupHalf}>
+                  <Text style={styles.label}>Sets</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="3"
+                    value={sets}
+                    onChangeText={setSets}
+                    keyboardType="numeric"
+                  />
+                </View>
+
+                <View style={styles.inputGroupHalf}>
+                  <Text style={styles.label}>Reps</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="10"
+                    value={reps}
+                    onChangeText={setReps}
+                    keyboardType="numeric"
+                  />
+                </View>
+              </View>
+            )}
+
+            {(measurementType === "time" || measurementType === "both") && (
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>
+                  Estimated Time (minutes:seconds)
+                </Text>
+                <View style={styles.inputRow}>
+                  <View style={styles.inputGroupHalf}>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="MM"
+                      value={estimatedTimeMinutes}
+                      onChangeText={setEstimatedTimeMinutes}
+                      keyboardType="numeric"
+                    />
+                  </View>
+                  <Text style={{ alignSelf: "center", marginHorizontal: 8 }}>
+                    :
+                  </Text>
+                  <View style={styles.inputGroupHalf}>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="SS"
+                      value={estimatedTimeSeconds}
+                      onChangeText={setEstimatedTimeSeconds}
+                      keyboardType="numeric"
+                    />
+                  </View>
+                </View>
+              </View>
+            )}
 
             <View style={styles.iconSection}>
               <Text style={styles.label}>Select Icon</Text>
               <View style={styles.iconGrid}>
-                {ICON_OPTIONS.map((option) => (
+                {ICON_OPTIONS.map((option, index) => (
                   <TouchableOpacity
                     key={`${option.family}-${option.name}`}
                     style={[
                       styles.iconButton,
+                      {
+                        width: ICON_SIZE,
+                        height: ICON_SIZE,
+                        marginRight: (index + 1) % 4 === 0 ? 0 : 8,
+                        marginBottom: 8,
+                      },
                       selectedIcon.name === option.name &&
                         selectedIcon.family === option.family &&
                         styles.iconButtonSelected,
@@ -219,20 +388,15 @@ export default function ExerciseModal({
               </View>
             </View>
 
-            <View style={styles.saveButtonContainer}>
-              <TouchableOpacity
-                style={[
-                  styles.saveButton,
-                  !isValid && styles.saveButtonDisabled,
-                ]}
-                onPress={handleSave}
-                disabled={!isValid}
-              >
-                <Text style={styles.saveButtonText}>
-                  {exercise ? "Update Exercise" : "Add Exercise"}
-                </Text>
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity
+              style={[styles.saveButton, !isValid && styles.saveButtonDisabled]}
+              onPress={handleSave}
+              disabled={!isValid}
+            >
+              <Text style={styles.saveButtonText}>
+                {exercise ? "Update Exercise" : "Add Exercise"}
+              </Text>
+            </TouchableOpacity>
           </ScrollView>
         </View>
       </View>
@@ -290,34 +454,30 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   iconSection: {
-    marginBottom: 24,
+    marginBottom: 0,
   },
   iconGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 12,
   },
   iconButton: {
     alignItems: "center",
     justifyContent: "center",
-    width: 80,
-    height: 80,
     borderRadius: 8,
     backgroundColor: "#f3f4f6",
+    padding: 4,
   },
   iconButtonSelected: {
     backgroundColor: "#dbeafe",
     borderWidth: 2,
     borderColor: "#3b82f6",
   },
-  saveButtonContainer: {
-    marginBottom: 32,
-    marginTop: 16,
-  },
   saveButton: {
     paddingVertical: 16,
     borderRadius: 8,
     backgroundColor: "#2563eb",
+    marginTop: 16,
+    marginBottom: 0,
   },
   saveButtonDisabled: {
     backgroundColor: "#d1d5db",
@@ -327,5 +487,33 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontSize: 16,
     fontWeight: "600",
+  },
+  measurementTypeContainer: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  measurementTypeButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: "#f3f4f6",
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  measurementTypeButtonSelected: {
+    backgroundColor: "#dbeafe",
+    borderColor: "#3b82f6",
+  },
+  measurementTypeText: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#374151",
+    textAlign: "center",
+  },
+  measurementTypeTextSelected: {
+    color: "#3b82f6",
   },
 });

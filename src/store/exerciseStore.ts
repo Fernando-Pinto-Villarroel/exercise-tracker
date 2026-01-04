@@ -51,9 +51,10 @@ interface ExerciseStore {
 
 function getTodayDate(): string {
   const now = new Date();
-  const timezoneOffset = now.getTimezoneOffset() * 60000;
-  const localDate = new Date(now.getTime() - timezoneOffset);
-  return localDate.toISOString().split("T")[0];
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 export const useExerciseStore = create<ExerciseStore>((set, get) => ({
@@ -93,14 +94,15 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
       const newOrder = (maxOrder?.max_order ?? -1) + 1;
 
       await db.runAsync(
-        "INSERT INTO weekly_plan (day_of_week, exercise_name, icon_name, icon_family, sets, reps, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO weekly_plan (day_of_week, exercise_name, icon_name, icon_family, sets, reps, estimated_time, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         [
           dayOfWeek,
           exercise.exercise_name,
           exercise.icon_name,
           exercise.icon_family,
-          exercise.sets,
-          exercise.reps,
+          exercise.sets ?? null,
+          exercise.reps ?? null,
+          exercise.estimated_time ?? null,
           newOrder,
         ]
       );
@@ -108,10 +110,7 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
       await get().loadWeeklyPlan();
 
       // If adding to today's day, recreate today snapshot
-      const today = new Date();
-      const timezoneOffset = today.getTimezoneOffset() * 60000;
-      const localDate = new Date(today.getTime() - timezoneOffset);
-      const todayDayOfWeek = localDate.getDay();
+      const todayDayOfWeek = new Date().getDay();
       const adjustedTodayDay = todayDayOfWeek === 0 ? 6 : todayDayOfWeek - 1;
 
       if (dayOfWeek === adjustedTodayDay) {
@@ -128,13 +127,14 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
     try {
       const db = getDatabase();
       await db.runAsync(
-        "UPDATE weekly_plan SET exercise_name = ?, icon_name = ?, icon_family = ?, sets = ?, reps = ? WHERE id = ?",
+        "UPDATE weekly_plan SET exercise_name = ?, icon_name = ?, icon_family = ?, sets = ?, reps = ?, estimated_time = ? WHERE id = ?",
         [
           exercise.exercise_name,
           exercise.icon_name,
           exercise.icon_family,
-          exercise.sets,
-          exercise.reps,
+          exercise.sets ?? null,
+          exercise.reps ?? null,
+          exercise.estimated_time ?? null,
           id,
         ]
       );
@@ -142,10 +142,7 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
       await get().loadWeeklyPlan();
 
       // If updating today's day, refresh today data
-      const today = new Date();
-      const timezoneOffset = today.getTimezoneOffset() * 60000;
-      const localDate = new Date(today.getTime() - timezoneOffset);
-      const todayDayOfWeek = localDate.getDay();
+      const todayDayOfWeek = new Date().getDay();
       const adjustedTodayDay = todayDayOfWeek === 0 ? 6 : todayDayOfWeek - 1;
 
       const exerciseDay = await db.getFirstAsync<{ day_of_week: number }>(
@@ -186,10 +183,7 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
       await get().loadWeeklyPlan();
 
       // If deleting from today's day, refresh today data
-      const today = new Date();
-      const timezoneOffset = today.getTimezoneOffset() * 60000;
-      const localDate = new Date(today.getTime() - timezoneOffset);
-      const todayDayOfWeek = localDate.getDay();
+      const todayDayOfWeek = new Date().getDay();
       const adjustedTodayDay = todayDayOfWeek === 0 ? 6 : todayDayOfWeek - 1;
 
       if (dayOfWeek === adjustedTodayDay) {
@@ -214,14 +208,15 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
 
     for (const ex of source) {
       await db.runAsync(
-        "INSERT INTO weekly_plan (day_of_week, exercise_name, icon_name, icon_family, sets, reps, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO weekly_plan (day_of_week, exercise_name, icon_name, icon_family, sets, reps, estimated_time, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         [
           toDay,
           ex.exercise_name,
           ex.icon_name,
           ex.icon_family,
-          ex.sets,
-          ex.reps,
+          ex.sets ?? null,
+          ex.reps ?? null,
+          ex.estimated_time ?? null,
           ex.sort_order,
         ]
       );
@@ -272,14 +267,15 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
 
       for (const ex of plan) {
         await db.runAsync(
-          "INSERT INTO daily_snapshot (date, exercise_name, icon_name, icon_family, sets, reps, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)",
+          "INSERT INTO daily_snapshot (date, exercise_name, icon_name, icon_family, sets, reps, estimated_time, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
           [
             today,
             ex.exercise_name,
             ex.icon_name,
             ex.icon_family,
-            ex.sets,
-            ex.reps,
+            ex.sets ?? null,
+            ex.reps ?? null,
+            ex.estimated_time ?? null,
             ex.sort_order,
           ]
         );
@@ -414,13 +410,14 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
     try {
       const db = getDatabase();
       await db.runAsync(
-        "UPDATE daily_snapshot SET exercise_name = ?, icon_name = ?, icon_family = ?, sets = ?, reps = ? WHERE id = ?",
+        "UPDATE daily_snapshot SET exercise_name = ?, icon_name = ?, icon_family = ?, sets = ?, reps = ?, estimated_time = ? WHERE id = ?",
         [
           exercise.exercise_name,
           exercise.icon_name,
           exercise.icon_family,
-          exercise.sets,
-          exercise.reps,
+          exercise.sets ?? null,
+          exercise.reps ?? null,
+          exercise.estimated_time ?? null,
           id,
         ]
       );
@@ -443,14 +440,15 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
       const newOrder = (maxOrder?.max_order ?? -1) + 1;
 
       await db.runAsync(
-        "INSERT INTO daily_snapshot (date, exercise_name, icon_name, icon_family, sets, reps, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO daily_snapshot (date, exercise_name, icon_name, icon_family, sets, reps, estimated_time, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         [
           date,
           exercise.exercise_name,
           exercise.icon_name,
           exercise.icon_family,
-          exercise.sets,
-          exercise.reps,
+          exercise.sets ?? null,
+          exercise.reps ?? null,
+          exercise.estimated_time ?? null,
           newOrder,
         ]
       );

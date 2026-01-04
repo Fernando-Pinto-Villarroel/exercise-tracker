@@ -2,6 +2,7 @@ import { FontAwesome5, Ionicons, MaterialIcons } from "@expo/vector-icons";
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Exercise } from "../types";
+import { SvgIcon } from "./SvgIcons";
 
 interface ExerciseListProps {
   exercises: Exercise[];
@@ -21,6 +22,9 @@ export default function ExerciseList({
   onDelete,
 }: ExerciseListProps) {
   const getIconComponent = (family: string, name: string) => {
+    if (family === "image") {
+      return <SvgIcon name={name} color="#3b82f6" size={32} />;
+    }
     const IconFamily =
       iconFamilies[family as keyof typeof iconFamilies] || Ionicons;
     return <IconFamily name={name as any} size={32} color="#3b82f6" />;
@@ -37,7 +41,23 @@ export default function ExerciseList({
           <View style={styles.exerciseInfo}>
             <Text style={styles.exerciseName}>{exercise.exercise_name}</Text>
             <Text style={styles.exerciseStats}>
-              {exercise.sets} sets × {exercise.reps} reps
+              {(() => {
+                const parts = [];
+                if (
+                  exercise.sets !== undefined &&
+                  exercise.reps !== undefined
+                ) {
+                  parts.push(`${exercise.sets} sets × ${exercise.reps} reps`);
+                }
+                if (exercise.estimated_time !== undefined) {
+                  const minutes = Math.floor(exercise.estimated_time / 60);
+                  const seconds = exercise.estimated_time % 60;
+                  const timeStr =
+                    minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+                  parts.push(timeStr);
+                }
+                return parts.join(" • ");
+              })()}
             </Text>
           </View>
 

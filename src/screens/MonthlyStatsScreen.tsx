@@ -58,16 +58,19 @@ export default function MonthlyStatsScreen({ route }: any) {
         );
 
         exercises.forEach((ex) => {
-          const existing = exerciseMap.get(ex.exercise_name);
-          if (existing) {
-            existing.totalSets += ex.sets;
-            existing.totalReps += ex.sets * ex.reps;
-          } else {
-            exerciseMap.set(ex.exercise_name, {
-              name: ex.exercise_name,
-              totalSets: ex.sets,
-              totalReps: ex.sets * ex.reps,
-            });
+          // Only count exercises that have sets and reps defined
+          if (ex.sets !== undefined && ex.reps !== undefined) {
+            const existing = exerciseMap.get(ex.exercise_name);
+            if (existing) {
+              existing.totalSets += ex.sets;
+              existing.totalReps += ex.sets * ex.reps;
+            } else {
+              exerciseMap.set(ex.exercise_name, {
+                name: ex.exercise_name,
+                totalSets: ex.sets,
+                totalReps: ex.sets * ex.reps,
+              });
+            }
           }
         });
       } else {

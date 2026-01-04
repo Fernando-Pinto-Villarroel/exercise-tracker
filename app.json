@@ -4,28 +4,26 @@
     "slug": "exercise-tracker",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/AppIcons/playstore.png",
+    "icon": "./assets/images/AppIcons/playstore.png",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/AppIcons/playstore.png",
+      "image": "./assets/images/AppIcons/playstore.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.yourcompany.exercisetracker",
-      "icon": "./assets/AppIcons/appstore.png"
+      "icon": "./assets/images/AppIcons/appstore.png"
     },
     "android": {
-      "icon": "./assets/AppIcons/playstore.png",
+      "icon": "./assets/images/AppIcons/playstore.png",
       "package": "com.yourcompany.exercisetracker"
     },
     "web": {
-      "favicon": "./assets/AppIcons/playstore.png"
+      "favicon": "./assets/images/AppIcons/playstore.png"
     },
-    "plugins": [
-      "expo-sqlite"
-    ],
+    "plugins": ["expo-sqlite"],
     "extra": {
       "eas": {
         "projectId": "38d68bcc-a698-4ced-8578-151b6e093721"
