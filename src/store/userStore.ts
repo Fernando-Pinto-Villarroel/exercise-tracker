@@ -39,12 +39,11 @@ export const useUserStore = create<UserStore>((set) => ({
     const created_at = new Date().toISOString();
 
     await db.runAsync(
-      "INSERT INTO user_info (full_name, age, height, weight, created_at, language, theme) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO user_info (full_name, birthday, gender, created_at, language, theme) VALUES (?, ?, ?, ?, ?, ?)",
       [
         info.full_name,
-        info.age,
-        info.height,
-        info.weight,
+        info.birthday,
+        info.gender,
         created_at,
         info.language || "en",
         info.theme || "light",
@@ -61,10 +60,8 @@ export const useUserStore = create<UserStore>((set) => ({
       await SQLite.deleteDatabaseAsync("exercise_tracker.db");
       await initDatabase();
 
-      // Reiniciar tema a light mode
       resetThemeGlobally();
 
-      // Reiniciar lenguaje a inglés
       i18n.changeLanguage("en");
 
       set({ userInfo: null, isOnboarded: false });

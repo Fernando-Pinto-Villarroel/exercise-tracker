@@ -1,12 +1,23 @@
 export interface UserInfo {
   id?: number;
   full_name: string;
-  age: number;
-  height: number;
-  weight: number;
+  birthday: string;
+  gender: "male" | "female";
   created_at: string;
   language?: string;
   theme?: string;
+}
+
+export interface BodyRecord {
+  id?: number;
+  user_id: number;
+  date: string;
+  weight: number;
+  height: number;
+  neck_perimeter?: number;
+  waist_perimeter?: number;
+  hip_perimeter?: number;
+  created_at: string;
 }
 
 export interface Exercise {
@@ -41,6 +52,7 @@ export interface ExportData {
   version: string;
   exported_at: string;
   user_info: UserInfo[];
+  body_records: BodyRecord[];
   weekly_plan: WeeklyPlanExercise[];
   daily_snapshots: DailySnapshot[];
   daily_completions: DailyCompletion[];

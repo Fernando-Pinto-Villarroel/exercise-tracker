@@ -9,12 +9,24 @@ export async function initDatabase() {
     CREATE TABLE IF NOT EXISTS user_info (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       full_name TEXT NOT NULL,
-      age INTEGER NOT NULL,
-      height REAL NOT NULL,
-      weight REAL NOT NULL,
+      birthday TEXT NOT NULL,
+      gender TEXT NOT NULL CHECK(gender IN ('male', 'female')),
       created_at TEXT NOT NULL,
       language TEXT DEFAULT 'en',
       theme TEXT DEFAULT 'light'
+    );
+
+    CREATE TABLE IF NOT EXISTS body_records (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      date TEXT NOT NULL,
+      weight REAL NOT NULL,
+      height REAL NOT NULL,
+      neck_perimeter REAL,
+      waist_perimeter REAL,
+      hip_perimeter REAL,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES user_info(id)
     );
 
     CREATE TABLE IF NOT EXISTS weekly_plan (
@@ -52,81 +64,9 @@ export async function initDatabase() {
     );
   `);
 
-  // await addMissingColumns();
-
   return db;
 }
 
 export function getDatabase() {
   return db;
-}
-
-export async function addMissingColumns() {
-  try {
-    await db.execAsync(`
-      ALTER TABLE daily_completion ADD COLUMN timer_start_seconds INTEGER;
-    `);
-  } catch (error) {
-    console.log("Column timer_start_seconds result:", (error as Error).message);
-  }
-
-  try {
-    await db.execAsync(`
-      ALTER TABLE weekly_plan ADD COLUMN estimated_time INTEGER;
-    `);
-  } catch (error) {
-    console.log(
-      "Weekly plan estimated_time addition result:",
-      (error as Error).message
-    );
-  }
-
-  try {
-    await db.execAsync(`
-      ALTER TABLE daily_snapshot ADD COLUMN estimated_time INTEGER;
-    `);
-  } catch (error) {
-    console.log(
-      "Daily snapshot estimated_time addition result:",
-      (error as Error).message
-    );
-  }
-
-  try {
-    await db.execAsync(`
-      ALTER TABLE user_info ADD COLUMN language TEXT DEFAULT 'en';
-    `);
-  } catch (error) {
-    console.log("User language column result:", (error as Error).message);
-  }
-
-  try {
-    await db.execAsync(`
-      ALTER TABLE user_info ADD COLUMN theme TEXT DEFAULT 'light';
-    `);
-  } catch (error) {
-    console.log("User theme column result:", (error as Error).message);
-  }
-
-  try {
-    const result = await db.getFirstAsync("PRAGMA table_info(daily_snapshot)");
-    if (result) {
-      await db.execAsync(`
-        DROP TABLE daily_snapshot;
-        CREATE TABLE daily_snapshot (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          date TEXT NOT NULL,
-          exercise_name TEXT NOT NULL,
-          icon_name TEXT NOT NULL,
-          icon_family TEXT NOT NULL,
-          sets INTEGER,
-          reps INTEGER,
-          estimated_time INTEGER,
-          sort_order INTEGER NOT NULL
-        );
-      `);
-    }
-  } catch (error) {
-    console.log("Daily snapshot fix result:", (error as Error).message);
-  }
 }

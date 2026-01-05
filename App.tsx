@@ -15,12 +15,13 @@ const Stack = createNativeStackNavigator();
 function AppContent() {
   const [isReady, setIsReady] = useState(false);
   const { isOnboarded, loadUserData } = useUserStore();
-  const { theme } = useTheme();
+  const { theme, loadThemePreference } = useTheme();
 
   useEffect(() => {
     async function initialize() {
       await initDatabase();
       await loadUserData();
+      await loadThemePreference();
       setIsReady(true);
     }
     initialize();

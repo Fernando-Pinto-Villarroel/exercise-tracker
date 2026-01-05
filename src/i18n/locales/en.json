@@ -4,12 +4,12 @@
     "subtitle": "Let's get started by setting up your profile",
     "fullName": "Full Name",
     "fullNamePlaceholder": "Enter your full name",
-    "age": "Age",
-    "agePlaceholder": "Enter your age",
-    "height": "Height (cm)",
-    "heightPlaceholder": "Enter your height",
-    "weight": "Weight (kg)",
-    "weightPlaceholder": "Enter your weight",
+    "birthday": "Birthday",
+    "birthdayPlaceholder": "YYYY-MM-DD",
+    "selectBirthday": "Select Birthday",
+    "gender": "Gender",
+    "male": "Male",
+    "female": "Female",
     "continue": "Continue"
   },
   "tabs": {
@@ -38,7 +38,8 @@
     "exerciseBreakdown": "Exercise Breakdown",
     "totalSets": "Total Sets",
     "totalReps": "Total Reps",
-    "totalTime": "Total Estimated Time"
+    "totalTime": "Total Estimated Time",
+    "completionRate": "Completion Rate"
   },
   "monthly": {
     "viewMonthlyStats": "View Monthly Statistics",
@@ -46,7 +47,8 @@
     "completionRate": "Completion Rate",
     "longestStreak": "Longest Streak",
     "currentStreak": "Current Streak",
-    "days": "days"
+    "days": "days",
+    "noDataAvailable": "No data available for this month"
   },
   "dayDetail": {
     "title": "Day Details",
@@ -109,6 +111,7 @@
     "userProfile": "User Profile",
     "name": "Name",
     "age": "Age",
+    "gender": "Gender",
     "height": "Height",
     "weight": "Weight",
     "preferences": "Preferences",
@@ -137,6 +140,46 @@
     "exportError": "Failed to export data",
     "importError": "Failed to import data",
     "resetError": "Failed to reset app. Please try again."
+  },
+  "bodyStats": {
+    "myPersonalStats": "My Personal Statistics",
+    "noRecords": "No records yet",
+    "addRecordsHint": "Tap the \"Add Record\" button to start tracking",
+    "addRecord": "Add Record",
+    "recordDetail": "Record Details",
+    "date": "Date",
+    "selectDate": "Select Date",
+    "weight": "Weight",
+    "height": "Height",
+    "neckPerimeter": "Neck Perimeter",
+    "waistPerimeter": "Waist Perimeter",
+    "hipPerimeter": "Hip Perimeter",
+    "optionalData": "Optional Measurements",
+    "fillRequired": "Please fill all required fields",
+    "invalidWeight": "Weight must be between 1 and 500 kg",
+    "invalidHeight": "Height must be between 1 and 300 cm",
+    "invalidPerimeter": "Perimeter must be a valid positive number",
+    "errorSaving": "Failed to save record. Please try again.",
+    "basicData": "Basic Information",
+    "bmi": "Body Mass Index (BMI)",
+    "bodyFat": "Body Fat Percentage",
+    "suggestions": "Suggestions",
+    "underweight": "Underweight",
+    "normal": "Normal",
+    "overweight": "Overweight",
+    "obese": "Obese",
+    "essential": "Essential Fat",
+    "athletes": "Athletes",
+    "fitness": "Fitness",
+    "average": "Average",
+    "bmiInfo": "BMI is a measure of body fat based on height and weight. A BMI between 18.5 and 24.9 is considered healthy for most adults.",
+    "bodyFatInfo": "Body fat percentage is calculated using the U.S. Navy method. This estimate requires neck, waist, and (for women) hip measurements.",
+    "suggestionUnderweight": "Your BMI indicates you're underweight. Consider consulting with a healthcare provider about a healthy weight gain plan.",
+    "suggestionNormal": "Great job! Your BMI is in the healthy range. Keep maintaining your balanced diet and exercise routine.",
+    "suggestionOverweight": "Your BMI indicates you're overweight. Consider incorporating regular exercise and a balanced diet to achieve a healthier weight.",
+    "suggestionObese": "Your BMI indicates obesity. We recommend consulting with a healthcare provider to develop a safe weight management plan.",
+    "deleteRecord": "Delete Record",
+    "deleteConfirm": "Are you sure you want to delete this record?"
   },
   "timer": {
     "editTime": "Edit Time"

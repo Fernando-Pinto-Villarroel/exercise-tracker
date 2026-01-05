@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
@@ -14,18 +15,25 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import CustomHeader from "../components/CustomHeader";
 import { useTheme } from "../contexts/ThemeContext";
 import { getDatabase } from "../database/init";
 import { useUserStore } from "../store/userStore";
 import {
+  BodyRecord,
   DailyCompletion,
   DailySnapshot,
   ExportData,
   UserInfo,
   WeeklyPlanExercise,
 } from "../types";
+import AddRecordScreen from "./AddRecordScreen";
+import BodyStatisticsScreen from "./BodyStatisticsScreen";
+import RecordDetailScreen from "./RecordDetailScreen";
 
-export default function SettingsScreen() {
+const Stack = createNativeStackNavigator();
+
+function SettingsMain({ navigation }: any) {
   const { t, i18n } = useTranslation();
   const { userInfo, resetUserData, updateLanguage } = useUserStore();
   const { theme, isDark, toggleTheme } = useTheme();
@@ -44,6 +52,9 @@ export default function SettingsScreen() {
       const userInfo = await db.getAllAsync<UserInfo>(
         "SELECT * FROM user_info"
       );
+      const bodyRecords = await db.getAllAsync<BodyRecord>(
+        "SELECT * FROM body_records"
+      );
       const weeklyPlan = await db.getAllAsync<WeeklyPlanExercise>(
         "SELECT * FROM weekly_plan"
       );
@@ -55,9 +66,10 @@ export default function SettingsScreen() {
       );
 
       const exportData: ExportData = {
-        version: "1.0",
+        version: "2.0",
         exported_at: new Date().toISOString(),
         user_info: userInfo,
+        body_records: bodyRecords,
         weekly_plan: weeklyPlan,
         daily_snapshots: dailySnapshots,
         daily_completions: dailyCompletions,
@@ -106,7 +118,7 @@ export default function SettingsScreen() {
       const importData: ExportData = JSON.parse(fileContent);
 
       if (!importData.version) {
-        Alert.alert(t("exerciseModal.error"), t("settings.invalidBackup"));
+        Alert.alert(t("common.error"), t("settings.invalidBackup"));
         setIsImporting(false);
         return;
       }
@@ -127,7 +139,7 @@ export default function SettingsScreen() {
         },
       ]);
     } catch (error) {
-      Alert.alert(t("exerciseModal.error"), t("settings.importError"));
+      Alert.alert(t("common.error"), t("settings.importError"));
       console.error(error);
       setIsImporting(false);
     }
@@ -138,6 +150,7 @@ export default function SettingsScreen() {
 
     await db.execAsync(`
       DELETE FROM user_info;
+      DELETE FROM body_records;
       DELETE FROM weekly_plan;
       DELETE FROM daily_snapshot;
       DELETE FROM daily_completion;
@@ -145,17 +158,34 @@ export default function SettingsScreen() {
 
     for (const user of data.user_info) {
       await db.runAsync(
-        "INSERT INTO user_info (full_name, age, height, weight, created_at, language, theme) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO user_info (full_name, birthday, gender, created_at, language, theme) VALUES (?, ?, ?, ?, ?, ?)",
         [
           user.full_name,
-          user.age,
-          user.height,
-          user.weight,
+          user.birthday,
+          user.gender,
           user.created_at,
           user.language || "en",
           user.theme || "light",
         ]
       );
+    }
+
+    if (data.body_records) {
+      for (const record of data.body_records) {
+        await db.runAsync(
+          "INSERT INTO body_records (user_id, date, weight, height, neck_perimeter, waist_perimeter, hip_perimeter, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+          [
+            record.user_id,
+            record.date,
+            record.weight,
+            record.height,
+            record.neck_perimeter ?? null,
+            record.waist_perimeter ?? null,
+            record.hip_perimeter ?? null,
+            record.created_at,
+          ]
+        );
+      }
     }
 
     for (const plan of data.weekly_plan) {
@@ -225,6 +255,20 @@ export default function SettingsScreen() {
     ]);
   };
 
+  const calculateAge = (birthday: string) => {
+    const birthDate = new Date(birthday);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (
+      monthDiff < 0 ||
+      (monthDiff === 0 && today.getDate() < birthDate.getDate())
+    ) {
+      age--;
+    }
+    return age;
+  };
+
   const styles = createStyles(theme);
 
   return (
@@ -240,19 +284,32 @@ export default function SettingsScreen() {
             </View>
             <View style={styles.profileRow}>
               <Text style={styles.profileLabel}>{t("settings.age")}</Text>
-              <Text style={styles.profileValue}>{userInfo.age}</Text>
+              <Text style={styles.profileValue}>
+                {calculateAge(userInfo.birthday)}
+              </Text>
             </View>
             <View style={styles.profileRow}>
-              <Text style={styles.profileLabel}>{t("settings.height")}</Text>
-              <Text style={styles.profileValue}>{userInfo.height} cm</Text>
-            </View>
-            <View style={styles.profileRow}>
-              <Text style={styles.profileLabel}>{t("settings.weight")}</Text>
-              <Text style={styles.profileValue}>{userInfo.weight} kg</Text>
+              <Text style={styles.profileLabel}>{t("settings.gender")}</Text>
+              <Text style={styles.profileValue}>
+                {userInfo.gender === "male"
+                  ? t("intro.male")
+                  : t("intro.female")}
+              </Text>
             </View>
           </View>
         )}
       </View>
+
+      <TouchableOpacity
+        style={styles.bodyStatsButton}
+        onPress={() => navigation.navigate("BodyStatistics")}
+      >
+        <Ionicons name="body-outline" size={24} color="#fff" />
+        <Text style={styles.bodyStatsButtonText}>
+          {t("bodyStats.myPersonalStats")}
+        </Text>
+        <Ionicons name="chevron-forward" size={24} color="#fff" />
+      </TouchableOpacity>
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>{t("settings.preferences")}</Text>
@@ -371,6 +428,61 @@ export default function SettingsScreen() {
   );
 }
 
+export default function SettingsScreen() {
+  const { theme } = useTheme();
+  const { t } = useTranslation();
+
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle: {
+          backgroundColor: theme.headerBackground,
+        },
+        headerTintColor: theme.headerText,
+        headerTitleStyle: {
+          fontWeight: "bold",
+        },
+        headerTitleAlign: "center",
+        contentStyle: {
+          backgroundColor: theme.background,
+        },
+        animation: "none",
+        presentation: "card",
+      }}
+    >
+      <Stack.Screen
+        name="SettingsMain"
+        component={SettingsMain}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="BodyStatistics"
+        component={BodyStatisticsScreen}
+        options={{
+          title: t("bodyStats.myPersonalStats"),
+          header: () => <CustomHeader title={t("bodyStats.myPersonalStats")} />,
+        }}
+      />
+      <Stack.Screen
+        name="AddRecord"
+        component={AddRecordScreen}
+        options={{
+          title: t("bodyStats.addRecord"),
+          header: () => <CustomHeader title={t("bodyStats.addRecord")} />,
+        }}
+      />
+      <Stack.Screen
+        name="RecordDetail"
+        component={RecordDetailScreen}
+        options={{
+          title: t("bodyStats.recordDetail"),
+          header: () => <CustomHeader title={t("bodyStats.recordDetail")} />,
+        }}
+      />
+    </Stack.Navigator>
+  );
+}
+
 const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
@@ -411,6 +523,28 @@ const createStyles = (theme: any) =>
     profileValue: {
       fontWeight: "600",
       color: theme.text,
+    },
+    bodyStatsButton: {
+      backgroundColor: theme.primary,
+      paddingVertical: 16,
+      paddingHorizontal: 20,
+      borderRadius: 8,
+      marginBottom: 16,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      shadowColor: theme.shadow,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 3,
+    },
+    bodyStatsButtonText: {
+      flex: 1,
+      marginLeft: 12,
+      color: "#ffffff",
+      fontSize: 16,
+      fontWeight: "600",
     },
     preferenceSection: {
       marginBottom: 16,

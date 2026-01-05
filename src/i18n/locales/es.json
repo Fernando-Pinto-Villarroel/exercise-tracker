@@ -4,12 +4,12 @@
     "subtitle": "Comencemos configurando tu perfil",
     "fullName": "Nombre Completo",
     "fullNamePlaceholder": "Ingresa tu nombre completo",
-    "age": "Edad",
-    "agePlaceholder": "Ingresa tu edad",
-    "height": "Altura (cm)",
-    "heightPlaceholder": "Ingresa tu altura",
-    "weight": "Peso (kg)",
-    "weightPlaceholder": "Ingresa tu peso",
+    "birthday": "Fecha de Nacimiento",
+    "birthdayPlaceholder": "AAAA-MM-DD",
+    "selectBirthday": "Seleccionar Fecha de Nacimiento",
+    "gender": "Género",
+    "male": "Masculino",
+    "female": "Femenino",
     "continue": "Continuar"
   },
   "tabs": {
@@ -38,7 +38,8 @@
     "exerciseBreakdown": "Desglose de Ejercicios",
     "totalSets": "Series Totales",
     "totalReps": "Repeticiones Totales",
-    "totalTime": "Tiempo Total Estimado"
+    "totalTime": "Tiempo Total Estimado",
+    "completionRate": "Tasa de Finalización"
   },
   "monthly": {
     "viewMonthlyStats": "Ver Estadísticas Mensuales",
@@ -46,7 +47,8 @@
     "completionRate": "Tasa de Finalización",
     "longestStreak": "Racha Más Larga",
     "currentStreak": "Racha Actual",
-    "days": "días"
+    "days": "días",
+    "noDataAvailable": "No hay datos disponibles para este mes"
   },
   "dayDetail": {
     "title": "Detalles del Día",
@@ -109,6 +111,7 @@
     "userProfile": "Perfil de Usuario",
     "name": "Nombre",
     "age": "Edad",
+    "gender": "Género",
     "height": "Altura",
     "weight": "Peso",
     "preferences": "Preferencias",
@@ -137,6 +140,46 @@
     "exportError": "Error al exportar datos",
     "importError": "Error al importar datos",
     "resetError": "Error al restablecer la app. Por favor intente nuevamente."
+  },
+  "bodyStats": {
+    "myPersonalStats": "Mis Estadísticas Personales",
+    "noRecords": "Aún no hay registros",
+    "addRecordsHint": "Toca el botón \"Agregar Registro\" para comenzar a rastrear",
+    "addRecord": "Agregar Registro",
+    "recordDetail": "Detalles del Registro",
+    "date": "Fecha",
+    "selectDate": "Seleccionar Fecha",
+    "weight": "Peso",
+    "height": "Altura",
+    "neckPerimeter": "Perímetro de Cuello",
+    "waistPerimeter": "Perímetro de Cintura",
+    "hipPerimeter": "Perímetro de Cadera",
+    "optionalData": "Medidas Opcionales",
+    "fillRequired": "Por favor completa todos los campos requeridos",
+    "invalidWeight": "El peso debe estar entre 1 y 500 kg",
+    "invalidHeight": "La altura debe estar entre 1 y 300 cm",
+    "invalidPerimeter": "El perímetro debe ser un número positivo válido",
+    "errorSaving": "Error al guardar registro. Por favor intente nuevamente.",
+    "basicData": "Información Básica",
+    "bmi": "Índice de Masa Corporal (IMC)",
+    "bodyFat": "Porcentaje de Grasa Corporal",
+    "suggestions": "Sugerencias",
+    "underweight": "Bajo Peso",
+    "normal": "Normal",
+    "overweight": "Sobrepeso",
+    "obese": "Obesidad",
+    "essential": "Grasa Esencial",
+    "athletes": "Atletas",
+    "fitness": "Fitness",
+    "average": "Promedio",
+    "bmiInfo": "El IMC es una medida de grasa corporal basada en altura y peso. Un IMC entre 18.5 y 24.9 se considera saludable para la mayoría de adultos.",
+    "bodyFatInfo": "El porcentaje de grasa corporal se calcula usando el método de la Marina de EE.UU. Esta estimación requiere medidas de cuello, cintura y (para mujeres) cadera.",
+    "suggestionUnderweight": "Tu IMC indica que tienes bajo peso. Considera consultar con un profesional de la salud sobre un plan saludable para ganar peso.",
+    "suggestionNormal": "¡Excelente! Tu IMC está en el rango saludable. Continúa manteniendo tu dieta balanceada y rutina de ejercicios.",
+    "suggestionOverweight": "Tu IMC indica sobrepeso. Considera incorporar ejercicio regular y una dieta balanceada para alcanzar un peso más saludable.",
+    "suggestionObese": "Tu IMC indica obesidad. Recomendamos consultar con un profesional de la salud para desarrollar un plan seguro de manejo de peso.",
+    "deleteRecord": "Eliminar Registro",
+    "deleteConfirm": "¿Estás seguro de que quieres eliminar este registro?"
   },
   "timer": {
     "editTime": "Editar Tiempo"

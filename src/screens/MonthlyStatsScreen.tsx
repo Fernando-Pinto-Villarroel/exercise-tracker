@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Dimensions, ScrollView, StyleSheet, Text, View } from "react-native";
+import { LineChart, ProgressChart } from "react-native-chart-kit";
 import { useTheme } from "../contexts/ThemeContext";
 import { getDatabase } from "../database/init";
 import { DailyCompletion, DailySnapshot } from "../types";
+
+const { width } = Dimensions.get("window");
 
 interface ExerciseStats {
   name: string;
@@ -23,6 +26,7 @@ export default function MonthlyStatsScreen({ route }: any) {
     longestStreak: number;
     currentStreak: number;
     exerciseStats: ExerciseStats[];
+    weeklyCompletions: number[];
   }>({
     daysCompleted: 0,
     totalDays: 0,
@@ -30,6 +34,7 @@ export default function MonthlyStatsScreen({ route }: any) {
     longestStreak: 0,
     currentStreak: 0,
     exerciseStats: [],
+    weeklyCompletions: [0, 0, 0, 0, 0],
   });
 
   useEffect(() => {
@@ -45,17 +50,22 @@ export default function MonthlyStatsScreen({ route }: any) {
     const exerciseMap = new Map<string, ExerciseStats>();
 
     const completions: boolean[] = [];
+    const weeklyCompletions: number[] = [0, 0, 0, 0, 0];
 
-    for (const date of dates) {
+    for (let i = 0; i < dates.length; i++) {
+      const date = dates[i];
       const completion = await db.getFirstAsync<DailyCompletion>(
         "SELECT * FROM daily_completion WHERE date = ?",
         [date]
       );
 
+      const weekIndex = Math.min(Math.floor(i / 7), 4);
+
       if (completion?.is_completed) {
         completed++;
         totalTime += completion.elapsed_seconds;
         completions.push(true);
+        weeklyCompletions[weekIndex]++;
 
         const exercises = await db.getAllAsync<DailySnapshot>(
           "SELECT * FROM daily_snapshot WHERE date = ?",
@@ -105,7 +115,8 @@ export default function MonthlyStatsScreen({ route }: any) {
       totalTime,
       longestStreak: streaks.longest,
       currentStreak: streaks.current,
-      exerciseStats: Array.from(exerciseMap.values()),
+      exerciseStats: Array.from(exerciseMap.values()).slice(0, 5),
+      weeklyCompletions,
     });
   };
 
@@ -151,6 +162,35 @@ export default function MonthlyStatsScreen({ route }: any) {
     const hrs = Math.floor(seconds / 3600);
     const mins = Math.floor((seconds % 3600) / 60);
     return hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
+  };
+
+  const chartConfig = {
+    backgroundGradientFrom: theme.card,
+    backgroundGradientTo: theme.card,
+    color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
+    labelColor: (opacity = 1) => theme.text,
+    strokeWidth: 2,
+    propsForLabels: {
+      fontSize: 12,
+    },
+  };
+
+  const hasData = stats.weeklyCompletions.some((val) => val > 0);
+
+  const weeklyData = {
+    labels: ["W1", "W2", "W3", "W4", "W5"],
+    datasets: [
+      {
+        data: hasData ? stats.weeklyCompletions : [0, 0, 0, 0, 0.1],
+        color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
+        strokeWidth: 3,
+      },
+    ],
+  };
+
+  const progressData = {
+    labels: [t("monthly.completionRate")],
+    data: [stats.totalDays > 0 ? stats.daysCompleted / stats.totalDays : 0],
   };
 
   const styles = createStyles(theme);
@@ -199,6 +239,40 @@ export default function MonthlyStatsScreen({ route }: any) {
             </Text>
           </View>
         </View>
+
+        <Text style={styles.chartTitle}>{t("monthly.completionRate")}</Text>
+        <ProgressChart
+          data={progressData}
+          width={width - 64}
+          height={150}
+          strokeWidth={16}
+          radius={60}
+          chartConfig={chartConfig}
+          hideLegend={true}
+          style={styles.chart}
+        />
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>{t("weekly.daysCompleted")}</Text>
+        {hasData ? (
+          <LineChart
+            data={weeklyData}
+            width={width - 64}
+            height={220}
+            chartConfig={chartConfig}
+            bezier
+            style={styles.chart}
+            fromZero
+            yAxisInterval={1}
+          />
+        ) : (
+          <View style={styles.noDataContainer}>
+            <Text style={styles.noDataText}>
+              {t("monthly.noDataAvailable")}
+            </Text>
+          </View>
+        )}
       </View>
 
       {stats.exerciseStats.length > 0 && (
@@ -210,15 +284,21 @@ export default function MonthlyStatsScreen({ route }: any) {
               <View key={index} style={styles.exerciseItem}>
                 <Text style={styles.exerciseName}>{ex.name}</Text>
                 <View style={styles.exerciseStatsRow}>
-                  <Text style={styles.exerciseStat}>
-                    {t("weekly.totalSets")}: {ex.totalSets}
-                  </Text>
-                  <Text style={styles.exerciseStat}>
-                    {t("weekly.totalReps")}: {ex.totalReps}
-                  </Text>
-                  <Text style={styles.exerciseStat}>
-                    {t("weekly.totalTime")}: {formatTime(ex.totalTime)}
-                  </Text>
+                  {ex.totalSets > 0 && (
+                    <Text style={styles.exerciseStat}>
+                      {t("weekly.totalSets")}: {ex.totalSets}
+                    </Text>
+                  )}
+                  {ex.totalReps > 0 && (
+                    <Text style={styles.exerciseStat}>
+                      {t("weekly.totalReps")}: {ex.totalReps}
+                    </Text>
+                  )}
+                  {ex.totalTime > 0 && (
+                    <Text style={styles.exerciseStat}>
+                      {t("weekly.totalTime")}: {formatTime(ex.totalTime)}
+                    </Text>
+                  )}
                 </View>
               </View>
             ))}
@@ -256,6 +336,18 @@ const createStyles = (theme: any) =>
       color: theme.text,
       marginBottom: 16,
     },
+    chartTitle: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: theme.text,
+      marginTop: 16,
+      marginBottom: 8,
+      textAlign: "center",
+    },
+    chart: {
+      marginVertical: 8,
+      borderRadius: 8,
+    },
     statsContainer: {
       gap: 12,
     },
@@ -289,6 +381,15 @@ const createStyles = (theme: any) =>
     },
     exerciseStat: {
       fontSize: 14,
+      color: theme.textSecondary,
+    },
+    noDataContainer: {
+      height: 220,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    noDataText: {
+      fontSize: 16,
       color: theme.textSecondary,
     },
   });

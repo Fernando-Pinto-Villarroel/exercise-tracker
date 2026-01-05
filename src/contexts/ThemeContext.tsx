@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { getDatabase } from "../database/init";
 
-// Función global para reiniciar el tema
 let globalResetTheme: () => void = () => {};
 
 export const setGlobalResetTheme = (resetFunction: () => void) => {
@@ -61,6 +60,7 @@ interface ThemeContextType {
   isDark: boolean;
   toggleTheme: () => void;
   resetTheme: () => void;
+  loadThemePreference: () => Promise<void>;
 }
 
 const ThemeContext = createContext<ThemeContextType>({
@@ -68,6 +68,7 @@ const ThemeContext = createContext<ThemeContextType>({
   isDark: false,
   toggleTheme: () => {},
   resetTheme: () => {},
+  loadThemePreference: async () => {},
 });
 
 export const useTheme = () => useContext(ThemeContext);
@@ -76,27 +77,30 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const [isDark, setIsDark] = useState(false);
-
-  useEffect(() => {
-    loadThemePreference();
-  }, []);
+  const [isLoaded, setIsLoaded] = useState(false);
 
   const loadThemePreference = async () => {
     try {
       const db = getDatabase();
+      if (!db) {
+        setIsLoaded(true);
+        return;
+      }
+
       const result = await db.getFirstAsync<{ theme: string }>(
         "SELECT theme FROM user_info ORDER BY id DESC LIMIT 1"
       );
-      // Si hay un resultado, aplicar el tema, si no, mantener el valor por defecto (light)
+
       if (result?.theme === "dark") {
         setIsDark(true);
       } else if (result?.theme === "light") {
         setIsDark(false);
       }
-      // Si no hay resultado, se mantiene el valor inicial (false = light mode)
     } catch (error) {
       console.log("No theme preference found, using default light theme");
-      setIsDark(false); // Asegurarse de que vuelva al valor por defecto
+      setIsDark(false);
+    } finally {
+      setIsLoaded(true);
     }
   };
 
@@ -106,6 +110,8 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
 
     try {
       const db = getDatabase();
+      if (!db) return;
+
       await db.runAsync(
         "UPDATE user_info SET theme = ? WHERE id = (SELECT id FROM user_info ORDER BY id DESC LIMIT 1)",
         [newTheme ? "dark" : "light"]
@@ -121,13 +127,14 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
     setIsDark(false);
   };
 
-  // Registrar la función global para reiniciar el tema
   useEffect(() => {
     setGlobalResetTheme(resetTheme);
   }, []);
 
   return (
-    <ThemeContext.Provider value={{ theme, isDark, toggleTheme, resetTheme }}>
+    <ThemeContext.Provider
+      value={{ theme, isDark, toggleTheme, resetTheme, loadThemePreference }}
+    >
       {children}
     </ThemeContext.Provider>
   );

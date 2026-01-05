@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import DatePicker from "../components/DatePicker";
 import { useTheme } from "../contexts/ThemeContext";
 import { useUserStore } from "../store/userStore";
 
@@ -18,26 +19,24 @@ export default function IntroScreen() {
   const { saveUserInfo } = useUserStore();
   const { theme } = useTheme();
   const [fullName, setFullName] = useState("");
-  const [age, setAge] = useState("");
-  const [height, setHeight] = useState("");
-  const [weight, setWeight] = useState("");
+  const [birthday, setBirthday] = useState("");
+  const [gender, setGender] = useState<"male" | "female" | null>(null);
 
   const handleSubmit = async () => {
-    if (!fullName.trim() || !age || !height || !weight) {
+    if (!fullName.trim() || !birthday || !gender) {
       return;
     }
 
     await saveUserInfo({
       full_name: fullName.trim(),
-      age: parseInt(age),
-      height: parseFloat(height),
-      weight: parseFloat(weight),
+      birthday,
+      gender,
       language: "en",
       theme: "light",
     });
   };
 
-  const isValid = fullName.trim() && age && height && weight;
+  const isValid = fullName.trim() && birthday && gender;
 
   const styles = createStyles(theme);
 
@@ -64,39 +63,52 @@ export default function IntroScreen() {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>{t("intro.age")}</Text>
-              <TextInput
-                style={styles.input}
-                placeholder={t("intro.agePlaceholder")}
-                placeholderTextColor={theme.textTertiary}
-                value={age}
-                onChangeText={setAge}
-                keyboardType="numeric"
+              <DatePicker
+                label={t("intro.birthday")}
+                value={birthday}
+                onChange={setBirthday}
+                placeholder={t("intro.birthdayPlaceholder")}
+                minYear={1920}
+                maxYear={new Date().getFullYear()}
               />
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>{t("intro.height")}</Text>
-              <TextInput
-                style={styles.input}
-                placeholder={t("intro.heightPlaceholder")}
-                placeholderTextColor={theme.textTertiary}
-                value={height}
-                onChangeText={setHeight}
-                keyboardType="decimal-pad"
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>{t("intro.weight")}</Text>
-              <TextInput
-                style={styles.input}
-                placeholder={t("intro.weightPlaceholder")}
-                placeholderTextColor={theme.textTertiary}
-                value={weight}
-                onChangeText={setWeight}
-                keyboardType="decimal-pad"
-              />
+              <Text style={styles.label}>{t("intro.gender")}</Text>
+              <View style={styles.genderButtons}>
+                <TouchableOpacity
+                  style={[
+                    styles.genderButton,
+                    gender === "male" && styles.genderButtonActive,
+                  ]}
+                  onPress={() => setGender("male")}
+                >
+                  <Text
+                    style={[
+                      styles.genderButtonText,
+                      gender === "male" && styles.genderButtonTextActive,
+                    ]}
+                  >
+                    {t("intro.male")}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.genderButton,
+                    gender === "female" && styles.genderButtonActive,
+                  ]}
+                  onPress={() => setGender("female")}
+                >
+                  <Text
+                    style={[
+                      styles.genderButtonText,
+                      gender === "female" && styles.genderButtonTextActive,
+                    ]}
+                  >
+                    {t("intro.female")}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
 
@@ -160,6 +172,31 @@ const createStyles = (theme: any) =>
       fontSize: 16,
       color: theme.text,
       backgroundColor: theme.card,
+    },
+    genderButtons: {
+      flexDirection: "row",
+      gap: 12,
+    },
+    genderButton: {
+      flex: 1,
+      paddingVertical: 12,
+      borderRadius: 8,
+      backgroundColor: theme.card,
+      borderWidth: 2,
+      borderColor: theme.border,
+      alignItems: "center",
+    },
+    genderButtonActive: {
+      backgroundColor: theme.primaryLight,
+      borderColor: theme.primary,
+    },
+    genderButtonText: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: theme.text,
+    },
+    genderButtonTextActive: {
+      color: theme.primary,
     },
     button: {
       marginTop: 40,
