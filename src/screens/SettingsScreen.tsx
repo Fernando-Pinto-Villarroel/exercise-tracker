@@ -3,7 +3,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -39,9 +39,20 @@ function SettingsMain({ navigation }: any) {
   const { theme, isDark, toggleTheme } = useTheme();
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [currentLanguage, setCurrentLanguage] = useState(i18n.language);
+
+  useEffect(() => {
+    setCurrentLanguage(i18n.language);
+  }, [i18n.language]);
 
   const handleLanguageChange = async (language: string) => {
-    await updateLanguage(language);
+    try {
+      await updateLanguage(language);
+      setCurrentLanguage(language);
+    } catch (error) {
+      console.error("Error changing language:", error);
+      Alert.alert(t("common.error"), "Failed to change language");
+    }
   };
 
   const handleExport = async () => {
@@ -322,33 +333,33 @@ function SettingsMain({ navigation }: any) {
             <TouchableOpacity
               style={[
                 styles.languageButton,
-                i18n.language === "en" && styles.languageButtonActive,
+                currentLanguage === "en" && styles.languageButtonActive,
               ]}
               onPress={() => handleLanguageChange("en")}
             >
               <Text
                 style={[
                   styles.languageButtonText,
-                  i18n.language === "en" && styles.languageButtonTextActive,
+                  currentLanguage === "en" && styles.languageButtonTextActive,
                 ]}
               >
-                English
+                {t("settings.languageEnglish")}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[
                 styles.languageButton,
-                i18n.language === "es" && styles.languageButtonActive,
+                currentLanguage === "es" && styles.languageButtonActive,
               ]}
               onPress={() => handleLanguageChange("es")}
             >
               <Text
                 style={[
                   styles.languageButtonText,
-                  i18n.language === "es" && styles.languageButtonTextActive,
+                  currentLanguage === "es" && styles.languageButtonTextActive,
                 ]}
               >
-                Español
+                {t("settings.languageSpanish")}
               </Text>
             </TouchableOpacity>
           </View>

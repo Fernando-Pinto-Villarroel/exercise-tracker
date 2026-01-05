@@ -77,13 +77,12 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const [isDark, setIsDark] = useState(false);
-  const [isLoaded, setIsLoaded] = useState(false);
 
   const loadThemePreference = async () => {
     try {
       const db = getDatabase();
       if (!db) {
-        setIsLoaded(true);
+        console.log("Database not initialized yet, using default light theme");
         return;
       }
 
@@ -96,11 +95,9 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
       } else if (result?.theme === "light") {
         setIsDark(false);
       }
-    } catch (error) {
+    } catch {
       console.log("No theme preference found, using default light theme");
       setIsDark(false);
-    } finally {
-      setIsLoaded(true);
     }
   };
 
@@ -110,7 +107,10 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
 
     try {
       const db = getDatabase();
-      if (!db) return;
+      if (!db) {
+        console.error("Database not initialized");
+        return;
+      }
 
       await db.runAsync(
         "UPDATE user_info SET theme = ? WHERE id = (SELECT id FROM user_info ORDER BY id DESC LIMIT 1)",

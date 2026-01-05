@@ -12,6 +12,27 @@
     "female": "Female",
     "continue": "Continue"
   },
+  "datePicker": {
+    "selectDate": "Select Date",
+    "year": "Year",
+    "month": "Month",
+    "day": "Day",
+    "confirm": "Confirm",
+    "months": [
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December"
+    ]
+  },
   "tabs": {
     "today": "Today",
     "weekly": "Weekly",
@@ -139,7 +160,9 @@
     "invalidBackup": "Invalid backup file",
     "exportError": "Failed to export data",
     "importError": "Failed to import data",
-    "resetError": "Failed to reset app. Please try again."
+    "resetError": "Failed to reset app. Please try again.",
+    "languageEnglish": "English",
+    "languageSpanish": "Spanish"
   },
   "bodyStats": {
     "myPersonalStats": "My Personal Statistics",
@@ -154,7 +177,7 @@
     "neckPerimeter": "Neck Perimeter",
     "waistPerimeter": "Waist Perimeter",
     "hipPerimeter": "Hip Perimeter",
-    "optionalData": "Optional Measurements",
+    "optionalData": "Optional Measurements (BFP)",
     "fillRequired": "Please fill all required fields",
     "invalidWeight": "Weight must be between 1 and 500 kg",
     "invalidHeight": "Height must be between 1 and 300 cm",

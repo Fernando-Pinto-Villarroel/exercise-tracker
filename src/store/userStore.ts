@@ -14,24 +14,37 @@ interface UserStore {
   updateLanguage: (language: string) => Promise<void>;
 }
 
-export const useUserStore = create<UserStore>((set) => ({
+export const useUserStore = create<UserStore>((set, get) => ({
   userInfo: null,
   isOnboarded: false,
 
   loadUserData: async () => {
-    const db = getDatabase();
-    const result = await db.getFirstAsync<UserInfo>(
-      "SELECT * FROM user_info ORDER BY id DESC LIMIT 1"
-    );
+    try {
+      const db = getDatabase();
+      if (!db) {
+        console.log("Database not initialized yet");
+        return;
+      }
 
-    if (result?.language) {
-      i18n.changeLanguage(result.language);
+      const result = await db.getFirstAsync<UserInfo>(
+        "SELECT * FROM user_info ORDER BY id DESC LIMIT 1"
+      );
+
+      if (result?.language) {
+        await i18n.changeLanguage(result.language);
+      }
+
+      set({
+        userInfo: result || null,
+        isOnboarded: !!result,
+      });
+    } catch (error) {
+      console.error("Error loading user data:", error);
+      set({
+        userInfo: null,
+        isOnboarded: false,
+      });
     }
-
-    set({
-      userInfo: result || null,
-      isOnboarded: !!result,
-    });
   },
 
   saveUserInfo: async (info) => {
@@ -50,7 +63,7 @@ export const useUserStore = create<UserStore>((set) => ({
       ]
     );
 
-    await useUserStore.getState().loadUserData();
+    await get().loadUserData();
   },
 
   resetUserData: async () => {
@@ -62,7 +75,7 @@ export const useUserStore = create<UserStore>((set) => ({
 
       resetThemeGlobally();
 
-      i18n.changeLanguage("en");
+      await i18n.changeLanguage("en");
 
       set({ userInfo: null, isOnboarded: false });
     } catch (error) {
@@ -72,12 +85,24 @@ export const useUserStore = create<UserStore>((set) => ({
   },
 
   updateLanguage: async (language: string) => {
-    const db = getDatabase();
-    await db.runAsync(
-      "UPDATE user_info SET language = ? WHERE id = (SELECT id FROM user_info ORDER BY id DESC LIMIT 1)",
-      [language]
-    );
-    i18n.changeLanguage(language);
-    await useUserStore.getState().loadUserData();
+    try {
+      const db = getDatabase();
+      if (!db) {
+        console.error("Database not initialized");
+        return;
+      }
+
+      await db.runAsync(
+        "UPDATE user_info SET language = ? WHERE id = (SELECT id FROM user_info ORDER BY id DESC LIMIT 1)",
+        [language]
+      );
+
+      await i18n.changeLanguage(language);
+
+      await get().loadUserData();
+    } catch (error) {
+      console.error("Error updating language:", error);
+      throw error;
+    }
   },
 }));

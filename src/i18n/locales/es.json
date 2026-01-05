@@ -12,6 +12,27 @@
     "female": "Femenino",
     "continue": "Continuar"
   },
+  "datePicker": {
+    "selectDate": "Seleccionar Fecha",
+    "year": "Año",
+    "month": "Mes",
+    "day": "Día",
+    "confirm": "Confirmar",
+    "months": [
+      "Enero",
+      "Febrero",
+      "Marzo",
+      "Abril",
+      "Mayo",
+      "Junio",
+      "Julio",
+      "Agosto",
+      "Septiembre",
+      "Octubre",
+      "Noviembre",
+      "Diciembre"
+    ]
+  },
   "tabs": {
     "today": "Hoy",
     "weekly": "Semanal",
@@ -139,7 +160,9 @@
     "invalidBackup": "Archivo de respaldo inválido",
     "exportError": "Error al exportar datos",
     "importError": "Error al importar datos",
-    "resetError": "Error al restablecer la app. Por favor intente nuevamente."
+    "resetError": "Error al restablecer la app. Por favor intente nuevamente.",
+    "languageEnglish": "Inglés",
+    "languageSpanish": "Español"
   },
   "bodyStats": {
     "myPersonalStats": "Mis Estadísticas Personales",
@@ -154,7 +177,7 @@
     "neckPerimeter": "Perímetro de Cuello",
     "waistPerimeter": "Perímetro de Cintura",
     "hipPerimeter": "Perímetro de Cadera",
-    "optionalData": "Medidas Opcionales",
+    "optionalData": "Medidas Opcionales (PGC)",
     "fillRequired": "Por favor completa todos los campos requeridos",
     "invalidWeight": "El peso debe estar entre 1 y 500 kg",
     "invalidHeight": "La altura debe estar entre 1 y 300 cm",

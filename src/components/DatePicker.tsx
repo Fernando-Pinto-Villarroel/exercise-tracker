@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Modal,
   ScrollView,
@@ -28,15 +29,23 @@ export default function DatePicker({
   maxYear = new Date().getFullYear(),
 }: DatePickerProps) {
   const { theme } = useTheme();
+  const { t } = useTranslation();
   const [showPicker, setShowPicker] = useState(false);
+
+  // Parse date string correctly to avoid timezone issues
+  const parseDateString = (dateStr: string) => {
+    const [year, month, day] = dateStr.split("-").map(Number);
+    return { year, month: month - 1, day };
+  };
+
   const [selectedYear, setSelectedYear] = useState<number>(
-    value ? new Date(value).getFullYear() : maxYear
+    value ? parseDateString(value).year : maxYear
   );
   const [selectedMonth, setSelectedMonth] = useState<number>(
-    value ? new Date(value).getMonth() : 0
+    value ? parseDateString(value).month : 0
   );
   const [selectedDay, setSelectedDay] = useState<number>(
-    value ? new Date(value).getDate() : 1
+    value ? parseDateString(value).day : 1
   );
 
   const years = Array.from(
@@ -44,20 +53,9 @@ export default function DatePicker({
     (_, i) => maxYear - i
   );
 
-  const months = [
-    "January",
-    "February",
-    "March",
-    "April",
-    "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December",
-  ];
+  const months: string[] = t("datePicker.months", {
+    returnObjects: true,
+  }) as string[];
 
   const getDaysInMonth = (year: number, month: number) => {
     return new Date(year, month + 1, 0).getDate();
@@ -80,20 +78,20 @@ export default function DatePicker({
 
   const handleOpen = () => {
     if (value) {
-      const date = new Date(value);
-      setSelectedYear(date.getFullYear());
-      setSelectedMonth(date.getMonth());
-      setSelectedDay(date.getDate());
+      const { year, month, day } = parseDateString(value);
+      setSelectedYear(year);
+      setSelectedMonth(month);
+      setSelectedDay(day);
     }
     setShowPicker(true);
   };
 
+  // Format display value without timezone issues
   const displayValue = value
-    ? new Date(value).toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      })
+    ? (() => {
+        const { year, month, day } = parseDateString(value);
+        return `${months[month]} ${day}, ${year}`;
+      })()
     : placeholder;
 
   const styles = createStyles(theme);
@@ -112,7 +110,9 @@ export default function DatePicker({
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Date</Text>
+              <Text style={styles.modalTitle}>
+                {t("datePicker.selectDate")}
+              </Text>
               <TouchableOpacity onPress={() => setShowPicker(false)}>
                 <Ionicons name="close" size={28} color={theme.textSecondary} />
               </TouchableOpacity>
@@ -120,7 +120,7 @@ export default function DatePicker({
 
             <View style={styles.pickerContainer}>
               <View style={styles.pickerColumn}>
-                <Text style={styles.columnTitle}>Year</Text>
+                <Text style={styles.columnTitle}>{t("datePicker.year")}</Text>
                 <ScrollView style={styles.scrollView}>
                   {years.map((year) => (
                     <TouchableOpacity
@@ -146,7 +146,7 @@ export default function DatePicker({
               </View>
 
               <View style={styles.pickerColumn}>
-                <Text style={styles.columnTitle}>Month</Text>
+                <Text style={styles.columnTitle}>{t("datePicker.month")}</Text>
                 <ScrollView style={styles.scrollView}>
                   {months.map((month, index) => (
                     <TouchableOpacity
@@ -172,7 +172,7 @@ export default function DatePicker({
               </View>
 
               <View style={styles.pickerColumn}>
-                <Text style={styles.columnTitle}>Day</Text>
+                <Text style={styles.columnTitle}>{t("datePicker.day")}</Text>
                 <ScrollView style={styles.scrollView}>
                   {days.map((day) => (
                     <TouchableOpacity
@@ -201,7 +201,9 @@ export default function DatePicker({
               style={styles.confirmButton}
               onPress={handleConfirm}
             >
-              <Text style={styles.confirmButtonText}>Confirm</Text>
+              <Text style={styles.confirmButtonText}>
+                {t("datePicker.confirm")}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -246,7 +248,7 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.card,
       borderTopLeftRadius: 24,
       borderTopRightRadius: 24,
-      padding: 24,
+      padding: 22,
       maxHeight: "80%",
     },
     modalHeader: {
@@ -302,6 +304,7 @@ const createStyles = (theme: any) =>
       paddingVertical: 16,
       borderRadius: 8,
       backgroundColor: theme.primary,
+      marginBottom: 40,
     },
     confirmButtonText: {
       textAlign: "center",

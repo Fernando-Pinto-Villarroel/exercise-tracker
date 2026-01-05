@@ -68,8 +68,8 @@ export default function IntroScreen() {
                 value={birthday}
                 onChange={setBirthday}
                 placeholder={t("intro.birthdayPlaceholder")}
-                minYear={1920}
-                maxYear={new Date().getFullYear()}
+                minYear={1930}
+                maxYear={new Date().getFullYear() - 13}
               />
             </View>
 
