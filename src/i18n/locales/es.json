@@ -33,6 +33,9 @@
       "Diciembre"
     ]
   },
+  "timePicker": {
+    "selectCompletionTime": "Seleccionar Hora de Finalización"
+  },
   "tabs": {
     "today": "Hoy",
     "weekly": "Semanal",

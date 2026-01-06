@@ -6,16 +6,19 @@ import { useTranslation } from "react-i18next";
 import {
   Alert,
   FlatList,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
-import ExerciseList from "../components/ExerciseList";
+import DraggableFlatList, {
+  RenderItemParams,
+  ScaleDecorator,
+} from "react-native-draggable-flatlist";
 import ExerciseModal from "../components/ExerciseModal";
 import { SvgIcon } from "../components/SvgIcons";
 import { useTheme } from "../contexts/ThemeContext";
+import { getDatabase } from "../database/init";
 import { useExerciseStore } from "../store/exerciseStore";
 import { Exercise, WeeklyPlanExercise } from "../types";
 
@@ -126,6 +129,121 @@ export default function MyExercisesScreen() {
     }
   };
 
+  const handleDragEnd = async ({ data }: { data: WeeklyPlanExercise[] }) => {
+    try {
+      const db = getDatabase();
+
+      await db.runAsync("BEGIN TRANSACTION");
+
+      for (let i = 0; i < data.length; i++) {
+        const id = data[i].id;
+        if (id !== undefined) {
+          await db.runAsync(
+            "UPDATE weekly_plan SET sort_order = ? WHERE id = ?",
+            [-(i + 1000), id]
+          );
+        }
+      }
+
+      for (let i = 0; i < data.length; i++) {
+        const id = data[i].id;
+        if (id !== undefined) {
+          await db.runAsync(
+            "UPDATE weekly_plan SET sort_order = ? WHERE id = ?",
+            [i, id]
+          );
+        }
+      }
+
+      await db.runAsync("COMMIT");
+      await loadWeeklyPlan();
+    } catch (error) {
+      console.error("Error reordering exercises:", error);
+      try {
+        const db = getDatabase();
+        await db.runAsync("ROLLBACK");
+      } catch (rollbackError) {
+        console.error("Error rolling back transaction:", rollbackError);
+      }
+      Alert.alert(
+        t("common.error"),
+        "Failed to reorder exercises. Please try again."
+      );
+    }
+  };
+
+  const renderExerciseItem = ({
+    item,
+    drag,
+    isActive,
+  }: RenderItemParams<WeeklyPlanExercise>) => {
+    const hasSets =
+      item.sets !== null &&
+      item.sets !== undefined &&
+      item.reps !== null &&
+      item.reps !== undefined &&
+      item.sets > 0 &&
+      item.reps > 0;
+
+    const hasTime =
+      item.estimated_time !== null &&
+      item.estimated_time !== undefined &&
+      item.estimated_time > 0;
+
+    const formatTime = (seconds: number) => {
+      const mins = Math.floor(seconds / 60);
+      const secs = seconds % 60;
+      return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+    };
+
+    return (
+      <ScaleDecorator>
+        <TouchableOpacity
+          onLongPress={drag}
+          disabled={isActive}
+          style={[styles.exerciseCard, isActive && { opacity: 0.7 }]}
+        >
+          <View style={styles.iconContainer}>
+            {getIconComponent(item.icon_family, item.icon_name, theme.primary)}
+          </View>
+
+          <View style={styles.exerciseInfo}>
+            <Text style={styles.exerciseName}>{item.exercise_name}</Text>
+            <View>
+              {hasSets && (
+                <Text style={styles.exerciseStats}>
+                  {item.sets} sets × {item.reps} reps
+                </Text>
+              )}
+              {hasTime && (
+                <Text style={styles.exerciseStats}>
+                  {formatTime(item.estimated_time!)}
+                </Text>
+              )}
+            </View>
+          </View>
+
+          <View style={styles.exerciseActions}>
+            <TouchableOpacity
+              onPress={() => handleEditExercise(item)}
+              style={styles.actionButton}
+            >
+              <Ionicons name="create-outline" size={24} color={theme.primary} />
+            </TouchableOpacity>
+            {item.id && (
+              <TouchableOpacity
+                onPress={() => handleDeleteExercise(item.id!)}
+                style={styles.actionButton}
+              >
+                <Ionicons name="trash-outline" size={24} color={theme.error} />
+              </TouchableOpacity>
+            )}
+          </View>
+        </TouchableOpacity>
+      </ScaleDecorator>
+    );
+  };
+
   const exercises = weeklyPlan[selectedDay] || [];
 
   const styles = createStyles(theme);
@@ -164,10 +282,7 @@ export default function MyExercisesScreen() {
         keyExtractor={(item, index) => index.toString()}
       />
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-      >
+      <View style={styles.content}>
         {exercises.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Ionicons
@@ -181,10 +296,12 @@ export default function MyExercisesScreen() {
             </Text>
           </View>
         ) : (
-          <ExerciseList
-            exercises={exercises}
-            onEdit={handleEditExercise}
-            onDelete={handleDeleteExercise}
+          <DraggableFlatList
+            data={exercises}
+            onDragEnd={handleDragEnd}
+            keyExtractor={(item, index) => `exercise-${item.id || index}`}
+            renderItem={renderExerciseItem}
+            contentContainerStyle={styles.listContent}
           />
         )}
 
@@ -212,7 +329,7 @@ export default function MyExercisesScreen() {
             </Text>
           </TouchableOpacity>
         </View>
-      </ScrollView>
+      </View>
 
       <ExerciseModal
         visible={showModal}
@@ -256,12 +373,14 @@ const createStyles = (theme: any) =>
     dayButtonTextActive: {
       color: "#ffffff",
     },
-    scrollView: {
+    content: {
       flex: 1,
-    },
-    scrollContent: {
       paddingHorizontal: 16,
       paddingTop: 16,
+      paddingBottom: 100,
+    },
+    listContent: {
+      paddingBottom: 16,
     },
     emptyContainer: {
       alignItems: "center",
@@ -278,10 +397,6 @@ const createStyles = (theme: any) =>
       fontSize: 14,
       marginTop: 8,
     },
-    exercisesList: {
-      gap: 12,
-      marginBottom: 16,
-    },
     exerciseCard: {
       backgroundColor: theme.card,
       borderRadius: 8,
@@ -293,6 +408,8 @@ const createStyles = (theme: any) =>
       shadowOpacity: 0.1,
       shadowRadius: 2,
       elevation: 2,
+      marginBottom: 12,
+      minHeight: 120,
     },
     iconContainer: {
       width: 48,
@@ -310,11 +427,12 @@ const createStyles = (theme: any) =>
       fontSize: 16,
       fontWeight: "600",
       color: theme.text,
+      marginBottom: 4,
     },
     exerciseStats: {
       fontSize: 14,
       color: theme.textSecondary,
-      marginTop: 4,
+      marginTop: 2,
     },
     exerciseActions: {
       flexDirection: "row",

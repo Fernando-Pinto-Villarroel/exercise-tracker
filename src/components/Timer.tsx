@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -10,27 +11,23 @@ import {
   View,
 } from "react-native";
 import { useTheme } from "../contexts/ThemeContext";
-import { useExerciseStore } from "../store/exerciseStore";
 
-export default function Timer() {
+const TIMER_STORAGE_KEY = "timer_seconds";
+
+export default function Timer({ resetTrigger }: { resetTrigger?: number }) {
   const { t } = useTranslation();
   const { theme } = useTheme();
-  const { todayCompletion, updateElapsedTime, updateTimerStartTime } =
-    useExerciseStore();
   const [isRunning, setIsRunning] = useState(false);
   const [remainingSeconds, setRemainingSeconds] = useState(0);
-  const [originalSeconds, setOriginalSeconds] = useState(0);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editMinutes, setEditMinutes] = useState("");
   const [editSeconds, setEditSeconds] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    if (todayCompletion) {
-      setRemainingSeconds(todayCompletion.elapsed_seconds);
-      setOriginalSeconds(todayCompletion.elapsed_seconds);
-    }
-  }, [todayCompletion]);
+    loadTimer();
+    checkMidnightReset();
+  }, []);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -38,7 +35,7 @@ export default function Timer() {
       interval = setInterval(() => {
         setRemainingSeconds((prev) => {
           const newSeconds = prev - 1;
-          updateElapsedTime(newSeconds);
+          saveTimer(newSeconds);
           return newSeconds;
         });
       }, 1000);
@@ -47,6 +44,52 @@ export default function Timer() {
     }
     return () => clearInterval(interval);
   }, [isRunning, remainingSeconds]);
+
+  useEffect(() => {
+    const reset = async () => {
+      setRemainingSeconds(0);
+      await saveTimer(0);
+    };
+    if (resetTrigger) reset();
+  }, [resetTrigger]);
+
+  const getTodayDate = () => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(
+      2,
+      "0"
+    )}-${String(now.getDate()).padStart(2, "0")}`;
+  };
+
+  const checkMidnightReset = async () => {
+    const lastDate = await AsyncStorage.getItem("timer_last_date");
+    const today = getTodayDate();
+
+    if (lastDate !== today) {
+      await AsyncStorage.removeItem(TIMER_STORAGE_KEY);
+      await AsyncStorage.setItem("timer_last_date", today);
+      setRemainingSeconds(0);
+    }
+  };
+
+  const loadTimer = async () => {
+    try {
+      const stored = await AsyncStorage.getItem(TIMER_STORAGE_KEY);
+      if (stored) {
+        setRemainingSeconds(parseInt(stored));
+      }
+    } catch (error) {
+      console.error("Error loading timer:", error);
+    }
+  };
+
+  const saveTimer = async (seconds: number) => {
+    try {
+      await AsyncStorage.setItem(TIMER_STORAGE_KEY, seconds.toString());
+    } catch (error) {
+      console.error("Error saving timer:", error);
+    }
+  };
 
   const formatTime = (totalSeconds: number) => {
     const hrs = Math.floor(totalSeconds / 3600);
@@ -74,22 +117,22 @@ export default function Timer() {
     try {
       const mins = parseInt(editMinutes) || 0;
       const secs = parseInt(editSeconds) || 0;
-      const totalSeconds = mins * 60 + secs;
-      setRemainingSeconds(totalSeconds);
-      setOriginalSeconds(totalSeconds);
 
-      await updateElapsedTime(totalSeconds);
-
-      try {
-        await updateTimerStartTime(totalSeconds);
-      } catch (error) {
-        console.error("Failed to update timer start time:", error);
+      if (mins < 0 || mins > 999) {
+        setIsSaving(false);
+        return;
+      }
+      if (secs < 0 || secs > 59) {
+        setIsSaving(false);
+        return;
       }
 
+      const totalSeconds = mins * 60 + secs;
+      setRemainingSeconds(totalSeconds);
+      await saveTimer(totalSeconds);
       setShowEditModal(false);
     } catch (error) {
       console.error("Failed to save timer:", error);
-      setShowEditModal(false);
     } finally {
       setIsSaving(false);
     }

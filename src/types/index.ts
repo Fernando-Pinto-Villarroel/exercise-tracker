@@ -48,8 +48,7 @@ export interface DailyCompletion {
   date: string;
   is_completed: boolean;
   completed_at?: string;
-  elapsed_seconds: number;
-  timer_start_seconds?: number;
+  training_time: number;
 }
 
 export interface ExportData {

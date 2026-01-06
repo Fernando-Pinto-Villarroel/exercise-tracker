@@ -33,6 +33,8 @@ const ICON_OPTIONS = [
   { type: "image", name: "gym-rumbell", label: "Gym Rumbell" },
   { type: "image", name: "gym-station", label: "Gym Station" },
   { type: "image", name: "calisthenics-bar", label: "Calisthenics Bar" },
+  { type: "image", name: "grips", label: "Grips" },
+  { type: "image", name: "push-up", label: "Push Up" },
   { family: "MaterialIcons", name: "sports-gymnastics", label: "Kettlebell" },
   { family: "Ionicons", name: "walk", label: "Walk" },
   { family: "FontAwesome5", name: "running", label: "Running" },
@@ -84,8 +86,17 @@ export default function ExerciseModal({
       setName(exercise.exercise_name);
 
       const hasSetsReps =
-        exercise.sets !== undefined && exercise.reps !== undefined;
-      const hasTime = exercise.estimated_time !== undefined;
+        exercise.sets !== null &&
+        exercise.sets !== undefined &&
+        exercise.reps !== null &&
+        exercise.reps !== undefined &&
+        exercise.sets > 0 &&
+        exercise.reps > 0;
+
+      const hasTime =
+        exercise.estimated_time !== null &&
+        exercise.estimated_time !== undefined &&
+        exercise.estimated_time > 0;
 
       if (hasSetsReps && hasTime) {
         setMeasurementType("both");
@@ -97,7 +108,7 @@ export default function ExerciseModal({
 
       setSets(exercise.sets?.toString() || "");
       setReps(exercise.reps?.toString() || "");
-      if (exercise.estimated_time) {
+      if (exercise.estimated_time && exercise.estimated_time > 0) {
         const totalSeconds = exercise.estimated_time;
         const minutes = Math.floor(totalSeconds / 60).toString();
         const seconds = (totalSeconds % 60).toString();
@@ -108,11 +119,17 @@ export default function ExerciseModal({
         setEstimatedTimeSeconds("");
       }
 
+      const iconFamily = exercise.icon_family || "image";
       const icon = ICON_OPTIONS.find(
         (opt) =>
-          opt.family === exercise.icon_family && opt.name === exercise.icon_name
+          (opt.type === iconFamily || opt.family === iconFamily) &&
+          opt.name === exercise.icon_name
       );
-      if (icon) setSelectedIcon(icon);
+      if (icon) {
+        setSelectedIcon(icon);
+      } else {
+        setSelectedIcon(ICON_OPTIONS[0]);
+      }
     } else {
       setName("");
       setMeasurementType("sets_reps");
@@ -128,10 +145,40 @@ export default function ExerciseModal({
     if (!name.trim()) return;
 
     if (measurementType === "sets_reps" || measurementType === "both") {
-      if (!sets || !reps) return;
+      const setsNum = parseInt(sets);
+      const repsNum = parseInt(reps);
+      if (
+        !sets ||
+        !reps ||
+        setsNum <= 0 ||
+        repsNum <= 0 ||
+        setsNum > 999 ||
+        repsNum > 999
+      ) {
+        Alert.alert(
+          t("common.error"),
+          "Please enter valid sets and reps (1-999)"
+        );
+        return;
+      }
     }
     if (measurementType === "time" || measurementType === "both") {
-      if (!estimatedTimeMinutes || !estimatedTimeSeconds) return;
+      const mins = parseInt(estimatedTimeMinutes);
+      const secs = parseInt(estimatedTimeSeconds);
+      if (
+        !estimatedTimeMinutes ||
+        !estimatedTimeSeconds ||
+        mins < 0 ||
+        secs < 0 ||
+        mins > 999 ||
+        secs > 59
+      ) {
+        Alert.alert(
+          t("common.error"),
+          "Please enter valid time (minutes: 0-999, seconds: 0-59)"
+        );
+        return;
+      }
     }
 
     try {
@@ -155,7 +202,7 @@ export default function ExerciseModal({
       const exerciseData = {
         exercise_name: trimmedName,
         icon_name: selectedIcon.name,
-        icon_family: selectedIcon.family || "image",
+        icon_family: selectedIcon.type || selectedIcon.family || "image",
         sets:
           measurementType === "sets_reps" || measurementType === "both"
             ? parseInt(sets)
@@ -214,7 +261,7 @@ export default function ExerciseModal({
 
   const getIconComponent = (option: (typeof ICON_OPTIONS)[0]) => {
     if (option.type === "image") {
-      return <SvgIcon name={option.name} color={theme.primary} size={28} />;
+      return <SvgIcon name={option.name} color={theme.primary} size={30} />;
     } else {
       const iconFamilies = { Ionicons, MaterialIcons, FontAwesome5 };
       const IconFamily =
@@ -391,7 +438,7 @@ export default function ExerciseModal({
               <View style={styles.iconGrid}>
                 {ICON_OPTIONS.map((option, index) => (
                   <TouchableOpacity
-                    key={`${option.family}-${option.name}`}
+                    key={`${option.family || option.type}-${option.name}`}
                     style={[
                       styles.iconButton,
                       {
@@ -401,7 +448,8 @@ export default function ExerciseModal({
                         marginBottom: 8,
                       },
                       selectedIcon.name === option.name &&
-                        selectedIcon.family === option.family &&
+                        (selectedIcon.family === option.family ||
+                          selectedIcon.type === option.type) &&
                         styles.iconButtonSelected,
                     ]}
                     onPress={() => setSelectedIcon(option)}

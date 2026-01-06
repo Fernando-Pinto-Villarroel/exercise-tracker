@@ -238,13 +238,12 @@ function SettingsMain({ navigation }: any) {
 
     for (const completion of data.daily_completions) {
       await db.runAsync(
-        "INSERT INTO daily_completion (date, is_completed, completed_at, elapsed_seconds, timer_start_seconds) VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO daily_completion (date, is_completed, completed_at, training_time) VALUES (?, ?, ?, ?)",
         [
           completion.date,
           completion.is_completed ? 1 : 0,
           completion.completed_at ?? null,
-          completion.elapsed_seconds,
-          completion.timer_start_seconds ?? null,
+          completion.training_time || 0,
         ]
       );
     }

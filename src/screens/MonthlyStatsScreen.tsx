@@ -1,9 +1,11 @@
-import React, { useEffect, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
+import React, { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Dimensions, ScrollView, StyleSheet, Text, View } from "react-native";
 import { LineChart, ProgressChart } from "react-native-chart-kit";
 import { useTheme } from "../contexts/ThemeContext";
 import { getDatabase } from "../database/init";
+import { useExerciseStore } from "../store/exerciseStore";
 import { DailyCompletion, DailySnapshot } from "../types";
 
 const { width } = Dimensions.get("window");
@@ -20,6 +22,7 @@ export default function MonthlyStatsScreen({ route }: any) {
   const { t } = useTranslation();
   const { theme } = useTheme();
   const { month } = route.params;
+  const { completionCounter } = useExerciseStore();
   const [stats, setStats] = useState<{
     daysCompleted: number;
     totalDays: number;
@@ -38,9 +41,11 @@ export default function MonthlyStatsScreen({ route }: any) {
     weeklyCompletions: [0, 0, 0, 0, 0],
   });
 
-  useEffect(() => {
-    loadStats();
-  }, [month]);
+  useFocusEffect(
+    useCallback(() => {
+      loadStats();
+    }, [month, completionCounter])
+  );
 
   const loadStats = async () => {
     const dates = getMonthDates(new Date(month));
@@ -64,7 +69,7 @@ export default function MonthlyStatsScreen({ route }: any) {
 
       if (completion?.is_completed) {
         completed++;
-        totalTime += completion.elapsed_seconds;
+        totalTime += completion.training_time;
         completions.push(true);
         weeklyCompletions[weekIndex]++;
 

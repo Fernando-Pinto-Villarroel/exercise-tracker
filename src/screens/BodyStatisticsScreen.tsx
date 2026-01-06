@@ -81,7 +81,9 @@ export default function BodyStatisticsScreen({ navigation }: any) {
             ))}
           </View>
         )}
+      </ScrollView>
 
+      <View style={styles.buttonContainer}>
         <TouchableOpacity
           style={styles.addButton}
           onPress={() => setShowAddModal(true)}
@@ -97,7 +99,7 @@ export default function BodyStatisticsScreen({ navigation }: any) {
             {t("bodyStats.viewLongTermStats")}
           </Text>
         </TouchableOpacity>
-      </ScrollView>
+      </View>
 
       <AddRecordModal
         visible={showAddModal}
@@ -122,6 +124,7 @@ const createStyles = (theme: any) =>
     scrollContent: {
       paddingHorizontal: 16,
       paddingTop: 16,
+      paddingBottom: 16,
     },
     emptyContainer: {
       alignItems: "center",
@@ -184,7 +187,6 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.primary,
       paddingVertical: 16,
       borderRadius: 8,
-      marginBottom: 12,
     },
     addButtonText: {
       textAlign: "center",
@@ -196,12 +198,18 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.success,
       paddingVertical: 16,
       borderRadius: 8,
-      marginBottom: 24,
     },
     statsButtonText: {
       textAlign: "center",
       color: "#ffffff",
       fontSize: 16,
       fontWeight: "600",
+    },
+    buttonContainer: {
+      backgroundColor: theme.background,
+      paddingHorizontal: 16,
+      paddingVertical: 16,
+      paddingBottom: 24,
+      gap: 12,
     },
   });

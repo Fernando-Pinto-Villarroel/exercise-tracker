@@ -1,19 +1,25 @@
+import { FontAwesome5, Ionicons, MaterialIcons } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Alert,
   Modal,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import DraggableFlatList, {
+  RenderItemParams,
+  ScaleDecorator,
+} from "react-native-draggable-flatlist";
 import ExerciseList from "../components/ExerciseList";
 import ExerciseModal from "../components/ExerciseModal";
+import { SvgIcon } from "../components/SvgIcons";
 import TimePicker from "../components/TimePicker";
 import { useTheme } from "../contexts/ThemeContext";
+import { getDatabase } from "../database/init";
 import { useExerciseStore } from "../store/exerciseStore";
 import { DailyCompletion, DailySnapshot, Exercise } from "../types";
 
@@ -48,6 +54,21 @@ const isPastDate = (dateStr: string): boolean => {
   return dateStr < today;
 };
 
+const iconFamilies = {
+  Ionicons,
+  MaterialIcons,
+  FontAwesome5,
+};
+
+const getIconComponent = (family: string, name: string, theme: any) => {
+  if (family === "image") {
+    return <SvgIcon name={name} color={theme.primary} size={32} />;
+  }
+  const IconFamily =
+    iconFamilies[family as keyof typeof iconFamilies] || Ionicons;
+  return <IconFamily name={name as any} size={32} color={theme.primary} />;
+};
+
 export default function DayDetailScreen({ route }: any) {
   const { t } = useTranslation();
   const { theme } = useTheme();
@@ -55,7 +76,7 @@ export default function DayDetailScreen({ route }: any) {
   const {
     loadDayData,
     toggleDayCompletion,
-    updateDayElapsedTime,
+    updateTrainingTime,
     weeklyPlan,
     weeklyPlanCounter,
     completionCounter,
@@ -118,8 +139,8 @@ export default function DayDetailScreen({ route }: any) {
 
   const handleEditTime = () => {
     if (completion) {
-      const mins = Math.floor(completion.elapsed_seconds / 60);
-      const secs = completion.elapsed_seconds % 60;
+      const mins = Math.floor(completion.training_time / 60);
+      const secs = completion.training_time % 60;
       setEditMinutes(mins.toString());
       setEditSeconds(secs.toString());
     } else {
@@ -132,9 +153,13 @@ export default function DayDetailScreen({ route }: any) {
   const handleSaveTime = async () => {
     const mins = parseInt(editMinutes) || 0;
     const secs = parseInt(editSeconds) || 0;
+
+    if (mins < 0 || mins > 999) return;
+    if (secs < 0 || secs > 59) return;
+
     const totalSeconds = mins * 60 + secs;
 
-    await updateDayElapsedTime(date, totalSeconds);
+    await updateTrainingTime(date, totalSeconds);
     await loadData();
     setShowTimeModal(false);
   };
@@ -184,29 +209,147 @@ export default function DayDetailScreen({ route }: any) {
     }
   };
 
+  const handleDragEnd = async ({ data }: { data: DailySnapshot[] }) => {
+    try {
+      const db = getDatabase();
+
+      await db.runAsync("BEGIN TRANSACTION");
+
+      for (let i = 0; i < data.length; i++) {
+        const id = data[i].id;
+        if (id !== undefined) {
+          await db.runAsync(
+            "UPDATE daily_snapshot SET sort_order = ? WHERE id = ?",
+            [-(i + 1000), id]
+          );
+        }
+      }
+
+      for (let i = 0; i < data.length; i++) {
+        const id = data[i].id;
+        if (id !== undefined) {
+          await db.runAsync(
+            "UPDATE daily_snapshot SET sort_order = ? WHERE id = ?",
+            [i, id]
+          );
+        }
+      }
+
+      await db.runAsync("COMMIT");
+      await loadData();
+    } catch (error) {
+      console.error("Error reordering exercises:", error);
+      try {
+        const db = getDatabase();
+        await db.runAsync("ROLLBACK");
+      } catch (rollbackError) {
+        console.error("Error rolling back transaction:", rollbackError);
+      }
+      Alert.alert(
+        t("common.error"),
+        "Failed to reorder exercises. Please try again."
+      );
+    }
+  };
+
+  const renderDraggableItem = ({
+    item,
+    drag,
+    isActive,
+  }: RenderItemParams<DailySnapshot>) => {
+    const hasSets =
+      item.sets !== null &&
+      item.sets !== undefined &&
+      item.reps !== null &&
+      item.reps !== undefined &&
+      item.sets > 0 &&
+      item.reps > 0;
+
+    const hasTime =
+      item.estimated_time !== null &&
+      item.estimated_time !== undefined &&
+      item.estimated_time > 0;
+
+    const formatTimeShort = (seconds: number) => {
+      const mins = Math.floor(seconds / 60);
+      const secs = seconds % 60;
+      return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+    };
+
+    return (
+      <ScaleDecorator>
+        <TouchableOpacity
+          onLongPress={drag}
+          disabled={isActive}
+          style={[styles.exerciseCard, isActive && { opacity: 0.7 }]}
+        >
+          <View style={styles.iconContainer}>
+            {getIconComponent(item.icon_family, item.icon_name, theme)}
+          </View>
+
+          <View style={styles.exerciseInfo}>
+            <Text style={styles.exerciseName}>{item.exercise_name}</Text>
+            <View>
+              {hasSets && (
+                <Text style={styles.exerciseStats}>
+                  {item.sets} sets × {item.reps} reps
+                </Text>
+              )}
+              {hasTime && (
+                <Text style={styles.exerciseStats}>
+                  {formatTimeShort(item.estimated_time!)}
+                </Text>
+              )}
+            </View>
+          </View>
+
+          <View style={styles.exerciseActions}>
+            <TouchableOpacity
+              onPress={() => handleEditExercise(item)}
+              style={styles.actionButton}
+            >
+              <Ionicons name="create-outline" size={24} color={theme.primary} />
+            </TouchableOpacity>
+            {item.id && (
+              <TouchableOpacity
+                onPress={() => handleDeleteExercise(item.id!)}
+                style={styles.actionButton}
+              >
+                <Ionicons name="trash-outline" size={24} color={theme.error} />
+              </TouchableOpacity>
+            )}
+          </View>
+        </TouchableOpacity>
+      </ScaleDecorator>
+    );
+  };
+
   const isCompleted = completion?.is_completed || false;
+  const isPast = isPastDate(date);
+  const isToday = date === getTodayDate();
 
   const styles = createStyles(theme);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-      >
+      <View style={styles.content}>
         {snapshot.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>{t("dayDetail.noExercises")}</Text>
           </View>
-        ) : (
-          <ExerciseList
-            exercises={snapshot}
-            onEdit={isPastDate(date) ? handleEditExercise : undefined}
-            onDelete={isPastDate(date) ? handleDeleteExercise : undefined}
+        ) : isPast ? (
+          <DraggableFlatList
+            data={snapshot}
+            onDragEnd={handleDragEnd}
+            keyExtractor={(item, index) => `daily-${item.id || index}`}
+            renderItem={renderDraggableItem}
+            contentContainerStyle={styles.listContent}
           />
+        ) : (
+          <ExerciseList exercises={snapshot} />
         )}
 
-        {isPastDate(date) && (
+        {isPast && (
           <TouchableOpacity
             style={styles.addButton}
             onPress={() => {
@@ -241,82 +384,76 @@ export default function DayDetailScreen({ route }: any) {
           >
             <Text style={styles.timeEditButtonText}>
               {t("dayDetail.editTrainingTime")}:{" "}
-              {formatTime(completion?.elapsed_seconds || 0)}
+              {formatTime(completion?.training_time || 0)}
             </Text>
           </TouchableOpacity>
         )}
+      </View>
 
-        <Modal visible={showTimeModal} transparent animationType="fade">
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>{t("dayDetail.editTime")}</Text>
+      <Modal visible={showTimeModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>{t("dayDetail.editTime")}</Text>
 
-              <View style={styles.modalInputRow}>
-                <View style={styles.modalInputGroup}>
-                  <Text style={styles.modalLabel}>
-                    {t("dayDetail.minutes")}
-                  </Text>
-                  <TextInput
-                    style={styles.modalInput}
-                    value={editMinutes}
-                    onChangeText={setEditMinutes}
-                    keyboardType="numeric"
-                    placeholder="0"
-                    placeholderTextColor={theme.textTertiary}
-                  />
-                </View>
-
-                <View style={styles.modalInputGroup}>
-                  <Text style={styles.modalLabel}>
-                    {t("dayDetail.seconds")}
-                  </Text>
-                  <TextInput
-                    style={styles.modalInput}
-                    value={editSeconds}
-                    onChangeText={setEditSeconds}
-                    keyboardType="numeric"
-                    placeholder="0"
-                    placeholderTextColor={theme.textTertiary}
-                  />
-                </View>
+            <View style={styles.modalInputRow}>
+              <View style={styles.modalInputGroup}>
+                <Text style={styles.modalLabel}>{t("dayDetail.minutes")}</Text>
+                <TextInput
+                  style={styles.modalInput}
+                  value={editMinutes}
+                  onChangeText={setEditMinutes}
+                  keyboardType="numeric"
+                  placeholder="0"
+                  placeholderTextColor={theme.textTertiary}
+                />
               </View>
 
-              <View style={styles.modalButtonRow}>
-                <TouchableOpacity
-                  style={styles.modalCancelButton}
-                  onPress={() => setShowTimeModal(false)}
-                >
-                  <Text style={styles.modalCancelText}>
-                    {t("common.cancel")}
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.modalSaveButton}
-                  onPress={handleSaveTime}
-                >
-                  <Text style={styles.modalSaveText}>{t("common.save")}</Text>
-                </TouchableOpacity>
+              <View style={styles.modalInputGroup}>
+                <Text style={styles.modalLabel}>{t("dayDetail.seconds")}</Text>
+                <TextInput
+                  style={styles.modalInput}
+                  value={editSeconds}
+                  onChangeText={setEditSeconds}
+                  keyboardType="numeric"
+                  placeholder="0"
+                  placeholderTextColor={theme.textTertiary}
+                />
               </View>
             </View>
+
+            <View style={styles.modalButtonRow}>
+              <TouchableOpacity
+                style={styles.modalCancelButton}
+                onPress={() => setShowTimeModal(false)}
+              >
+                <Text style={styles.modalCancelText}>{t("common.cancel")}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.modalSaveButton}
+                onPress={handleSaveTime}
+              >
+                <Text style={styles.modalSaveText}>{t("common.save")}</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </Modal>
+        </View>
+      </Modal>
 
-        <ExerciseModal
-          visible={showEditModal}
-          onClose={() => setShowEditModal(false)}
-          exercise={editingExercise}
-          onSaveDaily={handleSaveDaily}
-        />
+      <ExerciseModal
+        visible={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        exercise={editingExercise}
+        onSaveDaily={handleSaveDaily}
+      />
 
-        <TimePicker
-          visible={showTimePicker}
-          onClose={() => setShowTimePicker(false)}
-          onConfirm={handleTimeConfirm}
-          initialHours={new Date().getHours()}
-          initialMinutes={new Date().getMinutes()}
-        />
-      </ScrollView>
+      <TimePicker
+        visible={showTimePicker}
+        onClose={() => setShowTimePicker(false)}
+        onConfirm={handleTimeConfirm}
+        initialHours={new Date().getHours()}
+        initialMinutes={new Date().getMinutes()}
+      />
     </View>
   );
 }
@@ -327,12 +464,13 @@ const createStyles = (theme: any) =>
       flex: 1,
       backgroundColor: theme.background,
     },
-    scrollView: {
+    content: {
       flex: 1,
-    },
-    scrollContent: {
       paddingHorizontal: 16,
       paddingTop: 16,
+    },
+    listContent: {
+      paddingBottom: 16,
     },
     emptyContainer: {
       alignItems: "center",
@@ -342,6 +480,50 @@ const createStyles = (theme: any) =>
     emptyText: {
       color: theme.textSecondary,
       fontSize: 18,
+    },
+    exerciseCard: {
+      backgroundColor: theme.card,
+      borderRadius: 8,
+      padding: 16,
+      flexDirection: "row",
+      alignItems: "center",
+      shadowColor: theme.shadow,
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.1,
+      shadowRadius: 2,
+      elevation: 2,
+      marginBottom: 12,
+      minHeight: 120,
+    },
+    iconContainer: {
+      width: 48,
+      height: 48,
+      backgroundColor: theme.iconBackground,
+      borderRadius: 24,
+      alignItems: "center",
+      justifyContent: "center",
+      marginRight: 16,
+    },
+    exerciseInfo: {
+      flex: 1,
+    },
+    exerciseName: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: theme.text,
+      marginBottom: 4,
+    },
+    exerciseStats: {
+      fontSize: 14,
+      color: theme.textSecondary,
+      marginTop: 2,
+    },
+    exerciseActions: {
+      flexDirection: "row",
+      gap: 12,
+    },
+    actionButton: {
+      padding: 4,
     },
     completeButton: {
       marginTop: 24,

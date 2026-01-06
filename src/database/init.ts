@@ -63,8 +63,7 @@ export async function initDatabase() {
       date TEXT NOT NULL UNIQUE,
       is_completed INTEGER NOT NULL DEFAULT 0,
       completed_at TEXT,
-      elapsed_seconds INTEGER NOT NULL DEFAULT 0,
-      timer_start_seconds INTEGER
+      training_time INTEGER NOT NULL DEFAULT 0
     );
   `);
 

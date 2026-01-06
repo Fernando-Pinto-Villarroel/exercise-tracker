@@ -28,9 +28,7 @@ interface ExerciseStore {
   loadTodayData: () => Promise<void>;
   createTodaySnapshot: () => Promise<void>;
   toggleTodayCompletion: (customTime?: string) => Promise<void>;
-  updateElapsedTime: (seconds: number) => Promise<void>;
-  updateTimerStartTime: (seconds: number) => Promise<void>;
-  updateDayElapsedTime: (date: string, seconds: number) => Promise<void>;
+  updateTrainingTime: (date: string, seconds: number) => Promise<void>;
 
   loadDayData: (date: string) => Promise<{
     snapshot: DailySnapshot[];
@@ -284,7 +282,7 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
 
       if (!completionExists) {
         await db.runAsync(
-          "INSERT INTO daily_completion (date, is_completed, elapsed_seconds) VALUES (?, 0, 0)",
+          "INSERT INTO daily_completion (date, is_completed, training_time) VALUES (?, 0, 0)",
           [today]
         );
       }
@@ -306,7 +304,7 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
     if (!current) {
       const completedAt = customTime || new Date().toISOString();
       await db.runAsync(
-        "INSERT INTO daily_completion (date, is_completed, completed_at, elapsed_seconds) VALUES (?, 1, ?, 0)",
+        "INSERT INTO daily_completion (date, is_completed, completed_at, training_time) VALUES (?, 1, ?, 0)",
         [today, completedAt]
       );
     } else {
@@ -325,39 +323,17 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
     get().incrementCompletionCounter();
   },
 
-  updateElapsedTime: async (seconds) => {
-    const today = getTodayDate();
+  updateTrainingTime: async (date: string, seconds: number) => {
     const db = getDatabase();
 
     await db.runAsync(
-      "UPDATE daily_completion SET elapsed_seconds = ? WHERE date = ?",
-      [seconds, today]
-    );
-
-    await get().loadTodayData();
-  },
-
-  updateTimerStartTime: async (seconds: number) => {
-    const today = getTodayDate();
-    const db = getDatabase();
-
-    await db.runAsync(
-      "UPDATE daily_completion SET timer_start_seconds = ? WHERE date = ?",
-      [seconds, today]
-    );
-
-    await get().loadTodayData();
-  },
-
-  updateDayElapsedTime: async (date: string, seconds: number) => {
-    const db = getDatabase();
-
-    await db.runAsync(
-      "UPDATE daily_completion SET elapsed_seconds = ? WHERE date = ?",
+      "UPDATE daily_completion SET training_time = ? WHERE date = ?",
       [seconds, date]
     );
 
-    await get().loadDayData(date);
+    if (date === getTodayDate()) {
+      await get().loadTodayData();
+    }
     get().incrementCompletionCounter();
   },
 
@@ -390,7 +366,7 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
     if (!current) {
       const completedAt = customTime || new Date().toISOString();
       await db.runAsync(
-        "INSERT INTO daily_completion (date, is_completed, completed_at, elapsed_seconds) VALUES (?, 1, ?, 0)",
+        "INSERT INTO daily_completion (date, is_completed, completed_at, training_time) VALUES (?, 1, ?, 0)",
         [date, completedAt]
       );
     } else {

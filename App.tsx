@@ -3,6 +3,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useState } from "react";
 import { View } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { ThemeProvider, useTheme } from "./src/contexts/ThemeContext";
 import { initDatabase } from "./src/database/init";
 import "./src/i18n";
@@ -82,9 +83,11 @@ function AppContent() {
 
 export default function App() {
   return (
-    <ThemeProvider>
-      <StatusBar style="auto" />
-      <AppContent />
-    </ThemeProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ThemeProvider>
+        <StatusBar style="auto" />
+        <AppContent />
+      </ThemeProvider>
+    </GestureHandlerRootView>
   );
 }

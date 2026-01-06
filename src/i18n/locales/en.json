@@ -33,6 +33,9 @@
       "December"
     ]
   },
+  "timePicker": {
+    "selectCompletionTime": "Select Completion Time"
+  },
   "tabs": {
     "today": "Today",
     "weekly": "Weekly",

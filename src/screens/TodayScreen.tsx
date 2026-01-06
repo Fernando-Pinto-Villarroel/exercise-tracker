@@ -4,9 +4,11 @@ import { useFocusEffect } from "@react-navigation/native";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -30,16 +32,24 @@ export default function TodayScreen() {
   const {
     todaySnapshot,
     todayCompletion,
-    loadTodayData,
     createTodaySnapshot,
     toggleTodayCompletion,
     weeklyPlanCounter,
     loadWeeklyPlan,
+    updateTrainingTime,
   } = useExerciseStore();
 
   const [progress, setProgress] = useState<ExerciseProgress>({});
   const [todayDate, setTodayDate] = useState("");
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [showTimeModal, setShowTimeModal] = useState(false);
+  const [timeMinutes, setTimeMinutes] = useState("");
+  const [timeSeconds, setTimeSeconds] = useState("");
+  const [completionHour, setCompletionHour] = useState(new Date().getHours());
+  const [completionMinute, setCompletionMinute] = useState(
+    new Date().getMinutes()
+  );
+  const [timerResetTrigger, setTimerResetTrigger] = useState(0);
 
   const getTodayDate = () => {
     const now = new Date();
@@ -116,18 +126,40 @@ export default function TodayScreen() {
 
   const handleToggleCompletion = async () => {
     if (!todayCompletion?.is_completed) {
+      const now = new Date();
+      setCompletionHour(now.getHours());
+      setCompletionMinute(now.getMinutes());
       setShowTimePicker(true);
     } else {
       await toggleTodayCompletion();
     }
   };
 
-  const handleTimeConfirm = async (hours: number, minutes: number) => {
-    const now = new Date();
-    now.setHours(hours, minutes, 0, 0);
+  const handleTimePickerConfirm = async (hours: number, minutes: number) => {
+    setCompletionHour(hours);
+    setCompletionMinute(minutes);
+    setTimeMinutes("");
+    setTimeSeconds("");
+    setShowTimeModal(true);
+  };
 
-    await toggleTodayCompletion(now.toISOString());
+  const handleFinalConfirm = async () => {
+    const mins = parseInt(timeMinutes) || 0;
+    const secs = parseInt(timeSeconds) || 0;
+
+    if (mins < 0 || mins > 999) return;
+    if (secs < 0 || secs > 59) return;
+
+    const totalSeconds = mins * 60 + secs;
+
+    const completionTime = new Date();
+    completionTime.setHours(completionHour, completionMinute, 0, 0);
+
+    await toggleTodayCompletion(completionTime.toISOString());
+    await updateTrainingTime(todayDate, totalSeconds);
     await resetProgress();
+    setTimerResetTrigger((prev) => prev + 1);
+    setShowTimeModal(false);
   };
 
   const incrementSets = (exerciseName: string, maxSets: number) => {
@@ -262,12 +294,18 @@ export default function TodayScreen() {
                       <Text style={styles.exerciseName}>
                         {exercise.exercise_name}
                       </Text>
-                      <Text style={styles.exerciseStats}>
-                        {hasSets &&
-                          `${exercise.sets} sets × ${exercise.reps} reps`}
-                        {hasSets && hasTime && " • "}
-                        {hasTime && formatTime(exercise.estimated_time!)}
-                      </Text>
+                      <View>
+                        {hasSets && (
+                          <Text style={styles.exerciseStats}>
+                            {exercise.sets} sets × {exercise.reps} reps
+                          </Text>
+                        )}
+                        {hasTime && (
+                          <Text style={styles.exerciseStats}>
+                            {formatTime(exercise.estimated_time!)}
+                          </Text>
+                        )}
+                      </View>
                     </View>
                   </View>
 
@@ -365,16 +403,67 @@ export default function TodayScreen() {
           </Text>
         </TouchableOpacity>
       </ScrollView>
-
-      <Timer />
+      <Timer resetTrigger={timerResetTrigger} />
 
       <TimePicker
         visible={showTimePicker}
         onClose={() => setShowTimePicker(false)}
-        onConfirm={handleTimeConfirm}
-        initialHours={new Date().getHours()}
-        initialMinutes={new Date().getMinutes()}
+        onConfirm={handleTimePickerConfirm}
+        initialHours={completionHour}
+        initialMinutes={completionMinute}
       />
+
+      <Modal visible={showTimeModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>
+              {t("dayDetail.editTrainingTime")}
+            </Text>
+
+            <View style={styles.modalInputRow}>
+              <View style={styles.modalInputGroup}>
+                <Text style={styles.modalLabel}>{t("dayDetail.minutes")}</Text>
+                <TextInput
+                  style={styles.modalInput}
+                  value={timeMinutes}
+                  onChangeText={setTimeMinutes}
+                  keyboardType="numeric"
+                  placeholder="0"
+                  placeholderTextColor={theme.textTertiary}
+                />
+              </View>
+
+              <View style={styles.modalInputGroup}>
+                <Text style={styles.modalLabel}>{t("dayDetail.seconds")}</Text>
+                <TextInput
+                  style={styles.modalInput}
+                  value={timeSeconds}
+                  onChangeText={setTimeSeconds}
+                  keyboardType="numeric"
+                  placeholder="0"
+                  placeholderTextColor={theme.textTertiary}
+                />
+              </View>
+            </View>
+
+            <View style={styles.modalButtonRow}>
+              <TouchableOpacity
+                style={styles.modalCancelButton}
+                onPress={() => setShowTimeModal(false)}
+              >
+                <Text style={styles.modalCancelText}>{t("common.cancel")}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.modalSaveButton}
+                onPress={handleFinalConfirm}
+              >
+                <Text style={styles.modalSaveText}>{t("common.save")}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -420,6 +509,7 @@ const createStyles = (theme: any) =>
       shadowOpacity: 0.1,
       shadowRadius: 2,
       elevation: 2,
+      minHeight: 120,
     },
     exerciseHeader: {
       flexDirection: "row",
@@ -435,6 +525,7 @@ const createStyles = (theme: any) =>
     exerciseStats: {
       fontSize: 14,
       color: theme.textSecondary,
+      marginTop: 2,
     },
     iconContainer: {
       width: 48,
@@ -488,6 +579,72 @@ const createStyles = (theme: any) =>
       textAlign: "center",
       color: "#ffffff",
       fontSize: 16,
+      fontWeight: "600",
+    },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: theme.modalOverlay,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    modalContent: {
+      backgroundColor: theme.card,
+      borderRadius: 8,
+      padding: 24,
+      width: 320,
+    },
+    modalTitle: {
+      fontSize: 20,
+      fontWeight: "bold",
+      marginBottom: 16,
+      color: theme.text,
+    },
+    modalInputRow: {
+      flexDirection: "row",
+      gap: 12,
+      marginBottom: 24,
+    },
+    modalInputGroup: {
+      flex: 1,
+    },
+    modalLabel: {
+      fontSize: 14,
+      color: theme.textSecondary,
+      marginBottom: 4,
+    },
+    modalInput: {
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: 4,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      color: theme.text,
+      backgroundColor: theme.background,
+    },
+    modalButtonRow: {
+      flexDirection: "row",
+      gap: 12,
+    },
+    modalCancelButton: {
+      flex: 1,
+      paddingVertical: 12,
+      backgroundColor: theme.borderLight,
+      borderRadius: 4,
+    },
+    modalCancelText: {
+      textAlign: "center",
+      fontWeight: "600",
+      color: theme.text,
+    },
+    modalSaveButton: {
+      flex: 1,
+      paddingVertical: 12,
+      backgroundColor: theme.primary,
+      borderRadius: 4,
+    },
+    modalSaveText: {
+      textAlign: "center",
+      color: "#ffffff",
       fontWeight: "600",
     },
   });

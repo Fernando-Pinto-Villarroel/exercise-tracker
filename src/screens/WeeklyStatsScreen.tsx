@@ -1,9 +1,11 @@
-import React, { useEffect, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
+import React, { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Dimensions, ScrollView, StyleSheet, Text, View } from "react-native";
 import { ProgressChart } from "react-native-chart-kit";
 import { useTheme } from "../contexts/ThemeContext";
 import { getDatabase } from "../database/init";
+import { useExerciseStore } from "../store/exerciseStore";
 import { DailyCompletion, DailySnapshot } from "../types";
 
 const { width } = Dimensions.get("window");
@@ -19,6 +21,7 @@ interface ExerciseStats {
 export default function WeeklyStatsScreen() {
   const { t } = useTranslation();
   const { theme } = useTheme();
+  const { completionCounter } = useExerciseStore();
   const [stats, setStats] = useState<{
     daysCompleted: number;
     totalDays: number;
@@ -31,9 +34,11 @@ export default function WeeklyStatsScreen() {
     exerciseStats: [],
   });
 
-  useEffect(() => {
-    loadStats();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      loadStats();
+    }, [completionCounter])
+  );
 
   const loadStats = async () => {
     const dates = getWeekDates();
@@ -50,11 +55,9 @@ export default function WeeklyStatsScreen() {
         [date]
       );
 
-      if (completion) {
-        if (completion.is_completed) {
-          completed++;
-          totalTime += completion.elapsed_seconds;
-        }
+      if (completion && completion.is_completed) {
+        completed++;
+        totalTime += completion.training_time;
 
         const exercises = await db.getAllAsync<DailySnapshot>(
           "SELECT * FROM daily_snapshot WHERE date = ?",

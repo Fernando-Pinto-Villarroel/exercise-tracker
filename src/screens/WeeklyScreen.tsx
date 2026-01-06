@@ -40,9 +40,7 @@ function WeeklyOverview({ navigation }: any) {
         "SELECT * FROM daily_completion WHERE date = ?",
         [date]
       );
-      data.push(
-        completion || { date, is_completed: false, elapsed_seconds: 0 }
-      );
+      data.push(completion || { date, is_completed: false, training_time: 0 });
     }
 
     setWeekData(data);

@@ -1,6 +1,12 @@
 import { FontAwesome5, Ionicons, MaterialIcons } from "@expo/vector-icons";
 import React from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { useTheme } from "../contexts/ThemeContext";
 import { Exercise } from "../types";
 import { SvgIcon } from "./SvgIcons";
@@ -33,84 +39,84 @@ export default function ExerciseList({
     return <IconFamily name={name as any} size={32} color={theme.primary} />;
   };
 
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+  };
+
   const styles = createStyles(theme);
 
   return (
-    <View style={styles.container}>
-      {exercises.map((exercise, index) => (
-        <View key={index} style={styles.exerciseCard}>
-          <View style={styles.iconContainer}>
-            {getIconComponent(exercise.icon_family, exercise.icon_name)}
-          </View>
+    <ScrollView contentContainerStyle={styles.container}>
+      {exercises.map((exercise, index) => {
+        const hasSets =
+          exercise.sets !== null &&
+          exercise.sets !== undefined &&
+          exercise.reps !== null &&
+          exercise.reps !== undefined &&
+          exercise.sets > 0 &&
+          exercise.reps > 0;
 
-          <View style={styles.exerciseInfo}>
-            <Text style={styles.exerciseName}>{exercise.exercise_name}</Text>
-            <Text style={styles.exerciseStats}>
-              {(() => {
-                // Check if we have meaningful data for each field
-                const sets =
-                  exercise.sets && exercise.sets > 0 ? exercise.sets : null;
-                const reps =
-                  exercise.reps && exercise.reps > 0 ? exercise.reps : null;
-                const time =
-                  exercise.estimated_time && exercise.estimated_time > 0
-                    ? exercise.estimated_time
-                    : null;
+        const hasTime =
+          exercise.estimated_time !== null &&
+          exercise.estimated_time !== undefined &&
+          exercise.estimated_time > 0;
 
-                if (sets && reps && time) {
-                  const minutes = Math.floor(time / 60);
-                  const seconds = time % 60;
-                  return `${sets} sets × ${reps} reps • ${minutes}m ${seconds}s`;
-                } else if (sets && reps) {
-                  return `${sets} sets × ${reps} reps`;
-                } else if (time) {
-                  const minutes = Math.floor(time / 60);
-                  const seconds = time % 60;
-                  return minutes > 0
-                    ? `${minutes}m ${seconds}s`
-                    : `${seconds}s`;
-                } else if (sets) {
-                  return `${sets} sets`;
-                } else if (reps) {
-                  return `${reps} reps`;
-                } else {
-                  return "";
-                }
-              })()}
-            </Text>
-          </View>
-
-          {(onEdit || onDelete) && (
-            <View style={styles.exerciseActions}>
-              {onEdit && (
-                <TouchableOpacity
-                  onPress={() => onEdit(exercise)}
-                  style={styles.actionButton}
-                >
-                  <Ionicons
-                    name="create-outline"
-                    size={24}
-                    color={theme.primary}
-                  />
-                </TouchableOpacity>
-              )}
-              {onDelete && exercise.id && (
-                <TouchableOpacity
-                  onPress={() => onDelete(exercise.id!)}
-                  style={styles.actionButton}
-                >
-                  <Ionicons
-                    name="trash-outline"
-                    size={24}
-                    color={theme.error}
-                  />
-                </TouchableOpacity>
-              )}
+        return (
+          <View key={index} style={styles.exerciseCard}>
+            <View style={styles.iconContainer}>
+              {getIconComponent(exercise.icon_family, exercise.icon_name)}
             </View>
-          )}
-        </View>
-      ))}
-    </View>
+
+            <View style={styles.exerciseInfo}>
+              <Text style={styles.exerciseName}>{exercise.exercise_name}</Text>
+              <View>
+                {hasSets && (
+                  <Text style={styles.exerciseStats}>
+                    {exercise.sets} sets × {exercise.reps} reps
+                  </Text>
+                )}
+                {hasTime && (
+                  <Text style={styles.exerciseStats}>
+                    {formatTime(exercise.estimated_time!)}
+                  </Text>
+                )}
+              </View>
+            </View>
+
+            {(onEdit || onDelete) && (
+              <View style={styles.exerciseActions}>
+                {onEdit && (
+                  <TouchableOpacity
+                    onPress={() => onEdit(exercise)}
+                    style={styles.actionButton}
+                  >
+                    <Ionicons
+                      name="create-outline"
+                      size={24}
+                      color={theme.primary}
+                    />
+                  </TouchableOpacity>
+                )}
+                {onDelete && exercise.id && (
+                  <TouchableOpacity
+                    onPress={() => onDelete(exercise.id!)}
+                    style={styles.actionButton}
+                  >
+                    <Ionicons
+                      name="trash-outline"
+                      size={24}
+                      color={theme.error}
+                    />
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+          </View>
+        );
+      })}
+    </ScrollView>
   );
 }
 
@@ -118,6 +124,7 @@ const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
       gap: 12,
+      paddingBottom: 16,
     },
     exerciseCard: {
       backgroundColor: theme.card,
@@ -130,6 +137,7 @@ const createStyles = (theme: any) =>
       shadowOpacity: 0.1,
       shadowRadius: 2,
       elevation: 2,
+      minHeight: 120,
     },
     iconContainer: {
       width: 48,
@@ -147,11 +155,12 @@ const createStyles = (theme: any) =>
       fontSize: 16,
       fontWeight: "600",
       color: theme.text,
+      marginBottom: 4,
     },
     exerciseStats: {
       fontSize: 14,
       color: theme.textSecondary,
-      marginTop: 4,
+      marginTop: 2,
     },
     exerciseActions: {
       flexDirection: "row",
