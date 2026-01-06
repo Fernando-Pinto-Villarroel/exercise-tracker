@@ -27,7 +27,7 @@ interface ExerciseStore {
 
   loadTodayData: () => Promise<void>;
   createTodaySnapshot: () => Promise<void>;
-  toggleTodayCompletion: () => Promise<void>;
+  toggleTodayCompletion: (customTime?: string) => Promise<void>;
   updateElapsedTime: (seconds: number) => Promise<void>;
   updateTimerStartTime: (seconds: number) => Promise<void>;
   updateDayElapsedTime: (date: string, seconds: number) => Promise<void>;
@@ -36,7 +36,7 @@ interface ExerciseStore {
     snapshot: DailySnapshot[];
     completion: DailyCompletion | null;
   }>;
-  toggleDayCompletion: (date: string) => Promise<void>;
+  toggleDayCompletion: (date: string, customTime?: string) => Promise<void>;
   updateDailyExercise: (
     id: number,
     exercise: Omit<DailySnapshot, "id" | "date">
@@ -109,7 +109,6 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
 
       await get().loadWeeklyPlan();
 
-      // If adding to today's day, recreate today snapshot
       const todayDayOfWeek = new Date().getDay();
       const adjustedTodayDay = todayDayOfWeek === 0 ? 6 : todayDayOfWeek - 1;
 
@@ -141,7 +140,6 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
 
       await get().loadWeeklyPlan();
 
-      // If updating today's day, refresh today data
       const todayDayOfWeek = new Date().getDay();
       const adjustedTodayDay = todayDayOfWeek === 0 ? 6 : todayDayOfWeek - 1;
 
@@ -182,7 +180,6 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
 
       await get().loadWeeklyPlan();
 
-      // If deleting from today's day, refresh today data
       const todayDayOfWeek = new Date().getDay();
       const adjustedTodayDay = todayDayOfWeek === 0 ? 6 : todayDayOfWeek - 1;
 
@@ -250,7 +247,6 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
       const today = getTodayDate();
       const db = getDatabase();
 
-      // Always recreate today's snapshot from weekly plan
       await db.runAsync("DELETE FROM daily_snapshot WHERE date = ?", [today]);
 
       const dayOfWeek = new Date().getDay();
@@ -302,19 +298,22 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
     }
   },
 
-  toggleTodayCompletion: async () => {
+  toggleTodayCompletion: async (customTime?: string) => {
     const today = getTodayDate();
     const db = getDatabase();
     const current = get().todayCompletion;
 
     if (!current) {
+      const completedAt = customTime || new Date().toISOString();
       await db.runAsync(
         "INSERT INTO daily_completion (date, is_completed, completed_at, elapsed_seconds) VALUES (?, 1, ?, 0)",
-        [today, new Date().toISOString()]
+        [today, completedAt]
       );
     } else {
       const newStatus = current.is_completed ? 0 : 1;
-      const completedAt = newStatus ? new Date().toISOString() : null;
+      const completedAt = newStatus
+        ? customTime || new Date().toISOString()
+        : null;
 
       await db.runAsync(
         "UPDATE daily_completion SET is_completed = ?, completed_at = ? WHERE date = ?",
@@ -381,7 +380,7 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
     };
   },
 
-  toggleDayCompletion: async (date) => {
+  toggleDayCompletion: async (date, customTime?: string) => {
     const db = getDatabase();
     const current = await db.getFirstAsync<DailyCompletion>(
       "SELECT * FROM daily_completion WHERE date = ?",
@@ -389,13 +388,16 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
     );
 
     if (!current) {
+      const completedAt = customTime || new Date().toISOString();
       await db.runAsync(
         "INSERT INTO daily_completion (date, is_completed, completed_at, elapsed_seconds) VALUES (?, 1, ?, 0)",
-        [date, new Date().toISOString()]
+        [date, completedAt]
       );
     } else {
       const newStatus = current.is_completed ? 0 : 1;
-      const completedAt = newStatus ? new Date().toISOString() : null;
+      const completedAt = newStatus
+        ? customTime || new Date().toISOString()
+        : null;
 
       await db.runAsync(
         "UPDATE daily_completion SET is_completed = ?, completed_at = ? WHERE date = ?",

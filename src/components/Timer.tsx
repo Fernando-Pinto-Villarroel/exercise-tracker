@@ -179,7 +179,7 @@ const createStyles = (theme: any) =>
   StyleSheet.create({
     timerContainer: {
       position: "absolute",
-      bottom: 80,
+      bottom: 45,
       left: 0,
       right: 0,
       alignItems: "center",

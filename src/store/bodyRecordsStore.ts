@@ -26,8 +26,8 @@ export const useBodyRecordsStore = create<BodyRecordsStore>((set) => ({
     const created_at = new Date().toISOString();
 
     await db.runAsync(
-      `INSERT INTO body_records (user_id, date, weight, height, neck_perimeter, waist_perimeter, hip_perimeter, created_at) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO body_records (user_id, date, weight, height, neck_perimeter, waist_perimeter, hip_perimeter, bicep_perimeter, thigh_perimeter, calf_perimeter, shoulder_perimeter, created_at) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         record.user_id,
         record.date,
@@ -36,6 +36,10 @@ export const useBodyRecordsStore = create<BodyRecordsStore>((set) => ({
         record.neck_perimeter ?? null,
         record.waist_perimeter ?? null,
         record.hip_perimeter ?? null,
+        record.bicep_perimeter ?? null,
+        record.thigh_perimeter ?? null,
+        record.calf_perimeter ?? null,
+        record.shoulder_perimeter ?? null,
         created_at,
       ]
     );

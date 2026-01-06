@@ -25,6 +25,10 @@ export async function initDatabase() {
       neck_perimeter REAL,
       waist_perimeter REAL,
       hip_perimeter REAL,
+      bicep_perimeter REAL,
+      thigh_perimeter REAL,
+      calf_perimeter REAL,
+      shoulder_perimeter REAL,
       created_at TEXT NOT NULL,
       FOREIGN KEY (user_id) REFERENCES user_info(id)
     );

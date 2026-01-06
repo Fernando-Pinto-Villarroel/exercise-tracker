@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import ExerciseList from "../components/ExerciseList";
 import ExerciseModal from "../components/ExerciseModal";
+import TimePicker from "../components/TimePicker";
 import { useTheme } from "../contexts/ThemeContext";
 import { useExerciseStore } from "../store/exerciseStore";
 import { DailyCompletion, DailySnapshot, Exercise } from "../types";
@@ -72,6 +73,7 @@ export default function DayDetailScreen({ route }: any) {
   const [editingExercise, setEditingExercise] = useState<DailySnapshot | null>(
     null
   );
+  const [showTimePicker, setShowTimePicker] = useState(false);
 
   useEffect(() => {
     setIsFuture(isFutureDate(date));
@@ -98,7 +100,19 @@ export default function DayDetailScreen({ route }: any) {
   };
 
   const handleToggle = async () => {
-    await toggleDayCompletion(date);
+    if (!completion?.is_completed) {
+      setShowTimePicker(true);
+    } else {
+      await toggleDayCompletion(date);
+      await loadData();
+    }
+  };
+
+  const handleTimeConfirm = async (hours: number, minutes: number) => {
+    const dateObj = new Date(date + "T00:00:00");
+    dateObj.setHours(hours, minutes, 0, 0);
+
+    await toggleDayCompletion(date, dateObj.toISOString());
     await loadData();
   };
 
@@ -294,10 +308,19 @@ export default function DayDetailScreen({ route }: any) {
           exercise={editingExercise}
           onSaveDaily={handleSaveDaily}
         />
+
+        <TimePicker
+          visible={showTimePicker}
+          onClose={() => setShowTimePicker(false)}
+          onConfirm={handleTimeConfirm}
+          initialHours={new Date().getHours()}
+          initialMinutes={new Date().getMinutes()}
+        />
       </ScrollView>
     </View>
   );
 }
+
 const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {

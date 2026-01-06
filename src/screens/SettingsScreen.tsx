@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { Picker } from "@react-native-picker/picker";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
@@ -27,8 +28,8 @@ import {
   UserInfo,
   WeeklyPlanExercise,
 } from "../types";
-import AddRecordScreen from "./AddRecordScreen";
 import BodyStatisticsScreen from "./BodyStatisticsScreen";
+import LongTermStatsScreen from "./LongTermStatsScreen";
 import RecordDetailScreen from "./RecordDetailScreen";
 
 const Stack = createNativeStackNavigator();
@@ -184,7 +185,7 @@ function SettingsMain({ navigation }: any) {
     if (data.body_records) {
       for (const record of data.body_records) {
         await db.runAsync(
-          "INSERT INTO body_records (user_id, date, weight, height, neck_perimeter, waist_perimeter, hip_perimeter, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+          "INSERT INTO body_records (user_id, date, weight, height, neck_perimeter, waist_perimeter, hip_perimeter, bicep_perimeter, thigh_perimeter, calf_perimeter, shoulder_perimeter, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
           [
             record.user_id,
             record.date,
@@ -193,6 +194,10 @@ function SettingsMain({ navigation }: any) {
             record.neck_perimeter ?? null,
             record.waist_perimeter ?? null,
             record.hip_perimeter ?? null,
+            record.bicep_perimeter ?? null,
+            record.thigh_perimeter ?? null,
+            record.calf_perimeter ?? null,
+            record.shoulder_perimeter ?? null,
             record.created_at,
           ]
         );
@@ -329,39 +334,16 @@ function SettingsMain({ navigation }: any) {
           <View style={styles.preferenceRow}>
             <Text style={styles.preferenceLabel}>{t("settings.language")}</Text>
           </View>
-          <View style={styles.languageButtons}>
-            <TouchableOpacity
-              style={[
-                styles.languageButton,
-                currentLanguage === "en" && styles.languageButtonActive,
-              ]}
-              onPress={() => handleLanguageChange("en")}
+          <View style={styles.pickerContainer}>
+            <Picker
+              selectedValue={currentLanguage}
+              onValueChange={handleLanguageChange}
+              style={styles.picker}
+              itemStyle={styles.pickerItem}
             >
-              <Text
-                style={[
-                  styles.languageButtonText,
-                  currentLanguage === "en" && styles.languageButtonTextActive,
-                ]}
-              >
-                {t("settings.languageEnglish")}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.languageButton,
-                currentLanguage === "es" && styles.languageButtonActive,
-              ]}
-              onPress={() => handleLanguageChange("es")}
-            >
-              <Text
-                style={[
-                  styles.languageButtonText,
-                  currentLanguage === "es" && styles.languageButtonTextActive,
-                ]}
-              >
-                {t("settings.languageSpanish")}
-              </Text>
-            </TouchableOpacity>
+              <Picker.Item label={t("settings.languageEnglish")} value="en" />
+              <Picker.Item label={t("settings.languageSpanish")} value="es" />
+            </Picker>
           </View>
         </View>
 
@@ -475,11 +457,11 @@ export default function SettingsScreen() {
         }}
       />
       <Stack.Screen
-        name="AddRecord"
-        component={AddRecordScreen}
+        name="LongTermStats"
+        component={LongTermStatsScreen}
         options={{
-          title: t("bodyStats.addRecord"),
-          header: () => <CustomHeader title={t("bodyStats.addRecord")} />,
+          title: t("bodyStats.longTermStats"),
+          header: () => <CustomHeader title={t("bodyStats.longTermStats")} />,
         }}
       />
       <Stack.Screen
@@ -575,32 +557,18 @@ const createStyles = (theme: any) =>
       color: theme.textSecondary,
       marginTop: 4,
     },
-    languageButtons: {
-      flexDirection: "row",
-      gap: 8,
-      marginTop: 12,
-    },
-    languageButton: {
-      flex: 1,
-      paddingVertical: 12,
-      paddingHorizontal: 16,
-      borderRadius: 8,
-      backgroundColor: theme.iconBackground,
-      borderWidth: 2,
+    pickerContainer: {
+      borderWidth: 1,
       borderColor: theme.border,
-      alignItems: "center",
+      borderRadius: 8,
+      marginTop: 8,
+      backgroundColor: theme.borderLight,
     },
-    languageButtonActive: {
-      backgroundColor: theme.primaryLight,
-      borderColor: theme.primary,
-    },
-    languageButtonText: {
-      fontSize: 16,
-      fontWeight: "600",
+    picker: {
       color: theme.text,
     },
-    languageButtonTextActive: {
-      color: theme.primary,
+    pickerItem: {
+      color: theme.text,
     },
     exportButton: {
       backgroundColor: theme.primary,

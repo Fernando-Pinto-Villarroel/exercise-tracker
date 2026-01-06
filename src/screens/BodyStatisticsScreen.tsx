@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
-import React from "react";
+import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ScrollView,
@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import AddRecordModal from "../components/AddRecordModal";
 import { useTheme } from "../contexts/ThemeContext";
 import { useBodyRecordsStore } from "../store/bodyRecordsStore";
 
@@ -16,6 +17,7 @@ export default function BodyStatisticsScreen({ navigation }: any) {
   const { t } = useTranslation();
   const { theme } = useTheme();
   const { records, loadRecords } = useBodyRecordsStore();
+  const [showAddModal, setShowAddModal] = useState(false);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -82,11 +84,28 @@ export default function BodyStatisticsScreen({ navigation }: any) {
 
         <TouchableOpacity
           style={styles.addButton}
-          onPress={() => navigation.navigate("AddRecord")}
+          onPress={() => setShowAddModal(true)}
         >
           <Text style={styles.addButtonText}>{t("bodyStats.addRecord")}</Text>
         </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.statsButton}
+          onPress={() => navigation.navigate("LongTermStats")}
+        >
+          <Text style={styles.statsButtonText}>
+            {t("bodyStats.viewLongTermStats")}
+          </Text>
+        </TouchableOpacity>
       </ScrollView>
+
+      <AddRecordModal
+        visible={showAddModal}
+        onClose={() => {
+          setShowAddModal(false);
+          loadRecords();
+        }}
+      />
     </View>
   );
 }
@@ -165,9 +184,21 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.primary,
       paddingVertical: 16,
       borderRadius: 8,
-      marginBottom: 24,
+      marginBottom: 12,
     },
     addButtonText: {
+      textAlign: "center",
+      color: "#ffffff",
+      fontSize: 16,
+      fontWeight: "600",
+    },
+    statsButton: {
+      backgroundColor: theme.success,
+      paddingVertical: 16,
+      borderRadius: 8,
+      marginBottom: 24,
+    },
+    statsButtonText: {
       textAlign: "center",
       color: "#ffffff",
       fontSize: 16,

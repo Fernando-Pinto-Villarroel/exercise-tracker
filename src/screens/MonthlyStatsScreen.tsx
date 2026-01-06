@@ -13,6 +13,7 @@ interface ExerciseStats {
   totalSets: number;
   totalReps: number;
   totalTime: number;
+  daysPerformed: number;
 }
 
 export default function MonthlyStatsScreen({ route }: any) {
@@ -86,6 +87,7 @@ export default function MonthlyStatsScreen({ route }: any) {
               if (ex.estimated_time) {
                 existing.totalTime += ex.estimated_time;
               }
+              existing.daysPerformed += 1;
             } else {
               exerciseMap.set(ex.exercise_name, {
                 name: ex.exercise_name,
@@ -98,6 +100,7 @@ export default function MonthlyStatsScreen({ route }: any) {
                     ? ex.sets * ex.reps
                     : 0,
                 totalTime: ex.estimated_time || 0,
+                daysPerformed: 1,
               });
             }
           }
@@ -115,7 +118,7 @@ export default function MonthlyStatsScreen({ route }: any) {
       totalTime,
       longestStreak: streaks.longest,
       currentStreak: streaks.current,
-      exerciseStats: Array.from(exerciseMap.values()).slice(0, 5),
+      exerciseStats: Array.from(exerciseMap.values()),
       weeklyCompletions,
     });
   };
@@ -164,6 +167,11 @@ export default function MonthlyStatsScreen({ route }: any) {
     return hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
   };
 
+  const progressData = {
+    labels: [t("monthly.completionRate")],
+    data: [stats.totalDays > 0 ? stats.daysCompleted / stats.totalDays : 0],
+  };
+
   const chartConfig = {
     backgroundGradientFrom: theme.card,
     backgroundGradientTo: theme.card,
@@ -171,26 +179,21 @@ export default function MonthlyStatsScreen({ route }: any) {
     labelColor: (opacity = 1) => theme.text,
     strokeWidth: 2,
     propsForLabels: {
-      fontSize: 12,
+      fontSize: 10,
     },
   };
 
-  const hasData = stats.weeklyCompletions.some((val) => val > 0);
+  const hasWeeklyData = stats.weeklyCompletions.some((val) => val > 0);
 
   const weeklyData = {
     labels: ["W1", "W2", "W3", "W4", "W5"],
     datasets: [
       {
-        data: hasData ? stats.weeklyCompletions : [0, 0, 0, 0, 0.1],
+        data: hasWeeklyData ? stats.weeklyCompletions : [0, 0, 0, 0, 0.1],
         color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
         strokeWidth: 3,
       },
     ],
-  };
-
-  const progressData = {
-    labels: [t("monthly.completionRate")],
-    data: [stats.totalDays > 0 ? stats.daysCompleted / stats.totalDays : 0],
   };
 
   const styles = createStyles(theme);
@@ -254,8 +257,8 @@ export default function MonthlyStatsScreen({ route }: any) {
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>{t("weekly.daysCompleted")}</Text>
-        {hasData ? (
+        <Text style={styles.cardTitle}>Weekly Completions</Text>
+        {hasWeeklyData ? (
           <LineChart
             data={weeklyData}
             width={width - 64}
@@ -277,31 +280,64 @@ export default function MonthlyStatsScreen({ route }: any) {
 
       {stats.exerciseStats.length > 0 && (
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>{t("weekly.exerciseBreakdown")}</Text>
+          <Text style={styles.cardTitle}>{t("monthly.exerciseStats")}</Text>
 
           <View style={styles.exerciseList}>
-            {stats.exerciseStats.map((ex, index) => (
-              <View key={index} style={styles.exerciseItem}>
-                <Text style={styles.exerciseName}>{ex.name}</Text>
-                <View style={styles.exerciseStatsRow}>
-                  {ex.totalSets > 0 && (
+            {stats.exerciseStats.map((ex, index) => {
+              const avgSets =
+                ex.daysPerformed > 0
+                  ? (ex.totalSets / ex.daysPerformed).toFixed(1)
+                  : "0";
+              const avgReps =
+                ex.daysPerformed > 0
+                  ? (ex.totalReps / ex.daysPerformed).toFixed(0)
+                  : "0";
+              const avgTime =
+                ex.daysPerformed > 0
+                  ? Math.round(ex.totalTime / ex.daysPerformed)
+                  : 0;
+
+              return (
+                <View key={index} style={styles.exerciseItem}>
+                  <Text style={styles.exerciseName}>{ex.name}</Text>
+                  <View style={styles.exerciseStatsRow}>
+                    {ex.totalSets > 0 && (
+                      <>
+                        <Text style={styles.exerciseStat}>
+                          {t("weekly.totalSets")}: {ex.totalSets}
+                        </Text>
+                        <Text style={styles.exerciseStat}>
+                          {t("monthly.averageSets")}: {avgSets}
+                        </Text>
+                      </>
+                    )}
+                    {ex.totalReps > 0 && (
+                      <>
+                        <Text style={styles.exerciseStat}>
+                          {t("weekly.totalReps")}: {ex.totalReps}
+                        </Text>
+                        <Text style={styles.exerciseStat}>
+                          {t("monthly.averageReps")}: {avgReps}
+                        </Text>
+                      </>
+                    )}
+                    {ex.totalTime > 0 && (
+                      <>
+                        <Text style={styles.exerciseStat}>
+                          {t("weekly.totalTime")}: {formatTime(ex.totalTime)}
+                        </Text>
+                        <Text style={styles.exerciseStat}>
+                          {t("monthly.averageTime")}: {formatTime(avgTime)}
+                        </Text>
+                      </>
+                    )}
                     <Text style={styles.exerciseStat}>
-                      {t("weekly.totalSets")}: {ex.totalSets}
+                      {t("monthly.daysPerformed")}: {ex.daysPerformed}
                     </Text>
-                  )}
-                  {ex.totalReps > 0 && (
-                    <Text style={styles.exerciseStat}>
-                      {t("weekly.totalReps")}: {ex.totalReps}
-                    </Text>
-                  )}
-                  {ex.totalTime > 0 && (
-                    <Text style={styles.exerciseStat}>
-                      {t("weekly.totalTime")}: {formatTime(ex.totalTime)}
-                    </Text>
-                  )}
+                  </View>
                 </View>
-              </View>
-            ))}
+              );
+            })}
           </View>
         </View>
       )}
@@ -357,13 +393,15 @@ const createStyles = (theme: any) =>
     },
     statLabel: {
       color: theme.textSecondary,
+      fontSize: 15,
     },
     statValue: {
       fontWeight: "600",
       color: theme.text,
+      fontSize: 15,
     },
     exerciseList: {
-      gap: 12,
+      gap: 16,
     },
     exerciseItem: {
       borderBottomWidth: 1,
@@ -373,11 +411,12 @@ const createStyles = (theme: any) =>
     exerciseName: {
       fontWeight: "600",
       color: theme.text,
-      marginBottom: 4,
+      marginBottom: 8,
+      fontSize: 16,
     },
     exerciseStatsRow: {
       flexDirection: "column",
-      gap: 4,
+      gap: 6,
     },
     exerciseStat: {
       fontSize: 14,

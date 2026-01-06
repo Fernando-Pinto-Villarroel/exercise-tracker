@@ -2,20 +2,16 @@ import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Alert,
-  Dimensions,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
-import { PieChart } from "react-native-chart-kit";
 import { useTheme } from "../contexts/ThemeContext";
 import { useBodyRecordsStore } from "../store/bodyRecordsStore";
 import { useUserStore } from "../store/userStore";
 import { BodyRecord } from "../types";
-
-const { width } = Dimensions.get("window");
 
 export default function RecordDetailScreen({ route, navigation }: any) {
   const { recordId } = route.params;
@@ -24,7 +20,6 @@ export default function RecordDetailScreen({ route, navigation }: any) {
   const { getRecordById, deleteRecord } = useBodyRecordsStore();
   const { userInfo } = useUserStore();
   const [record, setRecord] = useState<BodyRecord | null>(null);
-  const styles = createStyles(theme);
 
   useEffect(() => {
     loadRecord();
@@ -125,6 +120,170 @@ export default function RecordDetailScreen({ route, navigation }: any) {
     ]);
   };
 
+  const BMIRangeIndicator = ({ bmi }: { bmi: number }) => {
+    const ranges = [
+      {
+        min: 0,
+        max: 18.5,
+        label: t("bodyStats.underweight"),
+        color: theme.primary,
+      },
+      {
+        min: 18.5,
+        max: 25,
+        label: t("bodyStats.normal"),
+        color: theme.success,
+      },
+      { min: 25, max: 30, label: t("bodyStats.overweight"), color: "#f59e0b" },
+      { min: 30, max: 50, label: t("bodyStats.obese"), color: theme.error },
+    ];
+
+    const totalRange = 50;
+    const getPosition = (value: number) =>
+      ((value / totalRange) * 100).toFixed(1);
+
+    return (
+      <View style={styles.rangeContainer}>
+        <View style={styles.rangeBar}>
+          {ranges.map((range, index) => (
+            <View
+              key={index}
+              style={[
+                styles.rangeSegment,
+                {
+                  flex: range.max - range.min,
+                  backgroundColor: range.color + "40",
+                  borderLeftWidth: index === 0 ? 0 : 1,
+                  borderColor: theme.border,
+                },
+              ]}
+            >
+              <Text style={styles.rangeLabel}>{range.label}</Text>
+            </View>
+          ))}
+        </View>
+        <View style={styles.rangeMarkers}>
+          <View
+            style={[
+              styles.currentMarker,
+              {
+                left: `${(
+                  (Math.min(bmi, totalRange) / totalRange) *
+                  100
+                ).toFixed(1)}%` as any,
+              },
+            ]}
+          >
+            <View
+              style={[styles.markerDot, { backgroundColor: theme.error }]}
+            />
+            <Text style={styles.markerText}>{bmi.toFixed(1)}</Text>
+          </View>
+        </View>
+        <View style={styles.rangeValues}>
+          <Text style={styles.rangeValueText}>0</Text>
+          <Text style={styles.rangeValueText}>18.5</Text>
+          <Text style={styles.rangeValueText}>25</Text>
+          <Text style={styles.rangeValueText}>30</Text>
+          <Text style={styles.rangeValueText}>50+</Text>
+        </View>
+      </View>
+    );
+  };
+
+  const BodyFatRangeIndicator = ({ bodyFat }: { bodyFat: number }) => {
+    const isFemale = userInfo?.gender === "female";
+    const ranges = isFemale
+      ? [
+          {
+            min: 0,
+            max: 14,
+            label: t("bodyStats.essential"),
+            color: theme.primary,
+          },
+          {
+            min: 14,
+            max: 21,
+            label: t("bodyStats.athletes"),
+            color: theme.success,
+          },
+          {
+            min: 21,
+            max: 25,
+            label: t("bodyStats.fitness"),
+            color: theme.success,
+          },
+          { min: 25, max: 32, label: t("bodyStats.average"), color: "#f59e0b" },
+          { min: 32, max: 50, label: t("bodyStats.obese"), color: theme.error },
+        ]
+      : [
+          {
+            min: 0,
+            max: 6,
+            label: t("bodyStats.essential"),
+            color: theme.primary,
+          },
+          {
+            min: 6,
+            max: 14,
+            label: t("bodyStats.athletes"),
+            color: theme.success,
+          },
+          {
+            min: 14,
+            max: 18,
+            label: t("bodyStats.fitness"),
+            color: theme.success,
+          },
+          { min: 18, max: 25, label: t("bodyStats.average"), color: "#f59e0b" },
+          { min: 25, max: 50, label: t("bodyStats.obese"), color: theme.error },
+        ];
+
+    const totalRange = 50;
+    const getPosition = (value: number) =>
+      ((value / totalRange) * 100).toFixed(1);
+
+    return (
+      <View style={styles.rangeContainer}>
+        <View style={styles.rangeBar}>
+          {ranges.map((range, index) => (
+            <View
+              key={index}
+              style={[
+                styles.rangeSegment,
+                {
+                  flex: range.max - range.min,
+                  backgroundColor: range.color + "40",
+                  borderLeftWidth: index === 0 ? 0 : 1,
+                  borderColor: theme.border,
+                },
+              ]}
+            >
+              <Text style={styles.rangeLabel}>{range.label}</Text>
+            </View>
+          ))}
+        </View>
+        <View style={styles.rangeMarkers}>
+          <View
+            style={[
+              styles.currentMarker,
+              {
+                left: `${getPosition(Math.min(bodyFat, totalRange))}%` as any,
+              },
+            ]}
+          >
+            <View
+              style={[styles.markerDot, { backgroundColor: theme.error }]}
+            />
+            <Text style={styles.markerText}>{bodyFat.toFixed(1)}%</Text>
+          </View>
+        </View>
+      </View>
+    );
+  };
+
+  const styles = createStyles(theme);
+
   if (!record) {
     return (
       <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -137,39 +296,6 @@ export default function RecordDetailScreen({ route, navigation }: any) {
   const bmiInfo = getBMICategory(bmi);
   const bodyFat = calculateBodyFat();
   const bodyFatInfo = bodyFat ? getBodyFatCategory(bodyFat) : null;
-
-  const chartConfig = {
-    backgroundGradientFrom: theme.card,
-    backgroundGradientTo: theme.card,
-    color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
-  };
-
-  const bmiData = [
-    {
-      name: t("bodyStats.underweight"),
-      population: bmi < 18.5 ? 1 : 0,
-      color: theme.primary,
-      legendFontColor: theme.text,
-    },
-    {
-      name: t("bodyStats.normal"),
-      population: bmi >= 18.5 && bmi < 25 ? 1 : 0,
-      color: theme.success,
-      legendFontColor: theme.text,
-    },
-    {
-      name: t("bodyStats.overweight"),
-      population: bmi >= 25 && bmi < 30 ? 1 : 0,
-      color: "#f59e0b",
-      legendFontColor: theme.text,
-    },
-    {
-      name: t("bodyStats.obese"),
-      population: bmi >= 30 ? 1 : 0,
-      color: theme.error,
-      legendFontColor: theme.text,
-    },
-  ];
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -215,6 +341,40 @@ export default function RecordDetailScreen({ route, navigation }: any) {
               <Text style={styles.dataValue}>{record.hip_perimeter} cm</Text>
             </View>
           )}
+          {record.bicep_perimeter && (
+            <View style={styles.dataRow}>
+              <Text style={styles.dataLabel}>
+                {t("bodyStats.bicepPerimeter")}
+              </Text>
+              <Text style={styles.dataValue}>{record.bicep_perimeter} cm</Text>
+            </View>
+          )}
+          {record.thigh_perimeter && (
+            <View style={styles.dataRow}>
+              <Text style={styles.dataLabel}>
+                {t("bodyStats.thighPerimeter")}
+              </Text>
+              <Text style={styles.dataValue}>{record.thigh_perimeter} cm</Text>
+            </View>
+          )}
+          {record.calf_perimeter && (
+            <View style={styles.dataRow}>
+              <Text style={styles.dataLabel}>
+                {t("bodyStats.calfPerimeter")}
+              </Text>
+              <Text style={styles.dataValue}>{record.calf_perimeter} cm</Text>
+            </View>
+          )}
+          {record.shoulder_perimeter && (
+            <View style={styles.dataRow}>
+              <Text style={styles.dataLabel}>
+                {t("bodyStats.shoulderPerimeter")}
+              </Text>
+              <Text style={styles.dataValue}>
+                {record.shoulder_perimeter} cm
+              </Text>
+            </View>
+          )}
         </View>
 
         <View style={styles.card}>
@@ -232,16 +392,7 @@ export default function RecordDetailScreen({ route, navigation }: any) {
               </Text>
             </View>
           </View>
-          <PieChart
-            data={bmiData}
-            width={width - 64}
-            height={200}
-            chartConfig={chartConfig}
-            accessor="population"
-            backgroundColor="transparent"
-            paddingLeft="15"
-            absolute
-          />
+          <BMIRangeIndicator bmi={bmi} />
           <Text style={styles.infoText}>{t("bodyStats.bmiInfo")}</Text>
         </View>
 
@@ -263,9 +414,27 @@ export default function RecordDetailScreen({ route, navigation }: any) {
                 </Text>
               </View>
             </View>
+            <BodyFatRangeIndicator bodyFat={bodyFat} />
             <Text style={styles.infoText}>{t("bodyStats.bodyFatInfo")}</Text>
           </View>
         )}
+
+        {(record.bicep_perimeter ||
+          record.thigh_perimeter ||
+          record.calf_perimeter ||
+          record.shoulder_perimeter) && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>{t("bodyStats.muscleMass")}</Text>
+            <Text style={styles.infoText}>{t("bodyStats.muscleMassInfo")}</Text>
+          </View>
+        )}
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>{t("bodyStats.recommendations")}</Text>
+          <Text style={styles.suggestionText}>
+            {t("bodyStats.measurementRecommendations")}
+          </Text>
+        </View>
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>{t("bodyStats.suggestions")}</Text>
@@ -299,6 +468,7 @@ const createStyles = (theme: any) =>
     scrollContent: {
       paddingHorizontal: 16,
       paddingTop: 16,
+      paddingBottom: 32,
     },
     loadingText: {
       textAlign: "center",
@@ -358,6 +528,56 @@ const createStyles = (theme: any) =>
     categoryText: {
       fontSize: 14,
       fontWeight: "600",
+    },
+    rangeContainer: {
+      marginVertical: 16,
+    },
+    rangeBar: {
+      flexDirection: "row",
+      height: 40,
+      borderRadius: 8,
+      overflow: "hidden",
+    },
+    rangeSegment: {
+      justifyContent: "center",
+      alignItems: "center",
+      paddingHorizontal: 4,
+    },
+    rangeLabel: {
+      fontSize: 10,
+      color: theme.text,
+      textAlign: "center",
+      fontWeight: "500",
+    },
+    rangeMarkers: {
+      position: "relative",
+      height: 40,
+      marginTop: 8,
+    },
+    currentMarker: {
+      position: "absolute",
+      alignItems: "center",
+      marginLeft: -12,
+    },
+    markerDot: {
+      width: 12,
+      height: 12,
+      borderRadius: 6,
+      marginBottom: 4,
+    },
+    markerText: {
+      fontSize: 12,
+      fontWeight: "600",
+      color: theme.text,
+    },
+    rangeValues: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      marginTop: 8,
+    },
+    rangeValueText: {
+      fontSize: 10,
+      color: theme.textSecondary,
     },
     infoText: {
       fontSize: 14,

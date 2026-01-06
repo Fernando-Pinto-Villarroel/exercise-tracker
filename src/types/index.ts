@@ -17,6 +17,10 @@ export interface BodyRecord {
   neck_perimeter?: number;
   waist_perimeter?: number;
   hip_perimeter?: number;
+  bicep_perimeter?: number;
+  thigh_perimeter?: number;
+  calf_perimeter?: number;
+  shoulder_perimeter?: number;
   created_at: string;
 }
 
@@ -56,4 +60,10 @@ export interface ExportData {
   weekly_plan: WeeklyPlanExercise[];
   daily_snapshots: DailySnapshot[];
   daily_completions: DailyCompletion[];
+}
+
+export interface ExerciseProgress {
+  exerciseId: number;
+  currentSets: number;
+  currentTime: number;
 }
