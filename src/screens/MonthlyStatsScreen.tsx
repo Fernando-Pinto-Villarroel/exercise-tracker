@@ -44,7 +44,7 @@ export default function MonthlyStatsScreen({ route }: any) {
   useFocusEffect(
     useCallback(() => {
       loadStats();
-    }, [month, completionCounter])
+    }, [month, completionCounter]),
   );
 
   const loadStats = async () => {
@@ -62,7 +62,7 @@ export default function MonthlyStatsScreen({ route }: any) {
       const date = dates[i];
       const completion = await db.getFirstAsync<DailyCompletion>(
         "SELECT * FROM daily_completion WHERE date = ?",
-        [date]
+        [date],
       );
 
       const weekIndex = Math.min(Math.floor(i / 7), 4);
@@ -75,7 +75,7 @@ export default function MonthlyStatsScreen({ route }: any) {
 
         const exercises = await db.getAllAsync<DailySnapshot>(
           "SELECT * FROM daily_snapshot WHERE date = ?",
-          [date]
+          [date],
         );
 
         exercises.forEach((ex) => {
@@ -142,6 +142,16 @@ export default function MonthlyStatsScreen({ route }: any) {
   };
 
   const calculateStreaks = (completions: boolean[]) => {
+    const today = new Date();
+    const todayStr = today.toISOString().split("T")[0];
+    const monthDate = new Date(month);
+    const monthNum = monthDate.getMonth();
+    const year = monthDate.getFullYear();
+    const todayIndex =
+      today.getFullYear() === year && today.getMonth() === monthNum
+        ? today.getDate() - 1
+        : completions.length - 1;
+
     let longest = 0;
     let current = 0;
     let temp = 0;
@@ -155,7 +165,7 @@ export default function MonthlyStatsScreen({ route }: any) {
       }
     }
 
-    for (let i = completions.length - 1; i >= 0; i--) {
+    for (let i = Math.min(todayIndex, completions.length - 1); i >= 0; i--) {
       if (completions[i]) {
         current++;
       } else {

@@ -92,9 +92,18 @@ export default function DayDetailScreen({ route }: any) {
   const [isFuture, setIsFuture] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingExercise, setEditingExercise] = useState<DailySnapshot | null>(
-    null
+    null,
   );
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [initialHours, setInitialHours] = useState(new Date().getHours());
+  const [initialMinutes, setInitialMinutes] = useState(new Date().getMinutes());
+  const [showCompletionTimeModal, setShowCompletionTimeModal] = useState(false);
+  const [completionMinutes, setCompletionMinutes] = useState("");
+  const [completionSeconds, setCompletionSeconds] = useState("");
+  const [completionHour, setCompletionHour] = useState(new Date().getHours());
+  const [completionMinute, setCompletionMinute] = useState(
+    new Date().getMinutes(),
+  );
 
   useEffect(() => {
     setIsFuture(isFutureDate(date));
@@ -122,6 +131,9 @@ export default function DayDetailScreen({ route }: any) {
 
   const handleToggle = async () => {
     if (!completion?.is_completed) {
+      const now = new Date();
+      setInitialHours(now.getHours());
+      setInitialMinutes(now.getMinutes());
       setShowTimePicker(true);
     } else {
       await toggleDayCompletion(date);
@@ -130,11 +142,29 @@ export default function DayDetailScreen({ route }: any) {
   };
 
   const handleTimeConfirm = async (hours: number, minutes: number) => {
+    setCompletionHour(hours);
+    setCompletionMinute(minutes);
+    setCompletionMinutes("");
+    setCompletionSeconds("");
+    setShowCompletionTimeModal(true);
+  };
+
+  const handleCompletionTimeConfirm = async () => {
+    const mins = parseInt(completionMinutes) || 0;
+    const secs = parseInt(completionSeconds) || 0;
+
+    if (mins < 0 || mins > 999) return;
+    if (secs < 0 || secs > 59) return;
+
+    const totalSeconds = mins * 60 + secs;
+
     const dateObj = new Date(date + "T00:00:00");
-    dateObj.setHours(hours, minutes, 0, 0);
+    dateObj.setHours(completionHour, completionMinute, 0, 0);
 
     await toggleDayCompletion(date, dateObj.toISOString());
+    await updateTrainingTime(date, totalSeconds);
     await loadData();
+    setShowCompletionTimeModal(false);
   };
 
   const handleEditTime = () => {
@@ -185,7 +215,7 @@ export default function DayDetailScreen({ route }: any) {
               t("exerciseModal.error"),
               error instanceof Error
                 ? error.message
-                : "Failed to delete exercise."
+                : "Failed to delete exercise.",
             );
           }
         },
@@ -194,7 +224,7 @@ export default function DayDetailScreen({ route }: any) {
   };
 
   const handleSaveDaily = async (
-    exerciseData: Omit<DailySnapshot, "id" | "date">
+    exerciseData: Omit<DailySnapshot, "id" | "date">,
   ) => {
     try {
       if (editingExercise?.id) {
@@ -220,7 +250,7 @@ export default function DayDetailScreen({ route }: any) {
         if (id !== undefined) {
           await db.runAsync(
             "UPDATE daily_snapshot SET sort_order = ? WHERE id = ?",
-            [-(i + 1000), id]
+            [-(i + 1000), id],
           );
         }
       }
@@ -230,7 +260,7 @@ export default function DayDetailScreen({ route }: any) {
         if (id !== undefined) {
           await db.runAsync(
             "UPDATE daily_snapshot SET sort_order = ? WHERE id = ?",
-            [i, id]
+            [i, id],
           );
         }
       }
@@ -247,7 +277,7 @@ export default function DayDetailScreen({ route }: any) {
       }
       Alert.alert(
         t("common.error"),
-        "Failed to reorder exercises. Please try again."
+        "Failed to reorder exercises. Please try again.",
       );
     }
   };
@@ -346,48 +376,53 @@ export default function DayDetailScreen({ route }: any) {
             contentContainerStyle={styles.listContent}
           />
         ) : (
-          <ExerciseList exercises={snapshot} />
+          <ExerciseList
+            exercises={snapshot}
+            contentContainerStyle={styles.listTodayContent}
+          />
         )}
 
-        {isPast && (
-          <TouchableOpacity
-            style={styles.addButton}
-            onPress={() => {
-              setEditingExercise(null);
-              setShowEditModal(true);
-            }}
-          >
-            <Text style={styles.addButtonText}>
-              {t("dayDetail.addExercise")}
-            </Text>
-          </TouchableOpacity>
-        )}
+        <View style={styles.stickyButtons}>
+          {isPast && (
+            <TouchableOpacity
+              style={styles.addButton}
+              onPress={() => {
+                setEditingExercise(null);
+                setShowEditModal(true);
+              }}
+            >
+              <Text style={styles.addButtonText}>
+                {t("dayDetail.addExercise")}
+              </Text>
+            </TouchableOpacity>
+          )}
 
-        {!isFuture && (
-          <TouchableOpacity
-            style={[
-              styles.completeButton,
-              isCompleted && styles.completeButtonDone,
-            ]}
-            onPress={handleToggle}
-          >
-            <Text style={styles.completeButtonText}>
-              {isCompleted ? t("today.markAsUndone") : t("today.markAsDone")}
-            </Text>
-          </TouchableOpacity>
-        )}
+          {!isFuture && (
+            <TouchableOpacity
+              style={[
+                styles.completeButton,
+                isCompleted && styles.completeButtonDone,
+              ]}
+              onPress={handleToggle}
+            >
+              <Text style={styles.completeButtonText}>
+                {isCompleted ? t("today.markAsUndone") : t("today.markAsDone")}
+              </Text>
+            </TouchableOpacity>
+          )}
 
-        {isCompleted && !isFuture && (
-          <TouchableOpacity
-            style={styles.timeEditButton}
-            onPress={handleEditTime}
-          >
-            <Text style={styles.timeEditButtonText}>
-              {t("dayDetail.editTrainingTime")}:{" "}
-              {formatTime(completion?.training_time || 0)}
-            </Text>
-          </TouchableOpacity>
-        )}
+          {isCompleted && !isFuture && (
+            <TouchableOpacity
+              style={styles.timeEditButton}
+              onPress={handleEditTime}
+            >
+              <Text style={styles.timeEditButtonText}>
+                {t("dayDetail.editTrainingTime")}:{" "}
+                {formatTime(completion?.training_time || 0)}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       <Modal visible={showTimeModal} transparent animationType="fade">
@@ -440,6 +475,58 @@ export default function DayDetailScreen({ route }: any) {
         </View>
       </Modal>
 
+      <Modal visible={showCompletionTimeModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>
+              {t("dayDetail.editTrainingTime")}
+            </Text>
+
+            <View style={styles.modalInputRow}>
+              <View style={styles.modalInputGroup}>
+                <Text style={styles.modalLabel}>{t("dayDetail.minutes")}</Text>
+                <TextInput
+                  style={styles.modalInput}
+                  value={completionMinutes}
+                  onChangeText={setCompletionMinutes}
+                  keyboardType="numeric"
+                  placeholder="0"
+                  placeholderTextColor={theme.textTertiary}
+                />
+              </View>
+
+              <View style={styles.modalInputGroup}>
+                <Text style={styles.modalLabel}>{t("dayDetail.seconds")}</Text>
+                <TextInput
+                  style={styles.modalInput}
+                  value={completionSeconds}
+                  onChangeText={setCompletionSeconds}
+                  keyboardType="numeric"
+                  placeholder="0"
+                  placeholderTextColor={theme.textTertiary}
+                />
+              </View>
+            </View>
+
+            <View style={styles.modalButtonRow}>
+              <TouchableOpacity
+                style={styles.modalCancelButton}
+                onPress={() => setShowCompletionTimeModal(false)}
+              >
+                <Text style={styles.modalCancelText}>{t("common.cancel")}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.modalSaveButton}
+                onPress={handleCompletionTimeConfirm}
+              >
+                <Text style={styles.modalSaveText}>{t("common.save")}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <ExerciseModal
         visible={showEditModal}
         onClose={() => setShowEditModal(false)}
@@ -451,8 +538,8 @@ export default function DayDetailScreen({ route }: any) {
         visible={showTimePicker}
         onClose={() => setShowTimePicker(false)}
         onConfirm={handleTimeConfirm}
-        initialHours={new Date().getHours()}
-        initialMinutes={new Date().getMinutes()}
+        initialHours={initialHours}
+        initialMinutes={initialMinutes}
       />
     </View>
   );
@@ -469,8 +556,19 @@ const createStyles = (theme: any) =>
       paddingHorizontal: 16,
       paddingTop: 16,
     },
+    stickyButtons: {
+      position: "absolute",
+      bottom: 0,
+      left: 16,
+      right: 16,
+      backgroundColor: theme.background,
+      paddingBottom: 4,
+    },
     listContent: {
-      paddingBottom: 16,
+      paddingBottom: 240, // space for sticky buttons
+    },
+    listTodayContent: {
+      paddingBottom: 190, // space for sticky buttons
     },
     emptyContainer: {
       alignItems: "center",
@@ -526,7 +624,7 @@ const createStyles = (theme: any) =>
       padding: 4,
     },
     completeButton: {
-      marginTop: 24,
+      marginTop: 12,
       paddingVertical: 16,
       borderRadius: 8,
       marginBottom: 12,
@@ -546,7 +644,6 @@ const createStyles = (theme: any) =>
       paddingVertical: 16,
       borderRadius: 8,
       backgroundColor: theme.primary,
-      marginBottom: 12,
     },
     addButtonText: {
       textAlign: "center",

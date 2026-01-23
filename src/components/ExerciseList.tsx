@@ -15,6 +15,7 @@ interface ExerciseListProps {
   exercises: Exercise[];
   onEdit?: (exercise: Exercise) => void;
   onDelete?: (id: number) => void;
+  contentContainerStyle?: any;
 }
 
 const iconFamilies = {
@@ -27,6 +28,7 @@ export default function ExerciseList({
   exercises,
   onEdit,
   onDelete,
+  contentContainerStyle,
 }: ExerciseListProps) {
   const { theme } = useTheme();
 
@@ -48,7 +50,9 @@ export default function ExerciseList({
   const styles = createStyles(theme);
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView
+      contentContainerStyle={[styles.container, contentContainerStyle]}
+    >
       {exercises.map((exercise, index) => {
         const hasSets =
           exercise.sets !== null &&

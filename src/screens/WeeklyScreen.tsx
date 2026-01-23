@@ -24,11 +24,26 @@ function WeeklyOverview({ navigation }: any) {
   const { t } = useTranslation();
   const { theme } = useTheme();
   const [weekData, setWeekData] = useState<DailyCompletion[]>([]);
+  const [currentMonday, setCurrentMonday] = useState("");
   const { weeklyPlanCounter, completionCounter } = useExerciseStore();
 
   useEffect(() => {
     loadWeekData();
   }, [weeklyPlanCounter, completionCounter]);
+
+  useEffect(() => {
+    const checkWeek = () => {
+      const dates = getWeekDates();
+      const monday = dates[0];
+      if (monday !== currentMonday) {
+        setCurrentMonday(monday);
+        loadWeekData();
+      }
+    };
+
+    const interval = setInterval(checkWeek, 60000);
+    return () => clearInterval(interval);
+  }, [currentMonday]);
 
   const loadWeekData = async () => {
     const dates = getWeekDates();
@@ -38,12 +53,13 @@ function WeeklyOverview({ navigation }: any) {
     for (const date of dates) {
       const completion = await db.getFirstAsync<DailyCompletion>(
         "SELECT * FROM daily_completion WHERE date = ?",
-        [date]
+        [date],
       );
       data.push(completion || { date, is_completed: false, training_time: 0 });
     }
 
     setWeekData(data);
+    setCurrentMonday(dates[0]);
   };
 
   const getWeekDates = () => {

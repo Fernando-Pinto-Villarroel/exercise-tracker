@@ -25,7 +25,7 @@ function MonthlyOverview({ navigation }: any) {
   const { theme } = useTheme();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [monthData, setMonthData] = useState<Record<string, DailyCompletion>>(
-    {}
+    {},
   );
   const { completionCounter } = useExerciseStore();
 
@@ -41,7 +41,7 @@ function MonthlyOverview({ navigation }: any) {
     for (const date of dates) {
       const completion = await db.getFirstAsync<DailyCompletion>(
         "SELECT * FROM daily_completion WHERE date = ?",
-        [date]
+        [date],
       );
       if (completion) {
         data[date] = completion;
@@ -88,13 +88,13 @@ function MonthlyOverview({ navigation }: any) {
 
   const previousMonth = () => {
     setCurrentMonth(
-      new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1)
+      new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1),
     );
   };
 
   const nextMonth = () => {
     setCurrentMonth(
-      new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1)
+      new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1),
     );
   };
 
@@ -349,6 +349,7 @@ const createStyles = (theme: any) =>
       color: theme.textTertiary,
     },
     dayNumberToday: {
+      fontSize: 13,
       fontWeight: "bold",
       color: theme.primary,
     },
