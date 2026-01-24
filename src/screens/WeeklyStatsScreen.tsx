@@ -22,6 +22,7 @@ export default function WeeklyStatsScreen() {
   const { t } = useTranslation();
   const { theme } = useTheme();
   const { completionCounter } = useExerciseStore();
+  const [currentMonday, setCurrentMonday] = useState("");
   const [stats, setStats] = useState<{
     daysCompleted: number;
     totalDays: number;
@@ -37,7 +38,23 @@ export default function WeeklyStatsScreen() {
   useFocusEffect(
     useCallback(() => {
       loadStats();
-    }, [completionCounter])
+    }, [completionCounter]),
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      const checkWeek = () => {
+        const dates = getWeekDates();
+        const monday = dates[0];
+        if (monday !== currentMonday) {
+          setCurrentMonday(monday);
+          loadStats();
+        }
+      };
+
+      const interval = setInterval(checkWeek, 60000);
+      return () => clearInterval(interval);
+    }, [currentMonday]),
   );
 
   const loadStats = async () => {
@@ -52,7 +69,7 @@ export default function WeeklyStatsScreen() {
     for (const date of dates) {
       const completion = await db.getFirstAsync<DailyCompletion>(
         "SELECT * FROM daily_completion WHERE date = ?",
-        [date]
+        [date],
       );
 
       if (completion && completion.is_completed) {
@@ -61,7 +78,7 @@ export default function WeeklyStatsScreen() {
 
         const exercises = await db.getAllAsync<DailySnapshot>(
           "SELECT * FROM daily_snapshot WHERE date = ?",
-          [date]
+          [date],
         );
 
         exercises.forEach((ex) => {
@@ -105,13 +122,16 @@ export default function WeeklyStatsScreen() {
       totalTime,
       exerciseStats: Array.from(exerciseMap.values()),
     });
+    setCurrentMonday(dates[0]);
   };
 
   const getWeekDates = () => {
     const today = new Date();
-    const dayOfWeek = today.getDay();
-    const monday = new Date(today);
-    monday.setDate(today.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+    const timezoneOffset = today.getTimezoneOffset() * 60000;
+    const localDate = new Date(today.getTime() - timezoneOffset);
+    const dayOfWeek = localDate.getDay();
+    const monday = new Date(localDate);
+    monday.setDate(localDate.getDate() - ((dayOfWeek + 6) % 7));
 
     const dates = [];
     for (let i = 0; i < 7; i++) {
