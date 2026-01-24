@@ -54,13 +54,18 @@ function MonthlyOverview({ navigation }: any) {
   const getMonthDates = (date: Date) => {
     const year = date.getFullYear();
     const month = date.getMonth();
-    const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
 
     const dates = [];
     for (let day = 1; day <= lastDay.getDate(); day++) {
       const d = new Date(year, month, day);
-      dates.push(d.toISOString().split("T")[0]);
+      const dateStr =
+        d.getFullYear() +
+        "-" +
+        String(d.getMonth() + 1).padStart(2, "0") +
+        "-" +
+        String(d.getDate()).padStart(2, "0");
+      dates.push(dateStr);
     }
     return dates;
   };
@@ -80,7 +85,13 @@ function MonthlyOverview({ navigation }: any) {
     }
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(year, month, day);
-      days.push(date.toISOString().split("T")[0]);
+      const dateStr =
+        date.getFullYear() +
+        "-" +
+        String(date.getMonth() + 1).padStart(2, "0") +
+        "-" +
+        String(date.getDate()).padStart(2, "0");
+      days.push(dateStr);
     }
 
     return days;
@@ -100,18 +111,24 @@ function MonthlyOverview({ navigation }: any) {
 
   const isToday = (dateStr: string) => {
     const today = new Date();
-    const timezoneOffset = today.getTimezoneOffset() * 60000;
-    const localDate = new Date(today.getTime() - timezoneOffset);
-    return dateStr === localDate.toISOString().split("T")[0];
+    const todayStr =
+      today.getFullYear() +
+      "-" +
+      String(today.getMonth() + 1).padStart(2, "0") +
+      "-" +
+      String(today.getDate()).padStart(2, "0");
+    return dateStr === todayStr;
   };
 
   const isFutureDate = (dateStr: string) => {
     const today = new Date();
-    const timezoneOffset = today.getTimezoneOffset() * 60000;
-    const localDate = new Date(today.getTime() - timezoneOffset);
-    const targetDate = new Date(dateStr + "T00:00:00");
-
-    return targetDate > localDate && !isToday(dateStr);
+    const todayStr =
+      today.getFullYear() +
+      "-" +
+      String(today.getMonth() + 1).padStart(2, "0") +
+      "-" +
+      String(today.getDate()).padStart(2, "0");
+    return dateStr > todayStr;
   };
 
   const monthName = currentMonth.toLocaleDateString(i18n.language, {

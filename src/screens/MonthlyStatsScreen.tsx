@@ -136,7 +136,13 @@ export default function MonthlyStatsScreen({ route }: any) {
     const dates = [];
     for (let day = 1; day <= lastDay.getDate(); day++) {
       const d = new Date(year, month, day);
-      dates.push(d.toISOString().split("T")[0]);
+      const dateStr =
+        d.getFullYear() +
+        "-" +
+        String(d.getMonth() + 1).padStart(2, "0") +
+        "-" +
+        String(d.getDate()).padStart(2, "0");
+      dates.push(dateStr);
     }
     return dates;
   };

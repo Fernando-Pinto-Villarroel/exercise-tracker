@@ -64,17 +64,21 @@ function WeeklyOverview({ navigation }: any) {
 
   const getWeekDates = () => {
     const today = new Date();
-    const timezoneOffset = today.getTimezoneOffset() * 60000;
-    const localDate = new Date(today.getTime() - timezoneOffset);
-    const dayOfWeek = localDate.getDay();
-    const monday = new Date(localDate);
-    monday.setDate(localDate.getDate() - ((dayOfWeek + 6) % 7));
+    const dayOfWeek = today.getDay();
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - ((dayOfWeek + 6) % 7));
 
     const dates = [];
     for (let i = 0; i < 7; i++) {
       const date = new Date(monday);
       date.setDate(monday.getDate() + i);
-      dates.push(date.toISOString().split("T")[0]);
+      const dateStr =
+        date.getFullYear() +
+        "-" +
+        String(date.getMonth() + 1).padStart(2, "0") +
+        "-" +
+        String(date.getDate()).padStart(2, "0");
+      dates.push(dateStr);
     }
     return dates;
   };
@@ -86,18 +90,24 @@ function WeeklyOverview({ navigation }: any) {
 
   const isToday = (dateStr: string) => {
     const today = new Date();
-    const timezoneOffset = today.getTimezoneOffset() * 60000;
-    const localDate = new Date(today.getTime() - timezoneOffset);
-    return dateStr === localDate.toISOString().split("T")[0];
+    const todayStr =
+      today.getFullYear() +
+      "-" +
+      String(today.getMonth() + 1).padStart(2, "0") +
+      "-" +
+      String(today.getDate()).padStart(2, "0");
+    return dateStr === todayStr;
   };
 
   const isFutureDate = (dateStr: string) => {
     const today = new Date();
-    const timezoneOffset = today.getTimezoneOffset() * 60000;
-    const localDate = new Date(today.getTime() - timezoneOffset);
-    const targetDate = new Date(dateStr + "T00:00:00");
-
-    return targetDate > localDate && !isToday(dateStr);
+    const todayStr =
+      today.getFullYear() +
+      "-" +
+      String(today.getMonth() + 1).padStart(2, "0") +
+      "-" +
+      String(today.getDate()).padStart(2, "0");
+    return dateStr > todayStr;
   };
 
   const formatTime = (completion: DailyCompletion) => {

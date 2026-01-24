@@ -127,17 +127,21 @@ export default function WeeklyStatsScreen() {
 
   const getWeekDates = () => {
     const today = new Date();
-    const timezoneOffset = today.getTimezoneOffset() * 60000;
-    const localDate = new Date(today.getTime() - timezoneOffset);
-    const dayOfWeek = localDate.getDay();
-    const monday = new Date(localDate);
-    monday.setDate(localDate.getDate() - ((dayOfWeek + 6) % 7));
+    const dayOfWeek = today.getDay();
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - ((dayOfWeek + 6) % 7));
 
     const dates = [];
     for (let i = 0; i < 7; i++) {
       const date = new Date(monday);
       date.setDate(monday.getDate() + i);
-      dates.push(date.toISOString().split("T")[0]);
+      const dateStr =
+        date.getFullYear() +
+        "-" +
+        String(date.getMonth() + 1).padStart(2, "0") +
+        "-" +
+        String(date.getDate()).padStart(2, "0");
+      dates.push(dateStr);
     }
     return dates;
   };
