@@ -25,7 +25,9 @@ function WeeklyOverview({ navigation }: any) {
   const { theme } = useTheme();
   const [weekData, setWeekData] = useState<DailyCompletion[]>([]);
   const [currentMonday, setCurrentMonday] = useState("");
-  const { weeklyPlanCounter, completionCounter } = useExerciseStore();
+  const { weeklyPlanCounter, completionCounter, isRestDay } =
+    useExerciseStore();
+  const [restDays, setRestDays] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     loadWeekData();
@@ -50,15 +52,24 @@ function WeeklyOverview({ navigation }: any) {
     const db = getDatabase();
 
     const data: DailyCompletion[] = [];
+    const restDaysSet = new Set<string>();
+
     for (const date of dates) {
       const completion = await db.getFirstAsync<DailyCompletion>(
         "SELECT * FROM daily_completion WHERE date = ?",
         [date],
       );
       data.push(completion || { date, is_completed: false, training_time: 0 });
+
+      // Check if this day is a rest day
+      const isRest = await isRestDay(date);
+      if (isRest) {
+        restDaysSet.add(date);
+      }
     }
 
     setWeekData(data);
+    setRestDays(restDaysSet);
     setCurrentMonday(dates[0]);
   };
 
@@ -128,48 +139,61 @@ function WeeklyOverview({ navigation }: any) {
         contentContainerStyle={styles.scrollContent}
       >
         <View style={styles.daysList}>
-          {weekData.map((day) => (
-            <TouchableOpacity
-              key={day.date}
-              style={[
-                styles.dayCard,
-                isToday(day.date) && styles.dayCardToday,
-                isFutureDate(day.date) && styles.dayCardDisabled,
-              ]}
-              onPress={() => {
-                navigation.navigate("DayDetail", { date: day.date });
-              }}
-            >
-              <View style={styles.dayCardContent}>
-                <View style={styles.dayHeader}>
-                  <Text style={styles.dayName}>{getDayName(day.date)}</Text>
-                  {isToday(day.date) && (
-                    <View style={styles.todayBadge}>
-                      <Text style={styles.todayBadgeText}>
-                        {t("weekly.today")}
-                      </Text>
-                    </View>
+          {weekData.map((day) => {
+            const isRest = restDays.has(day.date);
+            return (
+              <TouchableOpacity
+                key={day.date}
+                style={[
+                  styles.dayCard,
+                  isToday(day.date) && styles.dayCardToday,
+                  isFutureDate(day.date) && styles.dayCardDisabled,
+                  isRest && styles.dayCardRestDay,
+                ]}
+                onPress={() => {
+                  navigation.navigate("DayDetail", { date: day.date });
+                }}
+              >
+                <View style={styles.dayCardContent}>
+                  <View style={styles.dayHeader}>
+                    <Text style={styles.dayName}>{getDayName(day.date)}</Text>
+                    {isToday(day.date) && (
+                      <View style={styles.todayBadge}>
+                        <Text style={styles.todayBadgeText}>
+                          {t("weekly.today")}
+                        </Text>
+                      </View>
+                    )}
+                    {isRest && (
+                      <View style={styles.restDayBadge}>
+                        <Text style={styles.restDayBadgeText}>
+                          {t("restDay.restDay")}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text style={styles.dayDate}>{day.date}</Text>
+                  {day.completed_at && !isRest && (
+                    <Text style={styles.completedTime}>
+                      {t("weekly.completedAt")} {formatTime(day)}
+                    </Text>
                   )}
                 </View>
-                <Text style={styles.dayDate}>{day.date}</Text>
-                {day.completed_at && (
-                  <Text style={styles.completedTime}>
-                    {t("weekly.completedAt")} {formatTime(day)}
-                  </Text>
-                )}
-              </View>
 
-              <View style={styles.dayStatus}>
-                <Ionicons
-                  name={
-                    day.is_completed ? "checkmark-circle" : "ellipse-outline"
-                  }
-                  size={32}
-                  color={day.is_completed ? theme.successLight : theme.border}
-                />
-              </View>
-            </TouchableOpacity>
-          ))}
+                <View style={styles.dayStatus}>
+                  <Ionicons
+                    name={
+                      day.is_completed ? "checkmark-circle" : "ellipse-outline"
+                    }
+                    size={32}
+                    color={
+                      day.is_completed ? theme.successLight : theme.border
+                    }
+                  />
+                </View>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         <TouchableOpacity
@@ -315,6 +339,23 @@ const createStyles = (theme: any) =>
       textAlign: "center",
       color: "#ffffff",
       fontSize: 16,
+      fontWeight: "600",
+    },
+    dayCardRestDay: {
+      backgroundColor: theme.restDayLight,
+      borderColor: theme.restDayBorder,
+      borderWidth: 1,
+    },
+    restDayBadge: {
+      backgroundColor: theme.restDayBadge,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 12,
+      marginLeft: 8,
+    },
+    restDayBadgeText: {
+      color: "#ffffff",
+      fontSize: 12,
       fontWeight: "600",
     },
   });

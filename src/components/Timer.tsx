@@ -1,9 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import React, { useEffect, useState } from "react";
+import * as Notifications from "expo-notifications";
+import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  AppState,
   Modal,
+  Platform,
   StyleSheet,
   Text,
   TextInput,
@@ -13,6 +16,18 @@ import {
 import { useTheme } from "../contexts/ThemeContext";
 
 const TIMER_STORAGE_KEY = "timer_seconds";
+const TIMER_START_KEY = "timer_start_time";
+const TIMER_RUNNING_KEY = "timer_is_running";
+const NOTIFICATION_ID = "timer-notification";
+
+// Configure notification handler
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: false,
+    shouldSetBadge: false,
+  }),
+});
 
 export default function Timer({ resetTrigger }: { resetTrigger?: number }) {
   const { t } = useTranslation();
@@ -23,30 +38,100 @@ export default function Timer({ resetTrigger }: { resetTrigger?: number }) {
   const [editMinutes, setEditMinutes] = useState("");
   const [editSeconds, setEditSeconds] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const notificationIdRef = useRef<string | null>(null);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
+    setupNotifications();
     loadTimer();
     checkMidnightReset();
+
+    // Handle app state changes
+    const subscription = AppState.addEventListener("change", handleAppStateChange);
+    return () => subscription.remove();
   }, []);
 
+  const handleAppStateChange = async (nextAppState: string) => {
+    if (nextAppState === "active") {
+      // App came to foreground - recalculate timer
+      await recalculateTimer();
+    }
+  };
+
+  const setupNotifications = async () => {
+    if (Platform.OS === "android") {
+      await Notifications.setNotificationChannelAsync("timer", {
+        name: "Timer",
+        importance: Notifications.AndroidImportance.HIGH,
+        sound: null,
+        vibrationPattern: [],
+        enableVibrate: false,
+      });
+    }
+
+    const { status } = await Notifications.requestPermissionsAsync();
+    if (status !== "granted") {
+      console.warn("Notification permissions not granted");
+    }
+  };
+
+  const recalculateTimer = async () => {
+    const startTimeStr = await AsyncStorage.getItem(TIMER_START_KEY);
+    const initialSeconds = await AsyncStorage.getItem(TIMER_STORAGE_KEY);
+    const wasRunning = await AsyncStorage.getItem(TIMER_RUNNING_KEY);
+
+    if (wasRunning === "true" && startTimeStr && initialSeconds) {
+      const startTime = parseInt(startTimeStr);
+      const initial = parseInt(initialSeconds);
+      const now = Date.now();
+      const elapsed = Math.floor((now - startTime) / 1000);
+      const remaining = Math.max(0, initial - elapsed);
+
+      setRemainingSeconds(remaining);
+      if (remaining > 0) {
+        setIsRunning(true);
+      } else {
+        setIsRunning(false);
+        await stopTimer();
+      }
+    }
+  };
+
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+    }
+
     if (isRunning && remainingSeconds > 0) {
-      interval = setInterval(() => {
+      intervalRef.current = setInterval(async () => {
         setRemainingSeconds((prev) => {
-          const newSeconds = prev - 1;
-          saveTimer(newSeconds);
+          const newSeconds = Math.max(0, prev - 1);
+          if (newSeconds === 0) {
+            stopTimer();
+          }
           return newSeconds;
         });
+
+        // Update notification
+        if (Platform.OS === "android") {
+          await updateNotification();
+        }
       }, 1000);
     } else if (remainingSeconds <= 0 && isRunning) {
       setIsRunning(false);
+      stopTimer();
     }
-    return () => clearInterval(interval);
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
   }, [isRunning, remainingSeconds]);
 
   useEffect(() => {
     const reset = async () => {
+      await stopTimer();
       setRemainingSeconds(0);
       await saveTimer(0);
     };
@@ -91,6 +176,77 @@ export default function Timer({ resetTrigger }: { resetTrigger?: number }) {
     }
   };
 
+  const startTimer = async () => {
+    if (remainingSeconds <= 0) return;
+
+    const startTime = Date.now();
+    await AsyncStorage.setItem(TIMER_START_KEY, startTime.toString());
+    await AsyncStorage.setItem(TIMER_RUNNING_KEY, "true");
+    setIsRunning(true);
+
+    if (Platform.OS === "android") {
+      await showNotification();
+    }
+  };
+
+  const stopTimer = async () => {
+    await AsyncStorage.setItem(TIMER_RUNNING_KEY, "false");
+    await AsyncStorage.removeItem(TIMER_START_KEY);
+    setIsRunning(false);
+
+    if (Platform.OS === "android") {
+      await hideNotification();
+    }
+  };
+
+  const showNotification = async () => {
+    if (Platform.OS !== "android") return;
+
+    const notificationId = await Notifications.scheduleNotificationAsync({
+      content: {
+        title: "⏱️ Timer Running",
+        body: `Time remaining: ${formatTime(remainingSeconds)}`,
+        sticky: true,
+        priority: Notifications.AndroidNotificationPriority.HIGH,
+        sound: null,
+      },
+      trigger: null,
+    });
+
+    notificationIdRef.current = notificationId;
+  };
+
+  const updateNotification = async () => {
+    if (Platform.OS !== "android" || !notificationIdRef.current) return;
+
+    try {
+      await Notifications.dismissNotificationAsync(notificationIdRef.current);
+      const notificationId = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: "⏱️ Timer Running",
+          body: `Time remaining: ${formatTime(remainingSeconds)}`,
+          sticky: true,
+          priority: Notifications.AndroidNotificationPriority.HIGH,
+          sound: null,
+        },
+        trigger: null,
+      });
+      notificationIdRef.current = notificationId;
+    } catch (error) {
+      console.error("Error updating notification:", error);
+    }
+  };
+
+  const hideNotification = async () => {
+    if (Platform.OS !== "android") return;
+
+    if (notificationIdRef.current) {
+      await Notifications.dismissNotificationAsync(notificationIdRef.current);
+      notificationIdRef.current = null;
+    }
+    await Notifications.dismissAllNotificationsAsync();
+  };
+
   const formatTime = (totalSeconds: number) => {
     const hrs = Math.floor(totalSeconds / 3600);
     const mins = Math.floor((totalSeconds % 3600) / 60);
@@ -127,14 +283,39 @@ export default function Timer({ resetTrigger }: { resetTrigger?: number }) {
         return;
       }
 
+      const wasRunning = isRunning;
+      if (wasRunning) {
+        await stopTimer();
+      }
+
       const totalSeconds = mins * 60 + secs;
       setRemainingSeconds(totalSeconds);
       await saveTimer(totalSeconds);
+
+      if (wasRunning && totalSeconds > 0) {
+        // Restart timer with new time
+        const startTime = Date.now();
+        await AsyncStorage.setItem(TIMER_START_KEY, startTime.toString());
+        await AsyncStorage.setItem(TIMER_RUNNING_KEY, "true");
+        setIsRunning(true);
+        if (Platform.OS === "android") {
+          await showNotification();
+        }
+      }
+
       setShowEditModal(false);
     } catch (error) {
       console.error("Failed to save timer:", error);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleToggleTimer = async () => {
+    if (isRunning) {
+      await stopTimer();
+    } else {
+      await startTimer();
     }
   };
 
@@ -144,7 +325,7 @@ export default function Timer({ resetTrigger }: { resetTrigger?: number }) {
     <>
       <View style={styles.timerContainer}>
         <View style={styles.timerContent}>
-          <TouchableOpacity onPress={() => setIsRunning(!isRunning)}>
+          <TouchableOpacity onPress={handleToggleTimer}>
             <Ionicons
               name={isRunning ? "pause" : "play"}
               size={28}

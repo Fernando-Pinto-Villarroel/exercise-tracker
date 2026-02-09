@@ -18,12 +18,27 @@
     },
     "android": {
       "icon": "./assets/images/AppIcons/playstore.png",
-      "package": "com.yourcompany.exercisetracker"
+      "package": "com.yourcompany.exercisetracker",
+      "permissions": [
+        "POST_NOTIFICATIONS",
+        "FOREGROUND_SERVICE",
+        "WAKE_LOCK"
+      ]
     },
     "web": {
       "favicon": "./assets/images/AppIcons/playstore.png"
     },
-    "plugins": ["expo-sqlite"],
+    "plugins": [
+      "expo-sqlite",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/AppIcons/playstore.png",
+          "color": "#3b82f6",
+          "sounds": []
+        }
+      ]
+    ],
     "extra": {
       "eas": {
         "projectId": "38d68bcc-a698-4ced-8578-151b6e093721"

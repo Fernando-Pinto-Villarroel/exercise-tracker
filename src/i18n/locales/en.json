@@ -49,7 +49,9 @@
     "markAsDone": "Mark as Done",
     "markAsUndone": "Mark as Undone",
     "setProgress": "Sets Progress (Reference)",
-    "timeProgress": "Time Progress (Reference)"
+    "timeProgress": "Time Progress (Reference)",
+    "restDayTitle": "Rest Day",
+    "restDayMessage": "Today is a valid rest day. Take the time to recover and recharge your energy. Rest is just as important as training for your progress. Enjoy your day!"
   },
   "weekly": {
     "daysCompleted": "Days Completed",
@@ -98,7 +100,10 @@
     "save": "Save",
     "deleteExercise": "Delete Exercise",
     "deleteConfirm": "Are you sure you want to delete this exercise?",
-    "delete": "Delete"
+    "delete": "Delete",
+    "markAsRestDay": "Mark as Rest Day",
+    "restDayConfirmTitle": "Mark as Rest Day?",
+    "restDayConfirmMessage": "This will remove all exercises planned for this day. Are you sure you want to mark this day as a rest day?"
   },
   "myExercises": {
     "noExercises": "No exercises yet",
@@ -114,6 +119,8 @@
     "pastePlan": "Paste Plan",
     "pastePlanMessage": "Copy plan from {{fromDay}} to {{toDay}}?",
     "paste": "Paste",
+    "restDayConfirmTitle": "Mark as Rest Day?",
+    "restDayConfirmMessage": "This will remove all exercises planned for this day. Are you sure you want to mark this day as a rest day?",
     "days": {
       "monday": "Monday",
       "tuesday": "Tuesday",
@@ -137,6 +144,8 @@
     "reps": "Reps",
     "estimatedTime": "Estimated Time (minutes:seconds)",
     "setsRepsFormat": "{{sets}} sets × {{reps}} reps",
+    "trainingReferenceUrl": "Training Reference URL (optional)",
+    "trainingReferenceUrlPlaceholder": "https://youtube.com/...",
     "selectIcon": "Select Icon",
     "updateExercise": "Update Exercise",
     "error": "Error",
@@ -246,6 +255,14 @@
   "timer": {
     "editTime": "Edit Time"
   },
+  "restDay": {
+    "restDay": "Rest Day",
+    "validRestDay": "Valid Rest Day",
+    "markAsRestDay": "Mark as Rest Day",
+    "removeRestDay": "Remove Rest Day",
+    "restDayInfo": "Rest days won't count toward statistics or streaks",
+    "weeklyRestDayActive": "{{day}} is marked as a rest day for all weeks"
+  },
   "common": {
     "cancel": "Cancel",
     "save": "Save",
@@ -253,6 +270,7 @@
     "edit": "Edit",
     "error": "Error",
     "saving": "Saving...",
-    "loading": "Loading..."
+    "loading": "Loading...",
+    "confirm": "Confirm"
   }
 }

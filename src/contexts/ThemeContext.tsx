@@ -31,6 +31,9 @@ export const lightTheme = {
   headerText: "#fff",
   buttonDisabled: "#d1d5db",
   modalOverlay: "rgba(0,0,0,0.5)",
+  restDayLight: "#cffafe",
+  restDayBorder: "#06b6d4",
+  restDayBadge: "#0891b2",
 };
 
 export const darkTheme = {
@@ -53,6 +56,9 @@ export const darkTheme = {
   headerText: "#f9fafb",
   buttonDisabled: "#4b5563",
   modalOverlay: "rgba(0,0,0,0.7)",
+  restDayLight: "#164e63",
+  restDayBorder: "#0e7490",
+  restDayBadge: "#06b6d4",
 };
 
 interface ThemeContextType {

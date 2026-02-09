@@ -22,10 +22,11 @@ export default function MonthlyStatsScreen({ route }: any) {
   const { t } = useTranslation();
   const { theme } = useTheme();
   const { month } = route.params;
-  const { completionCounter } = useExerciseStore();
+  const { completionCounter, isRestDay } = useExerciseStore();
   const [stats, setStats] = useState<{
     daysCompleted: number;
     totalDays: number;
+    restDaysCount: number;
     totalTime: number;
     longestStreak: number;
     currentStreak: number;
@@ -34,6 +35,7 @@ export default function MonthlyStatsScreen({ route }: any) {
   }>({
     daysCompleted: 0,
     totalDays: 0,
+    restDaysCount: 0,
     totalTime: 0,
     longestStreak: 0,
     currentStreak: 0,
@@ -53,13 +55,26 @@ export default function MonthlyStatsScreen({ route }: any) {
 
     let completed = 0;
     let totalTime = 0;
+    let restDaysCount = 0;
     const exerciseMap = new Map<string, ExerciseStats>();
 
     const completions: boolean[] = [];
+    const restDays: boolean[] = [];
     const weeklyCompletions: number[] = [0, 0, 0, 0, 0];
 
     for (let i = 0; i < dates.length; i++) {
       const date = dates[i];
+
+      // Check if this day is a rest day
+      const isRest = await isRestDay(date);
+      restDays.push(isRest);
+
+      if (isRest) {
+        restDaysCount++;
+        completions.push(false); // Rest days don't count as completions
+        continue;
+      }
+
       const completion = await db.getFirstAsync<DailyCompletion>(
         "SELECT * FROM daily_completion WHERE date = ?",
         [date],
@@ -115,11 +130,12 @@ export default function MonthlyStatsScreen({ route }: any) {
       }
     }
 
-    const streaks = calculateStreaks(completions);
+    const streaks = calculateStreaks(completions, restDays);
 
     setStats({
       daysCompleted: completed,
       totalDays: dates.length,
+      restDaysCount,
       totalTime,
       longestStreak: streaks.longest,
       currentStreak: streaks.current,
@@ -147,9 +163,8 @@ export default function MonthlyStatsScreen({ route }: any) {
     return dates;
   };
 
-  const calculateStreaks = (completions: boolean[]) => {
+  const calculateStreaks = (completions: boolean[], restDays: boolean[]) => {
     const today = new Date();
-    const todayStr = today.toISOString().split("T")[0];
     const monthDate = new Date(month);
     const monthNum = monthDate.getMonth();
     const year = monthDate.getFullYear();
@@ -162,8 +177,12 @@ export default function MonthlyStatsScreen({ route }: any) {
     let current = 0;
     let temp = 0;
 
+    // Calculate longest streak - skip rest days
     for (let i = 0; i < completions.length; i++) {
-      if (completions[i]) {
+      if (restDays[i]) {
+        // Rest day: don't increment, don't reset
+        continue;
+      } else if (completions[i]) {
         temp++;
         if (temp > longest) longest = temp;
       } else {
@@ -171,8 +190,12 @@ export default function MonthlyStatsScreen({ route }: any) {
       }
     }
 
+    // Calculate current streak (from today backwards) - skip rest days
     for (let i = Math.min(todayIndex, completions.length - 1); i >= 0; i--) {
-      if (completions[i]) {
+      if (restDays[i]) {
+        // Skip rest days when counting backward
+        continue;
+      } else if (completions[i]) {
         current++;
       } else {
         break;
@@ -188,16 +211,19 @@ export default function MonthlyStatsScreen({ route }: any) {
     return hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
   };
 
+  const workingDays = stats.totalDays - stats.restDaysCount;
+  const completionRate = workingDays > 0 ? stats.daysCompleted / workingDays : 0;
+
   const progressData = {
     labels: [t("monthly.completionRate")],
-    data: [stats.totalDays > 0 ? stats.daysCompleted / stats.totalDays : 0],
+    data: [completionRate],
   };
 
   const chartConfig = {
     backgroundGradientFrom: theme.card,
     backgroundGradientTo: theme.card,
-    color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
-    labelColor: (opacity = 1) => theme.text,
+    color: (opacity: number = 1) => `rgba(59, 130, 246, ${opacity})`,
+    labelColor: () => theme.text,
     strokeWidth: 2,
     propsForLabels: {
       fontSize: 10,
@@ -228,17 +254,14 @@ export default function MonthlyStatsScreen({ route }: any) {
           <View style={styles.statRow}>
             <Text style={styles.statLabel}>{t("weekly.daysCompleted")}</Text>
             <Text style={styles.statValue}>
-              {stats.daysCompleted} / {stats.totalDays}
+              {stats.daysCompleted} / {workingDays}
             </Text>
           </View>
 
           <View style={styles.statRow}>
             <Text style={styles.statLabel}>{t("monthly.completionRate")}</Text>
             <Text style={styles.statValue}>
-              {stats.totalDays > 0
-                ? Math.round((stats.daysCompleted / stats.totalDays) * 100)
-                : 0}
-              %
+              {Math.round(completionRate * 100)}%
             </Text>
           </View>
 

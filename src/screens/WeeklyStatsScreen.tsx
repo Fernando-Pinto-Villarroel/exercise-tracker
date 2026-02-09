@@ -21,16 +21,18 @@ interface ExerciseStats {
 export default function WeeklyStatsScreen() {
   const { t } = useTranslation();
   const { theme } = useTheme();
-  const { completionCounter } = useExerciseStore();
+  const { completionCounter, isRestDay } = useExerciseStore();
   const [currentMonday, setCurrentMonday] = useState("");
   const [stats, setStats] = useState<{
     daysCompleted: number;
     totalDays: number;
+    restDaysCount: number;
     totalTime: number;
     exerciseStats: ExerciseStats[];
   }>({
     daysCompleted: 0,
     totalDays: 7,
+    restDaysCount: 0,
     totalTime: 0,
     exerciseStats: [],
   });
@@ -63,10 +65,18 @@ export default function WeeklyStatsScreen() {
 
     let completed = 0;
     let totalTime = 0;
+    let restDaysCount = 0;
 
     const exerciseMap = new Map<string, ExerciseStats>();
 
     for (const date of dates) {
+      // Check if this day is a rest day
+      const isRest = await isRestDay(date);
+      if (isRest) {
+        restDaysCount++;
+        continue; // Skip rest days entirely
+      }
+
       const completion = await db.getFirstAsync<DailyCompletion>(
         "SELECT * FROM daily_completion WHERE date = ?",
         [date],
@@ -119,6 +129,7 @@ export default function WeeklyStatsScreen() {
     setStats({
       daysCompleted: completed,
       totalDays: 7,
+      restDaysCount,
       totalTime,
       exerciseStats: Array.from(exerciseMap.values()),
     });
@@ -152,9 +163,13 @@ export default function WeeklyStatsScreen() {
     return hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
   };
 
+  const workingDays = stats.totalDays - stats.restDaysCount;
+  const completionRate =
+    workingDays > 0 ? stats.daysCompleted / workingDays : 0;
+
   const progressData = {
     labels: [t("weekly.completionRate")],
-    data: [stats.daysCompleted / stats.totalDays],
+    data: [completionRate],
   };
 
   const chartConfig = {
@@ -179,14 +194,14 @@ export default function WeeklyStatsScreen() {
           <View style={styles.statRow}>
             <Text style={styles.statLabel}>{t("weekly.daysCompleted")}</Text>
             <Text style={styles.statValue}>
-              {stats.daysCompleted} / {stats.totalDays}
+              {stats.daysCompleted} / {workingDays}
             </Text>
           </View>
 
           <View style={styles.statRow}>
             <Text style={styles.statLabel}>{t("weekly.completionRate")}</Text>
             <Text style={styles.statValue}>
-              {Math.round((stats.daysCompleted / stats.totalDays) * 100)}%
+              {Math.round(completionRate * 100)}%
             </Text>
           </View>
 

@@ -49,7 +49,9 @@
     "markAsDone": "Marcar como Hecho",
     "markAsUndone": "Marcar como Pendiente",
     "setProgress": "Progreso de Series (Referencia)",
-    "timeProgress": "Progreso de Tiempo (Referencia)"
+    "timeProgress": "Progreso de Tiempo (Referencia)",
+    "restDayTitle": "Día de Descanso",
+    "restDayMessage": "Hoy es un día de descanso válido. Tómate el tiempo para recuperarte y recargar energías. El descanso es tan importante como el entrenamiento para tu progreso. ¡Disfruta tu día!"
   },
   "weekly": {
     "daysCompleted": "Días Completados",
@@ -98,7 +100,10 @@
     "save": "Guardar",
     "deleteExercise": "Eliminar Ejercicio",
     "deleteConfirm": "¿Estás seguro de que quieres eliminar este ejercicio?",
-    "delete": "Eliminar"
+    "delete": "Eliminar",
+    "markAsRestDay": "Marcar como Día de Descanso",
+    "restDayConfirmTitle": "¿Marcar como Día de Descanso?",
+    "restDayConfirmMessage": "Esto eliminará todos los ejercicios planificados para este día. ¿Estás seguro de que quieres marcar este día como día de descanso?"
   },
   "myExercises": {
     "noExercises": "Aún no hay ejercicios",
@@ -114,6 +119,8 @@
     "pastePlan": "Pegar Plan",
     "pastePlanMessage": "¿Copiar plan de {{fromDay}} a {{toDay}}?",
     "paste": "Pegar",
+    "restDayConfirmTitle": "¿Marcar como Día de Descanso?",
+    "restDayConfirmMessage": "Esto eliminará todos los ejercicios planificados para este día. ¿Estás seguro de que quieres marcar este día como día de descanso?",
     "days": {
       "monday": "Lunes",
       "tuesday": "Martes",
@@ -137,6 +144,8 @@
     "reps": "Repeticiones",
     "estimatedTime": "Tiempo Estimado (minutos:segundos)",
     "setsRepsFormat": "{{sets}} series × {{reps}} repeticiones",
+    "trainingReferenceUrl": "URL de Referencia de Entrenamiento (opcional)",
+    "trainingReferenceUrlPlaceholder": "https://youtube.com/...",
     "selectIcon": "Seleccionar Ícono",
     "updateExercise": "Actualizar Ejercicio",
     "error": "Error",
@@ -246,6 +255,14 @@
   "timer": {
     "editTime": "Editar Tiempo"
   },
+  "restDay": {
+    "restDay": "Día de Descanso",
+    "validRestDay": "Día de Descanso Válido",
+    "markAsRestDay": "Marcar como Día de Descanso",
+    "removeRestDay": "Quitar Día de Descanso",
+    "restDayInfo": "Los días de descanso no contarán para las estadísticas o rachas",
+    "weeklyRestDayActive": "{{day}} está marcado como día de descanso para todas las semanas"
+  },
   "common": {
     "cancel": "Cancelar",
     "save": "Guardar",
@@ -253,6 +270,7 @@
     "edit": "Editar",
     "error": "Error",
     "saving": "Guardando...",
-    "loading": "Cargando..."
+    "loading": "Cargando...",
+    "confirm": "Confirmar"
   }
 }

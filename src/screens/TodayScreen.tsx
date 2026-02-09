@@ -4,6 +4,8 @@ import { useFocusEffect } from "@react-navigation/native";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  Alert,
+  Linking,
   Modal,
   ScrollView,
   StyleSheet,
@@ -37,6 +39,7 @@ export default function TodayScreen() {
     weeklyPlanCounter,
     loadWeeklyPlan,
     updateTrainingTime,
+    isRestDay,
   } = useExerciseStore();
 
   const [progress, setProgress] = useState<ExerciseProgress>({});
@@ -50,6 +53,7 @@ export default function TodayScreen() {
     new Date().getMinutes()
   );
   const [timerResetTrigger, setTimerResetTrigger] = useState(0);
+  const [isTodayRestDay, setIsTodayRestDay] = useState(false);
 
   const getTodayDate = () => {
     const now = new Date();
@@ -83,8 +87,14 @@ export default function TodayScreen() {
   }, []);
 
   const initializeToday = async () => {
-    await loadWeeklyPlan();
-    await createTodaySnapshot();
+    const today = getTodayDate();
+    const restDay = await isRestDay(today);
+    setIsTodayRestDay(restDay);
+
+    if (!restDay) {
+      await loadWeeklyPlan();
+      await createTodaySnapshot();
+    }
   };
 
   const loadProgress = async (date: string) => {
@@ -232,6 +242,19 @@ export default function TodayScreen() {
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
+  const handleOpenUrl = async (url: string) => {
+    try {
+      const canOpen = await Linking.canOpenURL(url);
+      if (canOpen) {
+        await Linking.openURL(url);
+      } else {
+        Alert.alert("Error", "Cannot open this URL");
+      }
+    } catch (error) {
+      Alert.alert("Error", "Failed to open URL");
+    }
+  };
+
   const iconFamilies = {
     Ionicons,
     MaterialIcons,
@@ -257,7 +280,15 @@ export default function TodayScreen() {
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
       >
-        {todaySnapshot.length === 0 ? (
+        {isTodayRestDay ? (
+          <View style={styles.restDayContainer}>
+            <Ionicons name="moon" size={80} color={theme.primary} />
+            <Text style={styles.restDayTitle}>{t("today.restDayTitle")}</Text>
+            <Text style={styles.restDayMessage}>
+              {t("today.restDayMessage")}
+            </Text>
+          </View>
+        ) : todaySnapshot.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Ionicons
               name="fitness-outline"
@@ -291,9 +322,21 @@ export default function TodayScreen() {
                       )}
                     </View>
                     <View style={styles.exerciseInfo}>
-                      <Text style={styles.exerciseName}>
-                        {exercise.exercise_name}
-                      </Text>
+                      {exercise.training_reference_url ? (
+                        <TouchableOpacity
+                          onPress={() => handleOpenUrl(exercise.training_reference_url!)}
+                          style={styles.exerciseNameContainer}
+                        >
+                          <Text style={[styles.exerciseName, styles.exerciseNameLink]}>
+                            {exercise.exercise_name}
+                          </Text>
+                          <Ionicons name="open-outline" size={16} color={theme.primary} />
+                        </TouchableOpacity>
+                      ) : (
+                        <Text style={styles.exerciseName}>
+                          {exercise.exercise_name}
+                        </Text>
+                      )}
                       <View>
                         {hasSets && (
                           <Text style={styles.exerciseStats}>
@@ -391,19 +434,21 @@ export default function TodayScreen() {
           </View>
         )}
 
-        <TouchableOpacity
-          style={[
-            styles.completeButton,
-            isCompleted && styles.completeButtonDone,
-          ]}
-          onPress={handleToggleCompletion}
-        >
-          <Text style={styles.completeButtonText}>
-            {isCompleted ? t("today.markAsUndone") : t("today.markAsDone")}
-          </Text>
-        </TouchableOpacity>
+        {!isTodayRestDay && (
+          <TouchableOpacity
+            style={[
+              styles.completeButton,
+              isCompleted && styles.completeButtonDone,
+            ]}
+            onPress={handleToggleCompletion}
+          >
+            <Text style={styles.completeButtonText}>
+              {isCompleted ? t("today.markAsUndone") : t("today.markAsDone")}
+            </Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
-      <Timer resetTrigger={timerResetTrigger} />
+      {!isTodayRestDay && <Timer resetTrigger={timerResetTrigger} />}
 
       <TimePicker
         visible={showTimePicker}
@@ -497,6 +542,26 @@ const createStyles = (theme: any) =>
       fontSize: 14,
       marginTop: 8,
     },
+    restDayContainer: {
+      alignItems: "center",
+      justifyContent: "center",
+      paddingVertical: 100,
+      paddingHorizontal: 32,
+    },
+    restDayTitle: {
+      fontSize: 24,
+      fontWeight: "bold",
+      color: theme.text,
+      marginTop: 24,
+      textAlign: "center",
+    },
+    restDayMessage: {
+      fontSize: 16,
+      color: theme.textSecondary,
+      marginTop: 16,
+      textAlign: "center",
+      lineHeight: 24,
+    },
     exercisesContainer: {
       gap: 16,
     },
@@ -538,6 +603,15 @@ const createStyles = (theme: any) =>
     },
     exerciseInfo: {
       flex: 1,
+    },
+    exerciseNameContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+    },
+    exerciseNameLink: {
+      color: theme.primary,
+      textDecorationLine: "underline",
     },
     progressContainer: {
       marginTop: 12,

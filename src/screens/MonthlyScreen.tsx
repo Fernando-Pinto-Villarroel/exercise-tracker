@@ -27,7 +27,8 @@ function MonthlyOverview({ navigation }: any) {
   const [monthData, setMonthData] = useState<Record<string, DailyCompletion>>(
     {},
   );
-  const { completionCounter } = useExerciseStore();
+  const { completionCounter, isRestDay } = useExerciseStore();
+  const [restDays, setRestDays] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     loadMonthData();
@@ -38,6 +39,8 @@ function MonthlyOverview({ navigation }: any) {
     const db = getDatabase();
 
     const data: Record<string, DailyCompletion> = {};
+    const restDaysSet = new Set<string>();
+
     for (const date of dates) {
       const completion = await db.getFirstAsync<DailyCompletion>(
         "SELECT * FROM daily_completion WHERE date = ?",
@@ -46,9 +49,16 @@ function MonthlyOverview({ navigation }: any) {
       if (completion) {
         data[date] = completion;
       }
+
+      // Check if this day is a rest day
+      const isRest = await isRestDay(date);
+      if (isRest) {
+        restDaysSet.add(date);
+      }
     }
 
     setMonthData(data);
+    setRestDays(restDaysSet);
   };
 
   const getMonthDates = (date: Date) => {
@@ -188,6 +198,7 @@ function MonthlyOverview({ navigation }: any) {
 
               const completion = monthData[date];
               const today = isToday(date);
+              const isRest = restDays.has(date);
 
               return (
                 <TouchableOpacity
@@ -202,6 +213,7 @@ function MonthlyOverview({ navigation }: any) {
                       styles.dayContent,
                       today && styles.dayContentToday,
                       isFutureDate(date) && styles.dayContentDisabled,
+                      isRest && styles.dayContentRestDay,
                     ]}
                   >
                     <Text
@@ -211,8 +223,8 @@ function MonthlyOverview({ navigation }: any) {
                         isFutureDate(date) && styles.dayNumberDisabled,
                       ]}
                     >
-                      {new Date(date + "T00:00:00").getDate()}
-                      {completion?.is_completed ? " ✓" : ""}
+                      {parseInt(date.split("-")[2], 10)}
+                      {!!completion?.is_completed && !isRest && " ✓"}
                     </Text>
                   </View>
                 </TouchableOpacity>
@@ -381,5 +393,8 @@ const createStyles = (theme: any) =>
       color: "#ffffff",
       fontSize: 16,
       fontWeight: "600",
+    },
+    dayContentRestDay: {
+      backgroundColor: theme.restDayLight,
     },
   });

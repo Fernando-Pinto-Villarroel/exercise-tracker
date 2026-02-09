@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useTheme } from "../contexts/ThemeContext";
@@ -12,6 +12,12 @@ interface TimePickerProps {
   initialMinutes?: number;
 }
 
+type ActionType =
+  | "incrementHours"
+  | "decrementHours"
+  | "incrementMinutes"
+  | "decrementMinutes";
+
 export default function TimePicker({
   visible,
   onClose,
@@ -23,6 +29,19 @@ export default function TimePicker({
   const { theme } = useTheme();
   const [hours, setHours] = useState(initialHours);
   const [minutes, setMinutes] = useState(initialMinutes);
+
+  // State for press handling
+  const pressTimer = useRef<NodeJS.Timeout | null>(null);
+  const pressInterval = useRef<NodeJS.Timeout | null>(null);
+  const repetitionCount = useRef(0);
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      if (pressTimer.current) clearTimeout(pressTimer.current);
+      if (pressInterval.current) clearInterval(pressInterval.current);
+    };
+  }, []);
 
   const incrementHours = () => {
     setHours((prev) => (prev + 1) % 24);
@@ -38,6 +57,74 @@ export default function TimePicker({
 
   const decrementMinutes = () => {
     setMinutes((prev) => (prev - 1 + 60) % 60);
+  };
+
+  const executeAction = (action: ActionType) => {
+    switch (action) {
+      case "incrementHours":
+        incrementHours();
+        break;
+      case "decrementHours":
+        decrementHours();
+        break;
+      case "incrementMinutes":
+        incrementMinutes();
+        break;
+      case "decrementMinutes":
+        decrementMinutes();
+        break;
+    }
+  };
+
+  const getSpeed = (count: number): number => {
+    // Acceleration tiers based on repetition count
+    if (count >= 15) return 25; // Very fast
+    if (count >= 10) return 50; // Fast
+    if (count >= 5) return 100; // Medium
+    return 200; // Initial speed
+  };
+
+  const handlePressIn = (action: ActionType) => {
+    // Execute immediately on press
+    executeAction(action);
+    repetitionCount.current = 0;
+
+    // Start the initial timer (300ms delay before repeating)
+    pressTimer.current = setTimeout(() => {
+      repetitionCount.current = 1;
+
+      // Start repeating with acceleration
+      const startRepeating = () => {
+        if (pressInterval.current) clearInterval(pressInterval.current);
+
+        const speed = getSpeed(repetitionCount.current);
+        pressInterval.current = setInterval(() => {
+          executeAction(action);
+          repetitionCount.current++;
+
+          // Check if we need to accelerate
+          const newSpeed = getSpeed(repetitionCount.current);
+          if (newSpeed !== speed) {
+            startRepeating(); // Restart with new speed
+          }
+        }, speed);
+      };
+
+      startRepeating();
+    }, 300);
+  };
+
+  const handlePressOut = () => {
+    // Clear all timers
+    if (pressTimer.current) {
+      clearTimeout(pressTimer.current);
+      pressTimer.current = null;
+    }
+    if (pressInterval.current) {
+      clearInterval(pressInterval.current);
+      pressInterval.current = null;
+    }
+    repetitionCount.current = 0;
   };
 
   const handleConfirm = () => {
@@ -64,7 +151,8 @@ export default function TimePicker({
             <View style={styles.timeColumn}>
               <TouchableOpacity
                 style={styles.arrowButton}
-                onPress={incrementHours}
+                onPressIn={() => handlePressIn("incrementHours")}
+                onPressOut={handlePressOut}
               >
                 <Ionicons name="chevron-up" size={32} color={theme.primary} />
               </TouchableOpacity>
@@ -77,7 +165,8 @@ export default function TimePicker({
 
               <TouchableOpacity
                 style={styles.arrowButton}
-                onPress={decrementHours}
+                onPressIn={() => handlePressIn("decrementHours")}
+                onPressOut={handlePressOut}
               >
                 <Ionicons name="chevron-down" size={32} color={theme.primary} />
               </TouchableOpacity>
@@ -88,7 +177,8 @@ export default function TimePicker({
             <View style={styles.timeColumn}>
               <TouchableOpacity
                 style={styles.arrowButton}
-                onPress={incrementMinutes}
+                onPressIn={() => handlePressIn("incrementMinutes")}
+                onPressOut={handlePressOut}
               >
                 <Ionicons name="chevron-up" size={32} color={theme.primary} />
               </TouchableOpacity>
@@ -101,7 +191,8 @@ export default function TimePicker({
 
               <TouchableOpacity
                 style={styles.arrowButton}
-                onPress={decrementMinutes}
+                onPressIn={() => handlePressIn("decrementMinutes")}
+                onPressOut={handlePressOut}
               >
                 <Ionicons name="chevron-down" size={32} color={theme.primary} />
               </TouchableOpacity>

@@ -6,7 +6,9 @@ import { useTranslation } from "react-i18next";
 import {
   Alert,
   FlatList,
+  Linking,
   StyleSheet,
+  Switch,
   Text,
   TouchableOpacity,
   View,
@@ -40,8 +42,14 @@ const getIconComponent = (family: string, name: string, color: string) => {
 export default function MyExercisesScreen() {
   const { t } = useTranslation();
   const { theme } = useTheme();
-  const { weeklyPlan, loadWeeklyPlan, deleteExercise, copyDayPlan } =
-    useExerciseStore();
+  const {
+    weeklyPlan,
+    loadWeeklyPlan,
+    deleteExercise,
+    copyDayPlan,
+    toggleWeeklyRestDay,
+    loadWeeklyRestDays,
+  } = useExerciseStore();
   const [selectedDay, setSelectedDay] = useState(() => {
     const today = new Date().getDay();
     return today === 0 ? 6 : today - 1;
@@ -50,6 +58,7 @@ export default function MyExercisesScreen() {
   const [editingExercise, setEditingExercise] =
     useState<WeeklyPlanExercise | null>(null);
   const [copyFromDay, setCopyFromDay] = useState<number | null>(null);
+  const [weeklyRestDays, setWeeklyRestDays] = useState<number[]>([]);
 
   const DAYS = [
     t("myExercises.days.monday"),
@@ -63,7 +72,51 @@ export default function MyExercisesScreen() {
 
   useEffect(() => {
     loadWeeklyPlan();
+    loadRestDays();
   }, []);
+
+  const loadRestDays = async () => {
+    const restDays = await loadWeeklyRestDays();
+    setWeeklyRestDays(restDays);
+  };
+
+  const handleRestDayToggle = async () => {
+    // Check if we're marking as rest day (not already a rest day)
+    const isCurrentlyRestDay = weeklyRestDays.includes(selectedDay);
+
+    if (!isCurrentlyRestDay) {
+      Alert.alert(
+        t("myExercises.restDayConfirmTitle"),
+        t("myExercises.restDayConfirmMessage"),
+        [
+          { text: t("common.cancel"), style: "cancel" },
+          {
+            text: t("common.confirm"),
+            onPress: async () => {
+              try {
+                await toggleWeeklyRestDay(selectedDay);
+                await loadRestDays();
+                await loadWeeklyPlan();
+              } catch (error) {
+                console.error("Error toggling rest day:", error);
+                Alert.alert(t("common.error"), "Failed to toggle rest day");
+              }
+            },
+          },
+        ],
+      );
+    } else {
+      // If we're removing rest day, just proceed
+      try {
+        await toggleWeeklyRestDay(selectedDay);
+        await loadRestDays();
+        await loadWeeklyPlan();
+      } catch (error) {
+        console.error("Error toggling rest day:", error);
+        Alert.alert(t("common.error"), "Failed to toggle rest day");
+      }
+    }
+  };
 
   const handleAddExercise = () => {
     setEditingExercise(null);
@@ -93,7 +146,7 @@ export default function MyExercisesScreen() {
             }
           },
         },
-      ]
+      ],
     );
   };
 
@@ -102,7 +155,7 @@ export default function MyExercisesScreen() {
       setCopyFromDay(selectedDay);
       Alert.alert(
         t("myExercises.copyMode"),
-        t("myExercises.copyModeMessage", { day: DAYS[selectedDay] })
+        t("myExercises.copyModeMessage", { day: DAYS[selectedDay] }),
       );
     } else {
       Alert.alert(
@@ -124,7 +177,7 @@ export default function MyExercisesScreen() {
               setCopyFromDay(null);
             },
           },
-        ]
+        ],
       );
     }
   };
@@ -140,7 +193,7 @@ export default function MyExercisesScreen() {
         if (id !== undefined) {
           await db.runAsync(
             "UPDATE weekly_plan SET sort_order = ? WHERE id = ?",
-            [-(i + 1000), id]
+            [-(i + 1000), id],
           );
         }
       }
@@ -150,7 +203,7 @@ export default function MyExercisesScreen() {
         if (id !== undefined) {
           await db.runAsync(
             "UPDATE weekly_plan SET sort_order = ? WHERE id = ?",
-            [i, id]
+            [i, id],
           );
         }
       }
@@ -167,7 +220,7 @@ export default function MyExercisesScreen() {
       }
       Alert.alert(
         t("common.error"),
-        "Failed to reorder exercises. Please try again."
+        "Failed to reorder exercises. Please try again.",
       );
     }
   };
@@ -208,7 +261,32 @@ export default function MyExercisesScreen() {
           </View>
 
           <View style={styles.exerciseInfo}>
-            <Text style={styles.exerciseName}>{item.exercise_name}</Text>
+            {item.training_reference_url ? (
+              <TouchableOpacity
+                onPress={async () => {
+                  try {
+                    const canOpen = await Linking.canOpenURL(
+                      item.training_reference_url!,
+                    );
+                    if (canOpen) {
+                      await Linking.openURL(item.training_reference_url!);
+                    } else {
+                      Alert.alert("Error", "Cannot open this URL");
+                    }
+                  } catch (error) {
+                    Alert.alert("Error", "Failed to open URL");
+                  }
+                }}
+                style={styles.exerciseNameContainer}
+              >
+                <Text style={[styles.exerciseName, styles.exerciseNameLink]}>
+                  {item.exercise_name}
+                </Text>
+                <Ionicons name="open-outline" size={16} color={theme.primary} />
+              </TouchableOpacity>
+            ) : (
+              <Text style={styles.exerciseName}>{item.exercise_name}</Text>
+            )}
             <View>
               {hasSets && (
                 <Text style={styles.exerciseStats}>
@@ -245,6 +323,7 @@ export default function MyExercisesScreen() {
   };
 
   const exercises = weeklyPlan[selectedDay] || [];
+  const isSelectedDayRestDay = weeklyRestDays.includes(selectedDay);
 
   const styles = createStyles(theme);
 
@@ -283,18 +362,69 @@ export default function MyExercisesScreen() {
       />
 
       <View style={styles.content}>
-        {exercises.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Ionicons
-              name="barbell-outline"
-              size={64}
-              color={theme.textTertiary}
-            />
-            <Text style={styles.emptyText}>{t("myExercises.noExercises")}</Text>
-            <Text style={styles.emptySubtext}>
-              {t("myExercises.addExercisesHint")}
-            </Text>
-          </View>
+        {isSelectedDayRestDay ? (
+          <>
+            <View style={styles.restDayToggleContainer}>
+              <View style={styles.restDayLabelContainer}>
+                <Text style={styles.restDayLabel}>
+                  {t("restDay.validRestDay")}
+                </Text>
+                <Text style={styles.restDaySubLabel}>
+                  {t("restDay.restDayInfo")}
+                </Text>
+              </View>
+              <Switch
+                value={isSelectedDayRestDay}
+                onValueChange={handleRestDayToggle}
+                trackColor={{ false: theme.borderLight, true: theme.primary }}
+                thumbColor={
+                  isSelectedDayRestDay ? "#0891b2" : theme.textSecondary
+                }
+              />
+            </View>
+
+            <View style={styles.restDayMessage}>
+              <Ionicons name="moon" size={48} color={theme.primary} />
+              <Text style={styles.restDayMessageText}>
+                {t("restDay.weeklyRestDayActive", { day: DAYS[selectedDay] })}
+              </Text>
+            </View>
+          </>
+        ) : exercises.length === 0 ? (
+          <>
+            <View style={styles.restDayToggleContainer}>
+              <View style={styles.restDayLabelContainer}>
+                <Text style={styles.restDayLabel}>
+                  {t("restDay.validRestDay")}
+                </Text>
+                <Text style={styles.restDaySubLabel}>
+                  {t("restDay.restDayInfo")}
+                </Text>
+              </View>
+              <Switch
+                value={isSelectedDayRestDay}
+                onValueChange={handleRestDayToggle}
+                trackColor={{ false: theme.borderLight, true: theme.primary }}
+                thumbColor={
+                  isSelectedDayRestDay ? "#0891b2" : theme.textSecondary
+                }
+              />
+            </View>
+
+            <View style={styles.emptyContainer}>
+              <Ionicons
+                name="barbell-outline"
+                size={64}
+                color={theme.textTertiary}
+              />
+              <Text style={styles.emptyText}>
+                {t("myExercises.noExercises")}
+              </Text>
+              <Text style={styles.emptySubtext}>
+                {t("myExercises.addExercisesHint")}
+              </Text>
+            </View>
+          </>
         ) : (
           <DraggableFlatList
             data={exercises}
@@ -302,34 +432,58 @@ export default function MyExercisesScreen() {
             keyExtractor={(item, index) => `exercise-${item.id || index}`}
             renderItem={renderExerciseItem}
             contentContainerStyle={styles.listContent}
+            ListHeaderComponent={
+              <View style={styles.restDayToggleContainer}>
+                <View style={styles.restDayLabelContainer}>
+                  <Text style={styles.restDayLabel}>
+                    {t("restDay.validRestDay")}
+                  </Text>
+                  <Text style={styles.restDaySubLabel}>
+                    {t("restDay.restDayInfo")}
+                  </Text>
+                </View>
+                <Switch
+                  value={isSelectedDayRestDay}
+                  onValueChange={handleRestDayToggle}
+                  trackColor={{ false: theme.borderLight, true: theme.primary }}
+                  thumbColor={
+                    isSelectedDayRestDay ? "#0891b2" : theme.textSecondary
+                  }
+                />
+              </View>
+            }
           />
         )}
-
-        <View style={[styles.buttonRow, { marginTop: 16 }]}>
-          <TouchableOpacity
-            style={styles.addButton}
-            onPress={handleAddExercise}
-          >
-            <Text style={styles.addButtonText}>
-              {t("myExercises.addExercise")}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.copyButton,
-              copyFromDay !== null && styles.copyButtonActive,
-            ]}
-            onPress={handleCopyDay}
-          >
-            <Text style={styles.copyButtonText}>
-              {copyFromDay !== null
-                ? t("myExercises.pasteHere")
-                : t("myExercises.copyDay")}
-            </Text>
-          </TouchableOpacity>
-        </View>
       </View>
+
+      {!isSelectedDayRestDay && (
+        <View style={styles.fixedButtonContainer}>
+          <View style={styles.buttonRow}>
+            <TouchableOpacity
+              style={styles.addButton}
+              onPress={handleAddExercise}
+            >
+              <Text style={styles.addButtonText}>
+                {t("myExercises.addExercise")}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.copyButton,
+                copyFromDay !== null && styles.copyButtonActive,
+              ]}
+              onPress={handleCopyDay}
+            >
+              <Text style={styles.copyButtonText}>
+                {copyFromDay !== null
+                  ? t("myExercises.pasteHere")
+                  : t("myExercises.copyDay")}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
 
       <ExerciseModal
         visible={showModal}
@@ -429,6 +583,15 @@ const createStyles = (theme: any) =>
       color: theme.text,
       marginBottom: 4,
     },
+    exerciseNameContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+    },
+    exerciseNameLink: {
+      color: theme.primary,
+      textDecorationLine: "underline",
+    },
     exerciseStats: {
       fontSize: 14,
       color: theme.textSecondary,
@@ -472,5 +635,55 @@ const createStyles = (theme: any) =>
       color: "#ffffff",
       fontSize: 16,
       fontWeight: "600",
+    },
+    restDayToggleContainer: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      backgroundColor: theme.card,
+      padding: 16,
+      borderRadius: 8,
+      marginBottom: 16,
+      shadowColor: theme.shadow,
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.1,
+      shadowRadius: 2,
+      elevation: 2,
+    },
+    restDayLabelContainer: {
+      flex: 1,
+      marginRight: 12,
+    },
+    restDayLabel: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: theme.text,
+      marginBottom: 4,
+    },
+    restDaySubLabel: {
+      fontSize: 13,
+      color: theme.textSecondary,
+    },
+    restDayMessage: {
+      alignItems: "center",
+      justifyContent: "center",
+      paddingVertical: 60,
+      paddingHorizontal: 24,
+    },
+    restDayMessageText: {
+      marginTop: 16,
+      fontSize: 16,
+      color: theme.textSecondary,
+      textAlign: "center",
+    },
+    fixedButtonContainer: {
+      position: "absolute",
+      bottom: 0,
+      left: 0,
+      right: 0,
+      backgroundColor: theme.background,
+      paddingHorizontal: 16,
+      paddingBottom: 4,
+      paddingTop: 12,
     },
   });

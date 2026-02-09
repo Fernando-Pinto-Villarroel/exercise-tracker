@@ -70,6 +70,10 @@ function SettingsMain({ navigation }: any) {
       const weeklyPlan = await db.getAllAsync<WeeklyPlanExercise>(
         "SELECT * FROM weekly_plan"
       );
+      const weeklyRestDays = await db.getAllAsync<{
+        day_of_week: number;
+        created_at: string;
+      }>("SELECT day_of_week, created_at FROM weekly_rest_days");
       const dailySnapshots = await db.getAllAsync<DailySnapshot>(
         "SELECT * FROM daily_snapshot"
       );
@@ -78,11 +82,13 @@ function SettingsMain({ navigation }: any) {
       );
 
       const exportData: ExportData = {
-        version: "2.0",
+        version: "1.2.0",
+        schema_version: 2,
         exported_at: new Date().toISOString(),
         user_info: userInfo,
         body_records: bodyRecords,
         weekly_plan: weeklyPlan,
+        weekly_rest_days: weeklyRestDays,
         daily_snapshots: dailySnapshots,
         daily_completions: dailyCompletions,
       };
@@ -160,10 +166,26 @@ function SettingsMain({ navigation }: any) {
   const performImport = async (data: ExportData) => {
     const db = getDatabase();
 
+    // Handle migration for old format exports
+    const schemaVersion = data.schema_version || 0;
+    if (schemaVersion < 1) {
+      // Old format - add is_rest_day = false to all daily_completions
+      data.daily_completions.forEach((dc) => {
+        if (!("is_rest_day" in dc)) {
+          dc.is_rest_day = false;
+        }
+      });
+      // Initialize empty weekly_rest_days for old exports
+      if (!data.weekly_rest_days) {
+        data.weekly_rest_days = [];
+      }
+    }
+
     await db.execAsync(`
       DELETE FROM user_info;
       DELETE FROM body_records;
       DELETE FROM weekly_plan;
+      DELETE FROM weekly_rest_days;
       DELETE FROM daily_snapshot;
       DELETE FROM daily_completion;
     `);
@@ -220,6 +242,16 @@ function SettingsMain({ navigation }: any) {
       );
     }
 
+    // Import weekly rest days
+    if (data.weekly_rest_days) {
+      for (const restDay of data.weekly_rest_days) {
+        await db.runAsync(
+          "INSERT INTO weekly_rest_days (day_of_week, created_at) VALUES (?, ?)",
+          [restDay.day_of_week, restDay.created_at]
+        );
+      }
+    }
+
     for (const snapshot of data.daily_snapshots) {
       await db.runAsync(
         "INSERT INTO daily_snapshot (date, exercise_name, icon_name, icon_family, sets, reps, estimated_time, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
@@ -238,12 +270,13 @@ function SettingsMain({ navigation }: any) {
 
     for (const completion of data.daily_completions) {
       await db.runAsync(
-        "INSERT INTO daily_completion (date, is_completed, completed_at, training_time) VALUES (?, ?, ?, ?)",
+        "INSERT INTO daily_completion (date, is_completed, completed_at, training_time, is_rest_day) VALUES (?, ?, ?, ?, ?)",
         [
           completion.date,
           completion.is_completed ? 1 : 0,
           completion.completed_at ?? null,
           completion.training_time || 0,
+          completion.is_rest_day ? 1 : 0,
         ]
       );
     }

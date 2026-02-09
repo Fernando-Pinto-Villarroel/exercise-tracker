@@ -32,6 +32,7 @@ export interface Exercise {
   sets?: number;
   reps?: number;
   estimated_time?: number;
+  training_reference_url?: string;
   sort_order: number;
 }
 
@@ -49,14 +50,22 @@ export interface DailyCompletion {
   is_completed: boolean;
   completed_at?: string;
   training_time: number;
+  is_rest_day?: boolean;
+}
+
+export interface WeeklyRestDay {
+  day_of_week: number;
+  created_at: string;
 }
 
 export interface ExportData {
   version: string;
+  schema_version: number;
   exported_at: string;
   user_info: UserInfo[];
   body_records: BodyRecord[];
   weekly_plan: WeeklyPlanExercise[];
+  weekly_rest_days: WeeklyRestDay[];
   daily_snapshots: DailySnapshot[];
   daily_completions: DailyCompletion[];
 }

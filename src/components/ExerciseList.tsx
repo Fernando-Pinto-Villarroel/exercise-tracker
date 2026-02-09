@@ -1,6 +1,8 @@
 import { FontAwesome5, Ionicons, MaterialIcons } from "@expo/vector-icons";
 import React from "react";
 import {
+  Alert,
+  Linking,
   ScrollView,
   StyleSheet,
   Text,
@@ -47,6 +49,19 @@ export default function ExerciseList({
     return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
   };
 
+  const handleOpenUrl = async (url: string) => {
+    try {
+      const canOpen = await Linking.canOpenURL(url);
+      if (canOpen) {
+        await Linking.openURL(url);
+      } else {
+        Alert.alert("Error", "Cannot open this URL");
+      }
+    } catch (error) {
+      Alert.alert("Error", "Failed to open URL");
+    }
+  };
+
   const styles = createStyles(theme);
 
   return (
@@ -74,7 +89,19 @@ export default function ExerciseList({
             </View>
 
             <View style={styles.exerciseInfo}>
-              <Text style={styles.exerciseName}>{exercise.exercise_name}</Text>
+              {exercise.training_reference_url ? (
+                <TouchableOpacity
+                  onPress={() => handleOpenUrl(exercise.training_reference_url!)}
+                  style={styles.exerciseNameContainer}
+                >
+                  <Text style={[styles.exerciseName, styles.exerciseNameLink]}>
+                    {exercise.exercise_name}
+                  </Text>
+                  <Ionicons name="open-outline" size={16} color={theme.primary} />
+                </TouchableOpacity>
+              ) : (
+                <Text style={styles.exerciseName}>{exercise.exercise_name}</Text>
+              )}
               <View>
                 {hasSets && (
                   <Text style={styles.exerciseStats}>
@@ -160,6 +187,15 @@ const createStyles = (theme: any) =>
       fontWeight: "600",
       color: theme.text,
       marginBottom: 4,
+    },
+    exerciseNameContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+    },
+    exerciseNameLink: {
+      color: theme.primary,
+      textDecorationLine: "underline",
     },
     exerciseStats: {
       fontSize: 14,

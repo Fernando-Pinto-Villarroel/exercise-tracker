@@ -79,6 +79,7 @@ export default function ExerciseModal({
   const [reps, setReps] = useState("");
   const [estimatedTimeMinutes, setEstimatedTimeMinutes] = useState("");
   const [estimatedTimeSeconds, setEstimatedTimeSeconds] = useState("");
+  const [trainingReferenceUrl, setTrainingReferenceUrl] = useState("");
   const [selectedIcon, setSelectedIcon] = useState(ICON_OPTIONS[0]);
 
   useEffect(() => {
@@ -108,6 +109,7 @@ export default function ExerciseModal({
 
       setSets(exercise.sets?.toString() || "");
       setReps(exercise.reps?.toString() || "");
+      setTrainingReferenceUrl(exercise.training_reference_url || "");
       if (exercise.estimated_time && exercise.estimated_time > 0) {
         const totalSeconds = exercise.estimated_time;
         const minutes = Math.floor(totalSeconds / 60).toString();
@@ -137,6 +139,7 @@ export default function ExerciseModal({
       setReps("");
       setEstimatedTimeMinutes("");
       setEstimatedTimeSeconds("");
+      setTrainingReferenceUrl("");
       setSelectedIcon(ICON_OPTIONS[0]);
     }
   }, [exercise, visible]);
@@ -216,6 +219,7 @@ export default function ExerciseModal({
             ? parseInt(estimatedTimeMinutes) * 60 +
               parseInt(estimatedTimeSeconds)
             : undefined,
+        training_reference_url: trainingReferenceUrl.trim() || undefined,
         sort_order: 0,
       };
 
@@ -432,6 +436,22 @@ export default function ExerciseModal({
                 </View>
               </View>
             )}
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>
+                {t("exerciseModal.trainingReferenceUrl")}
+              </Text>
+              <TextInput
+                style={styles.input}
+                placeholder={t("exerciseModal.trainingReferenceUrlPlaceholder")}
+                placeholderTextColor={theme.textTertiary}
+                value={trainingReferenceUrl}
+                onChangeText={setTrainingReferenceUrl}
+                keyboardType="url"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
 
             <View style={styles.iconSection}>
               <Text style={styles.label}>{t("exerciseModal.selectIcon")}</Text>

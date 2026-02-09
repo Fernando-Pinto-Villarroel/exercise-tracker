@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Alert,
+  Linking,
   Modal,
   StyleSheet,
   Text,
@@ -83,6 +84,8 @@ export default function DayDetailScreen({ route }: any) {
     updateDailyExercise,
     saveDailyExercise,
     deleteDailyExercise,
+    toggleRestDay,
+    isRestDay,
   } = useExerciseStore();
   const [snapshot, setSnapshot] = useState<DailySnapshot[]>([]);
   const [completion, setCompletion] = useState<DailyCompletion | null>(null);
@@ -104,6 +107,8 @@ export default function DayDetailScreen({ route }: any) {
   const [completionMinute, setCompletionMinute] = useState(
     new Date().getMinutes(),
   );
+  const [isRestDayState, setIsRestDayState] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     setIsFuture(isFutureDate(date));
@@ -111,22 +116,67 @@ export default function DayDetailScreen({ route }: any) {
   }, [date, weeklyPlanCounter, completionCounter]);
 
   const loadData = async () => {
-    const data = await loadDayData(date);
-    let exercises = data.snapshot;
+    setIsLoading(true);
+    try {
+      const data = await loadDayData(date);
+      let exercises = data.snapshot;
 
-    if (exercises.length === 0 && isFutureDate(date)) {
-      const dateObj = new Date(date + "T00:00:00");
-      const dayOfWeek = dateObj.getDay();
-      const adjustedDay = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-      const plan = weeklyPlan[adjustedDay] || [];
-      exercises = plan.map((ex) => ({
-        ...ex,
-        date: date,
-      }));
+      // Check if this day is a rest day
+      const restDay = await isRestDay(date);
+      setIsRestDayState(restDay);
+
+      if (exercises.length === 0 && isFutureDate(date)) {
+        const dateObj = new Date(date + "T00:00:00");
+        const dayOfWeek = dateObj.getDay();
+        const adjustedDay = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+        const plan = weeklyPlan[adjustedDay] || [];
+        exercises = plan.map((ex) => ({
+          ...ex,
+          date: date,
+        }));
+      }
+
+      setSnapshot(exercises);
+      setCompletion(data.completion);
+    } catch (error) {
+      console.error("Error loading day data:", error);
+    } finally {
+      setIsLoading(false);
     }
+  };
 
-    setSnapshot(exercises);
-    setCompletion(data.completion);
+  const handleToggleRestDay = async () => {
+    // If we're marking as rest day (not already a rest day), show confirmation
+    if (!isRestDayState) {
+      Alert.alert(
+        t("dayDetail.restDayConfirmTitle"),
+        t("dayDetail.restDayConfirmMessage"),
+        [
+          { text: t("common.cancel"), style: "cancel" },
+          {
+            text: t("common.confirm"),
+            onPress: async () => {
+              try {
+                await toggleRestDay(date);
+                await loadData();
+              } catch (error) {
+                console.error("Error toggling rest day:", error);
+                Alert.alert(t("common.error"), "Failed to toggle rest day");
+              }
+            },
+          },
+        ],
+      );
+    } else {
+      // If we're removing rest day, just proceed
+      try {
+        await toggleRestDay(date);
+        await loadData();
+      } catch (error) {
+        console.error("Error toggling rest day:", error);
+        Alert.alert(t("common.error"), "Failed to toggle rest day");
+      }
+    }
   };
 
   const handleToggle = async () => {
@@ -318,7 +368,32 @@ export default function DayDetailScreen({ route }: any) {
           </View>
 
           <View style={styles.exerciseInfo}>
-            <Text style={styles.exerciseName}>{item.exercise_name}</Text>
+            {item.training_reference_url ? (
+              <TouchableOpacity
+                onPress={async () => {
+                  try {
+                    const canOpen = await Linking.canOpenURL(
+                      item.training_reference_url!,
+                    );
+                    if (canOpen) {
+                      await Linking.openURL(item.training_reference_url!);
+                    } else {
+                      Alert.alert("Error", "Cannot open this URL");
+                    }
+                  } catch (error) {
+                    Alert.alert("Error", "Failed to open URL");
+                  }
+                }}
+                style={styles.exerciseNameContainer}
+              >
+                <Text style={[styles.exerciseName, styles.exerciseNameLink]}>
+                  {item.exercise_name}
+                </Text>
+                <Ionicons name="open-outline" size={16} color={theme.primary} />
+              </TouchableOpacity>
+            ) : (
+              <Text style={styles.exerciseName}>{item.exercise_name}</Text>
+            )}
             <View>
               {hasSets && (
                 <Text style={styles.exerciseStats}>
@@ -360,6 +435,25 @@ export default function DayDetailScreen({ route }: any) {
 
   const styles = createStyles(theme);
 
+  if (isLoading) {
+    return (
+      <View
+        style={[
+          styles.container,
+          {
+            backgroundColor: theme.background,
+            justifyContent: "center",
+            alignItems: "center",
+          },
+        ]}
+      >
+        <Text style={{ color: theme.text, fontSize: 16 }}>
+          {t("common.loading")}
+        </Text>
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={styles.content}>
@@ -383,44 +477,71 @@ export default function DayDetailScreen({ route }: any) {
         )}
 
         <View style={styles.stickyButtons}>
-          {isPast && (
-            <TouchableOpacity
-              style={styles.addButton}
-              onPress={() => {
-                setEditingExercise(null);
-                setShowEditModal(true);
-              }}
-            >
-              <Text style={styles.addButtonText}>
-                {t("dayDetail.addExercise")}
-              </Text>
-            </TouchableOpacity>
-          )}
-
-          {!isFuture && (
+          {isPast && !isCompleted && (
             <TouchableOpacity
               style={[
-                styles.completeButton,
-                isCompleted && styles.completeButtonDone,
+                styles.restDayButton,
+                isRestDayState && styles.restDayButtonActive,
               ]}
-              onPress={handleToggle}
+              onPress={handleToggleRestDay}
             >
-              <Text style={styles.completeButtonText}>
-                {isCompleted ? t("today.markAsUndone") : t("today.markAsDone")}
+              <Text
+                style={[
+                  styles.restDayButtonText,
+                  isRestDayState && styles.restDayButtonTextActive,
+                ]}
+              >
+                {isRestDayState
+                  ? t("restDay.removeRestDay")
+                  : t("restDay.markAsRestDay")}
               </Text>
             </TouchableOpacity>
           )}
 
-          {isCompleted && !isFuture && (
-            <TouchableOpacity
-              style={styles.timeEditButton}
-              onPress={handleEditTime}
-            >
-              <Text style={styles.timeEditButtonText}>
-                {t("dayDetail.editTrainingTime")}:{" "}
-                {formatTime(completion?.training_time || 0)}
-              </Text>
-            </TouchableOpacity>
+          {!isRestDayState && (
+            <>
+              {isPast && (
+                <TouchableOpacity
+                  style={styles.addButton}
+                  onPress={() => {
+                    setEditingExercise(null);
+                    setShowEditModal(true);
+                  }}
+                >
+                  <Text style={styles.addButtonText}>
+                    {t("dayDetail.addExercise")}
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              {!isFuture && (
+                <TouchableOpacity
+                  style={[
+                    styles.completeButton,
+                    isCompleted && styles.completeButtonDone,
+                  ]}
+                  onPress={handleToggle}
+                >
+                  <Text style={styles.completeButtonText}>
+                    {isCompleted
+                      ? t("today.markAsUndone")
+                      : t("today.markAsDone")}
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              {isCompleted && !isFuture && (
+                <TouchableOpacity
+                  style={styles.timeEditButton}
+                  onPress={handleEditTime}
+                >
+                  <Text style={styles.timeEditButtonText}>
+                    {t("dayDetail.editTrainingTime")}:{" "}
+                    {formatTime(completion?.training_time || 0)}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </>
           )}
         </View>
       </View>
@@ -611,6 +732,15 @@ const createStyles = (theme: any) =>
       color: theme.text,
       marginBottom: 4,
     },
+    exerciseNameContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+    },
+    exerciseNameLink: {
+      color: theme.primary,
+      textDecorationLine: "underline",
+    },
     exerciseStats: {
       fontSize: 14,
       color: theme.textSecondary,
@@ -640,8 +770,8 @@ const createStyles = (theme: any) =>
       fontWeight: "600",
     },
     addButton: {
-      marginTop: 24,
       paddingVertical: 16,
+      marginTop: 12,
       borderRadius: 8,
       backgroundColor: theme.primary,
     },
@@ -730,5 +860,26 @@ const createStyles = (theme: any) =>
       textAlign: "center",
       color: "#ffffff",
       fontWeight: "600",
+    },
+    restDayButton: {
+      marginTop: 12,
+      paddingVertical: 16,
+      borderRadius: 8,
+      marginBottom: 12,
+      backgroundColor: theme.restDayBorder,
+      borderWidth: 1,
+      borderColor: theme.restDayBorder,
+    },
+    restDayButtonActive: {
+      backgroundColor: theme.restDayLight,
+    },
+    restDayButtonText: {
+      textAlign: "center",
+      color: "#ffffff",
+      fontSize: 16,
+      fontWeight: "600",
+    },
+    restDayButtonTextActive: {
+      color: theme.text,
     },
   });
