@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import notifee, { AndroidImportance } from "@notifee/react-native";
+import * as Notifications from "expo-notifications";
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -18,8 +18,17 @@ import { useTheme } from "../contexts/ThemeContext";
 const TIMER_STORAGE_KEY = "timer_seconds";
 const TIMER_START_KEY = "timer_start_time";
 const TIMER_RUNNING_KEY = "timer_is_running";
-const NOTIFICATION_TAG = "timer-notification";
-const CHANNEL_ID = "timer-channel";
+const NOTIFICATION_UPDATE_INTERVAL = 30; // Update notification every 30 seconds
+
+// Configure notification handler
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: false,
+    shouldSetBadge: false,
+  }),
+});
 
 export default function Timer({ resetTrigger }: { resetTrigger?: number }) {
   const { t } = useTranslation();
@@ -32,6 +41,7 @@ export default function Timer({ resetTrigger }: { resetTrigger?: number }) {
   const [isSaving, setIsSaving] = useState(false);
   const notificationIdRef = useRef<string | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const lastNotificationUpdateRef = useRef<number>(0);
 
   useEffect(() => {
     setupNotifications();
@@ -39,7 +49,10 @@ export default function Timer({ resetTrigger }: { resetTrigger?: number }) {
     checkMidnightReset();
 
     // Handle app state changes
-    const subscription = AppState.addEventListener("change", handleAppStateChange);
+    const subscription = AppState.addEventListener(
+      "change",
+      handleAppStateChange,
+    );
     return () => subscription.remove();
   }, []);
 
@@ -52,14 +65,18 @@ export default function Timer({ resetTrigger }: { resetTrigger?: number }) {
 
   const setupNotifications = async () => {
     if (Platform.OS === "android") {
-      // Create notification channel for Notifee
-      await notifee.createChannel({
-        id: CHANNEL_ID,
+      await Notifications.setNotificationChannelAsync("timer", {
         name: "Timer",
-        importance: AndroidImportance.HIGH,
-        sound: undefined,
-        vibration: false,
+        importance: Notifications.AndroidImportance.HIGH,
+        sound: null,
+        vibrationPattern: [],
+        enableVibrate: false,
       });
+    }
+
+    const { status } = await Notifications.requestPermissionsAsync();
+    if (status !== "granted") {
+      console.warn("Notification permissions not granted");
     }
   };
 
@@ -100,9 +117,19 @@ export default function Timer({ resetTrigger }: { resetTrigger?: number }) {
           return newSeconds;
         });
 
-        // Update notification
+        // Update notification every 30 seconds or when finishing
         if (Platform.OS === "android") {
-          await updateNotification();
+          const now = Math.floor(Date.now() / 1000);
+          const secondsSinceLastUpdate =
+            now - lastNotificationUpdateRef.current;
+
+          if (
+            secondsSinceLastUpdate >= NOTIFICATION_UPDATE_INTERVAL ||
+            remainingSeconds <= 1
+          ) {
+            await updateNotification();
+            lastNotificationUpdateRef.current = now;
+          }
         }
       }, 1000);
     } else if (remainingSeconds <= 0 && isRunning) {
@@ -130,7 +157,7 @@ export default function Timer({ resetTrigger }: { resetTrigger?: number }) {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(
       2,
-      "0"
+      "0",
     )}-${String(now.getDate()).padStart(2, "0")}`;
   };
 
@@ -190,43 +217,37 @@ export default function Timer({ resetTrigger }: { resetTrigger?: number }) {
   const showNotification = async () => {
     if (Platform.OS !== "android") return;
 
-    try {
-      await notifee.displayNotification({
+    const notificationId = await Notifications.scheduleNotificationAsync({
+      content: {
         title: "⏱️ Timer Running",
         body: `Time remaining: ${formatTime(remainingSeconds)}`,
-        android: {
-          channelId: CHANNEL_ID,
-          tag: NOTIFICATION_TAG, // KEY: Same tag = updates in place!
-          ongoing: true, // Makes it persistent
-          pressAction: {
-            id: "default",
-          },
-          importance: AndroidImportance.HIGH,
-        },
-      });
-    } catch (error) {
-      console.error("Error showing notification:", error);
-    }
+        sticky: true,
+        priority: Notifications.AndroidNotificationPriority.HIGH,
+        sound: false,
+      },
+      trigger: null,
+    });
+
+    notificationIdRef.current = notificationId;
+    lastNotificationUpdateRef.current = Math.floor(Date.now() / 1000);
   };
 
   const updateNotification = async () => {
-    if (Platform.OS !== "android") return;
+    if (Platform.OS !== "android" || !notificationIdRef.current) return;
 
     try {
-      // Using the same tag updates the notification IN PLACE - no flicker!
-      await notifee.displayNotification({
-        title: "⏱️ Timer Running",
-        body: `Time remaining: ${formatTime(remainingSeconds)}`,
-        android: {
-          channelId: CHANNEL_ID,
-          tag: NOTIFICATION_TAG, // Same tag = seamless update!
-          ongoing: true,
-          pressAction: {
-            id: "default",
-          },
-          importance: AndroidImportance.HIGH,
+      await Notifications.dismissNotificationAsync(notificationIdRef.current);
+      const notificationId = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: "⏱️ Timer Running",
+          body: `Time remaining: ${formatTime(remainingSeconds)}`,
+          sticky: true,
+          priority: Notifications.AndroidNotificationPriority.HIGH,
+          sound: false,
         },
+        trigger: null,
       });
+      notificationIdRef.current = notificationId;
     } catch (error) {
       console.error("Error updating notification:", error);
     }
@@ -235,13 +256,11 @@ export default function Timer({ resetTrigger }: { resetTrigger?: number }) {
   const hideNotification = async () => {
     if (Platform.OS !== "android") return;
 
-    try {
-      // Cancel notification with the specific tag
-      await notifee.cancelNotification(NOTIFICATION_TAG);
+    if (notificationIdRef.current) {
+      await Notifications.dismissNotificationAsync(notificationIdRef.current);
       notificationIdRef.current = null;
-    } catch (error) {
-      console.error("Error hiding notification:", error);
     }
+    await Notifications.dismissAllNotificationsAsync();
   };
 
   const formatTime = (totalSeconds: number) => {

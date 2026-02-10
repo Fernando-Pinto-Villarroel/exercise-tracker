@@ -263,6 +263,50 @@
     "restDayInfo": "Los días de descanso no contarán para las estadísticas o rachas",
     "weeklyRestDayActive": "{{day}} está marcado como día de descanso para todas las semanas"
   },
+  "dailyReminder": {
+    "messages": [
+      {
+        "title": "💪 ¡Tus músculos te llaman!",
+        "body": "Te extrañan. ¡Hora de darles algo de amor!"
+      },
+      {
+        "title": "🏋️ ¡Hora de ejercicio!",
+        "body": "¡Tu yo del futuro te lo agradecerá!"
+      },
+      {
+        "title": "🔥 ¡Hora de quemar!",
+        "body": "Esas calorías no se van a quemar solas... lamentablemente 😅"
+      },
+      {
+        "title": "⚡ ¡Energía en camino!",
+        "body": "30 minutos de ejercicio = horas sintiéndote increíble!"
+      },
+      {
+        "title": "🎯 ¡Hora de metas!",
+        "body": "¡Cada entrenamiento te acerca a tu mejor versión!"
+      },
+      {
+        "title": "🚀 ¡Secuencia de lanzamiento iniciada!",
+        "body": "¡T-menos 5 minutos para el ejercicio!"
+      },
+      {
+        "title": "🏆 ¡Alerta de campeón!",
+        "body": "Los campeones entrenan incluso cuando no tienen ganas. ¡Tú puedes!"
+      },
+      {
+        "title": "🧘 ¡Medicina en movimiento!",
+        "body": "¡La mejor cura para un día flojo es un buen entrenamiento!"
+      },
+      {
+        "title": "💥 ¡Modo bestia: ACTIVAR!",
+        "body": "¡Hora de liberar tu atleta interior!"
+      },
+      {
+        "title": "🌟 ¡Brilla con fuerza!",
+        "body": "¡Tu entrenamiento te espera para hacerte sentir increíble!"
+      }
+    ]
+  },
   "common": {
     "cancel": "Cancelar",
     "save": "Guardar",

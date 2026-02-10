@@ -9,6 +9,7 @@ import { initDatabase } from "./src/database/init";
 import "./src/i18n";
 import MainTabs from "./src/navigation/MainTabs";
 import IntroScreen from "./src/screens/IntroScreen";
+import { initializeDailyReminders } from "./src/services/dailyReminderService";
 import { useUserStore } from "./src/store/userStore";
 
 const Stack = createNativeStackNavigator();
@@ -23,6 +24,12 @@ function AppContent() {
       await initDatabase();
       await loadUserData();
       await loadThemePreference();
+
+      // Initialize daily reminders only if user is onboarded
+      if (isOnboarded) {
+        await initializeDailyReminders();
+      }
+
       setIsReady(true);
     }
     initialize();

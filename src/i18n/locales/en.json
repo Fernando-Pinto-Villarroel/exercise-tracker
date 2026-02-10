@@ -263,6 +263,50 @@
     "restDayInfo": "Rest days won't count toward statistics or streaks",
     "weeklyRestDayActive": "{{day}} is marked as a rest day for all weeks"
   },
+  "dailyReminder": {
+    "messages": [
+      {
+        "title": "💪 Your muscles are calling!",
+        "body": "They miss you. Time to show them some love!"
+      },
+      {
+        "title": "🏋️ Exercise o'clock!",
+        "body": "Your future self will thank you for this workout!"
+      },
+      {
+        "title": "🔥 Burn time!",
+        "body": "Those calories won't burn themselves... unfortunately 😅"
+      },
+      {
+        "title": "⚡ Energy boost incoming!",
+        "body": "30 minutes of exercise = hours of feeling awesome!"
+      },
+      {
+        "title": "🎯 Goal time!",
+        "body": "Every workout brings you closer to your best self!"
+      },
+      {
+        "title": "🚀 Launch sequence initiated!",
+        "body": "T-minus 5 minutes until exercise time!"
+      },
+      {
+        "title": "🏆 Champion alert!",
+        "body": "Champions train even when they don't feel like it. You got this!"
+      },
+      {
+        "title": "🧘 Movement medicine!",
+        "body": "The best cure for a lazy day is a good workout!"
+      },
+      {
+        "title": "💥 Beast mode: ACTIVATE!",
+        "body": "Time to unleash your inner athlete!"
+      },
+      {
+        "title": "🌟 Shine bright!",
+        "body": "Your workout is waiting to make you feel amazing!"
+      }
+    ]
+  },
   "common": {
     "cancel": "Cancel",
     "save": "Save",

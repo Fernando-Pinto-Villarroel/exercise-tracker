@@ -29,7 +29,15 @@
       "favicon": "./assets/images/AppIcons/playstore.png"
     },
     "plugins": [
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/AppIcons/playstore.png",
+          "color": "#3b82f6",
+          "sounds": []
+        }
+      ]
     ],
     "extra": {
       "eas": {
