@@ -13,10 +13,10 @@ import { DailyCompletion, DailySnapshot } from "../types";
 
 const { width } = Dimensions.get("window");
 
-export default function MonthlyStatsScreen({ route }: any) {
+export default function AnnualStatsScreen({ route }: any) {
   const { t } = useTranslation();
   const { theme } = useTheme();
-  const { month } = route.params;
+  const { year } = route.params;
   const { completionCounter, isRestDay } = useExerciseStore();
   const [stats, setStats] = useState<{
     daysCompleted: number;
@@ -29,7 +29,7 @@ export default function MonthlyStatsScreen({ route }: any) {
     lateTraining: number;
     noTraining: number;
     exerciseStats: ExerciseStatItem[];
-    weeklyCompletions: number[];
+    monthlyCompletions: number[];
   }>({
     daysCompleted: 0,
     totalDays: 0,
@@ -41,115 +41,116 @@ export default function MonthlyStatsScreen({ route }: any) {
     lateTraining: 0,
     noTraining: 0,
     exerciseStats: [],
-    weeklyCompletions: [0, 0, 0, 0, 0],
+    monthlyCompletions: Array(12).fill(0),
   });
 
   useFocusEffect(
     useCallback(() => {
       loadStats();
-    }, [month, completionCounter]),
+    }, [year, completionCounter]),
   );
 
   const loadStats = async () => {
-    const dates = getMonthDates(new Date(month));
     const db = getDatabase();
 
     let completed = 0;
     let totalTime = 0;
     let restDaysCount = 0;
+    let totalDays = 0;
     let early = 0;
     let late = 0;
     let noTraining = 0;
     const exerciseMap = new Map<string, ExerciseStatItem>();
 
-    const completions: boolean[] = [];
-    const restDays: boolean[] = [];
-    const weeklyCompletions: number[] = [0, 0, 0, 0, 0];
+    const allCompletions: boolean[] = [];
+    const allRestDays: boolean[] = [];
+    const monthlyCompletions: number[] = Array(12).fill(0);
 
-    for (let i = 0; i < dates.length; i++) {
-      const date = dates[i];
+    for (let month = 0; month < 12; month++) {
+      const dates = getMonthDates(year, month);
+      totalDays += dates.length;
 
-      const isRest = await isRestDay(date);
-      restDays.push(isRest);
+      for (const date of dates) {
+        const isRest = await isRestDay(date);
+        allRestDays.push(isRest);
 
-      if (isRest) {
-        restDaysCount++;
-        completions.push(false);
-        continue;
-      }
-
-      const completion = await db.getFirstAsync<DailyCompletion>(
-        "SELECT * FROM daily_completion WHERE date = ?",
-        [date],
-      );
-
-      const weekIndex = Math.min(Math.floor(i / 7), 4);
-
-      if (completion?.is_completed) {
-        completed++;
-        totalTime += completion.training_time;
-        completions.push(true);
-        weeklyCompletions[weekIndex]++;
-
-        if (completion.completed_at) {
-          const hour = new Date(completion.completed_at).getHours();
-          if (hour < 12) {
-            early++;
-          } else {
-            late++;
-          }
+        if (isRest) {
+          restDaysCount++;
+          allCompletions.push(false);
+          continue;
         }
 
-        const exercises = await db.getAllAsync<DailySnapshot>(
-          "SELECT * FROM daily_snapshot WHERE date = ?",
+        const completion = await db.getFirstAsync<DailyCompletion>(
+          "SELECT * FROM daily_completion WHERE date = ?",
           [date],
         );
 
-        exercises.forEach((ex) => {
-          if (
-            (ex.sets && ex.reps && ex.sets > 0 && ex.reps > 0) ||
-            (ex.estimated_time && ex.estimated_time > 0)
-          ) {
-            const existing = exerciseMap.get(ex.exercise_name);
-            if (existing) {
-              if (ex.sets && ex.reps && ex.sets > 0 && ex.reps > 0) {
-                existing.totalSets += ex.sets;
-                existing.totalReps += ex.sets * ex.reps;
-              }
-              if (ex.estimated_time) {
-                existing.totalTime += ex.estimated_time;
-              }
-              existing.daysPerformed += 1;
+        if (completion?.is_completed) {
+          completed++;
+          totalTime += completion.training_time;
+          allCompletions.push(true);
+          monthlyCompletions[month]++;
+
+          if (completion.completed_at) {
+            const hour = new Date(completion.completed_at).getHours();
+            if (hour < 12) {
+              early++;
             } else {
-              exerciseMap.set(ex.exercise_name, {
-                name: ex.exercise_name,
-                iconName: ex.icon_name,
-                iconFamily: ex.icon_family,
-                totalSets:
-                  ex.sets && ex.reps && ex.sets > 0 && ex.reps > 0
-                    ? ex.sets
-                    : 0,
-                totalReps:
-                  ex.sets && ex.reps && ex.sets > 0 && ex.reps > 0
-                    ? ex.sets * ex.reps
-                    : 0,
-                totalTime: ex.estimated_time || 0,
-                daysPerformed: 1,
-              });
+              late++;
             }
           }
-        });
-      } else {
-        completions.push(false);
-        noTraining++;
+
+          const exercises = await db.getAllAsync<DailySnapshot>(
+            "SELECT * FROM daily_snapshot WHERE date = ?",
+            [date],
+          );
+
+          exercises.forEach((ex) => {
+            if (
+              (ex.sets && ex.reps && ex.sets > 0 && ex.reps > 0) ||
+              (ex.estimated_time && ex.estimated_time > 0)
+            ) {
+              const existing = exerciseMap.get(ex.exercise_name);
+              if (existing) {
+                if (ex.sets && ex.reps && ex.sets > 0 && ex.reps > 0) {
+                  existing.totalSets += ex.sets;
+                  existing.totalReps += ex.sets * ex.reps;
+                }
+                if (ex.estimated_time) {
+                  existing.totalTime += ex.estimated_time;
+                }
+                existing.daysPerformed += 1;
+              } else {
+                exerciseMap.set(ex.exercise_name, {
+                  name: ex.exercise_name,
+                  iconName: ex.icon_name,
+                  iconFamily: ex.icon_family,
+                  totalSets:
+                    ex.sets && ex.reps && ex.sets > 0 && ex.reps > 0
+                      ? ex.sets
+                      : 0,
+                  totalReps:
+                    ex.sets && ex.reps && ex.sets > 0 && ex.reps > 0
+                      ? ex.sets * ex.reps
+                      : 0,
+                  totalTime: ex.estimated_time || 0,
+                  daysPerformed: 1,
+                });
+              }
+            }
+          });
+        } else {
+          allCompletions.push(false);
+          noTraining++;
+        }
       }
     }
 
-    const streaks = calculateStreaks(completions, restDays);
+    const streaks = calculateStreaks(allCompletions, allRestDays);
 
     setStats({
       daysCompleted: completed,
-      totalDays: dates.length,
+      totalDays,
       restDaysCount,
       totalTime,
       longestStreak: streaks.longest,
@@ -158,15 +159,12 @@ export default function MonthlyStatsScreen({ route }: any) {
       lateTraining: late,
       noTraining,
       exerciseStats: Array.from(exerciseMap.values()),
-      weeklyCompletions,
+      monthlyCompletions,
     });
   };
 
-  const getMonthDates = (date: Date) => {
-    const year = date.getFullYear();
-    const month = date.getMonth();
+  const getMonthDates = (year: number, month: number) => {
     const lastDay = new Date(year, month + 1, 0);
-
     const dates = [];
     for (let day = 1; day <= lastDay.getDate(); day++) {
       const d = new Date(year, month, day);
@@ -183,12 +181,9 @@ export default function MonthlyStatsScreen({ route }: any) {
 
   const calculateStreaks = (completions: boolean[], restDays: boolean[]) => {
     const today = new Date();
-    const monthDate = new Date(month);
-    const monthNum = monthDate.getMonth();
-    const year = monthDate.getFullYear();
     const todayIndex =
-      today.getFullYear() === year && today.getMonth() === monthNum
-        ? today.getDate() - 1
+      today.getFullYear() === year
+        ? getDayOfYear(today) - 1
         : completions.length - 1;
 
     let longest = 0;
@@ -219,6 +214,12 @@ export default function MonthlyStatsScreen({ route }: any) {
     return { longest, current };
   };
 
+  const getDayOfYear = (date: Date) => {
+    const start = new Date(date.getFullYear(), 0, 0);
+    const diff = date.getTime() - start.getTime();
+    return Math.floor(diff / (1000 * 60 * 60 * 24));
+  };
+
   const formatTime = (seconds: number) => {
     const hrs = Math.floor(seconds / 3600);
     const mins = Math.floor((seconds % 3600) / 60);
@@ -226,8 +227,7 @@ export default function MonthlyStatsScreen({ route }: any) {
   };
 
   const workingDays = stats.totalDays - stats.restDaysCount;
-  const completionRate =
-    workingDays > 0 ? stats.daysCompleted / workingDays : 0;
+  const completionRate = workingDays > 0 ? stats.daysCompleted / workingDays : 0;
 
   const progressData = {
     labels: [t("monthly.completionRate")],
@@ -241,17 +241,34 @@ export default function MonthlyStatsScreen({ route }: any) {
     labelColor: () => theme.text,
     strokeWidth: 2,
     propsForLabels: {
-      fontSize: 10,
+      fontSize: 9,
     },
   };
 
-  const hasWeeklyData = stats.weeklyCompletions.some((val) => val > 0);
+  const hasMonthlyData = stats.monthlyCompletions.some((val) => val > 0);
 
-  const weeklyData = {
-    labels: ["W1", "W2", "W3", "W4", "W5"],
+  const monthLabels = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
+
+  const monthlyData = {
+    labels: monthLabels,
     datasets: [
       {
-        data: hasWeeklyData ? stats.weeklyCompletions : [0, 0, 0, 0, 0.1],
+        data: hasMonthlyData
+          ? stats.monthlyCompletions
+          : [...Array(11).fill(0), 0.1],
         color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
         strokeWidth: 3,
       },
@@ -268,21 +285,21 @@ export default function MonthlyStatsScreen({ route }: any) {
       count: stats.earlyTraining,
       color: "#22c55e",
       legendFontColor: theme.text,
-      legendFontSize: 12,
+      legendFontSize: 13,
     },
     {
       name: t("stats.lateTraining"),
       count: stats.lateTraining,
       color: "#f59e0b",
       legendFontColor: theme.text,
-      legendFontSize: 12,
+      legendFontSize: 13,
     },
     {
       name: t("stats.noTraining"),
       count: stats.noTraining,
       color: "#ef4444",
       legendFontColor: theme.text,
-      legendFontSize: 12,
+      legendFontSize: 13,
     },
   ];
 
@@ -291,7 +308,9 @@ export default function MonthlyStatsScreen({ route }: any) {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>{t("monthly.monthlyOverview")}</Text>
+        <Text style={styles.cardTitle}>
+          {t("annual.annualOverview")} - {year}
+        </Text>
 
         <View style={styles.statsContainer}>
           <View style={styles.statRow}>
@@ -370,7 +389,7 @@ export default function MonthlyStatsScreen({ route }: any) {
             chartConfig={chartConfig}
             accessor="count"
             backgroundColor="transparent"
-            paddingLeft="9"
+            paddingLeft="15"
             absolute
             style={styles.chart}
           />
@@ -378,10 +397,12 @@ export default function MonthlyStatsScreen({ route }: any) {
       )}
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Weekly Completions</Text>
-        {hasWeeklyData ? (
+        <Text style={styles.cardTitle}>
+          {t("annual.monthlyCompletions")}
+        </Text>
+        {hasMonthlyData ? (
           <LineChart
-            data={weeklyData}
+            data={monthlyData}
             width={width - 64}
             height={220}
             chartConfig={chartConfig}

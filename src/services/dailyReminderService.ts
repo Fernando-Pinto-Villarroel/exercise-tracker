@@ -67,7 +67,7 @@ const shouldSendReminderToday = async (): Promise<boolean> => {
   const today = getTodayDate();
   const lastReminderDate = await AsyncStorage.getItem(LAST_REMINDER_DATE_KEY);
 
-  // If we already sent a reminder today, don't send another
+  // If we already scheduled reminders today, don't schedule again
   if (lastReminderDate === today) {
     return false;
   }
@@ -85,7 +85,7 @@ const shouldSendReminderToday = async (): Promise<boolean> => {
 };
 
 /**
- * Mark that we sent a reminder today
+ * Mark that we scheduled reminders today
  */
 const markReminderSent = async (): Promise<void> => {
   const today = getTodayDate();
@@ -93,55 +93,54 @@ const markReminderSent = async (): Promise<void> => {
 };
 
 /**
- * Schedule a daily reminder notification
+ * Schedule daily reminder notifications using DATE trigger
+ * so they fire even when the app is not open.
  */
 export const scheduleDailyReminder = async (): Promise<void> => {
   try {
-    // Check if we should send a reminder
+    // Check if we should send reminders
     const shouldSend = await shouldSendReminderToday();
     if (!shouldSend) {
-      console.log("Skipping daily reminder (already sent or rest day)");
+      console.log("Skipping daily reminder (already scheduled or rest day)");
       return;
     }
 
-    // Get random time and message
-    const { hour, minute } = getRandomTime();
-    const { title, body } = getRandomMessage();
-
-    // Calculate trigger time
     const now = new Date();
-    const triggerDate = new Date();
-    triggerDate.setHours(hour, minute, 0, 0);
 
-    // If the time has already passed today, schedule for tomorrow
-    if (triggerDate < now) {
-      triggerDate.setDate(triggerDate.getDate() + 1);
+    for (let i = 0; i < CONFIG.NOTIFICATIONS_PER_DAY; i++) {
+      const { hour, minute } = getRandomTime();
+      const { title, body } = getRandomMessage();
+
+      // Calculate trigger date
+      const triggerDate = new Date();
+      triggerDate.setHours(hour, minute, 0, 0);
+
+      // If the time has already passed today, schedule for tomorrow
+      if (triggerDate <= now) {
+        triggerDate.setDate(triggerDate.getDate() + 1);
+      }
+
+      // Schedule with DATE trigger - fires even when app is closed
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title,
+          body,
+          sound: true,
+          priority: Notifications.AndroidNotificationPriority.HIGH,
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          date: triggerDate,
+        },
+      });
+
+      console.log(
+        `Daily reminder ${i + 1} scheduled for ${triggerDate.toLocaleString()} - "${title}: ${body}"`,
+      );
     }
 
-    const secondsUntilTrigger = Math.floor(
-      (triggerDate.getTime() - now.getTime()) / 1000,
-    );
-
-    // Schedule the notification
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title,
-        body,
-        sound: true,
-        priority: Notifications.AndroidNotificationPriority.HIGH,
-      },
-      trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-        seconds: secondsUntilTrigger,
-      },
-    });
-
-    // Mark as sent
+    // Mark as scheduled
     await markReminderSent();
-
-    console.log(
-      `Daily reminder scheduled for ${hour}:${minute} - "${title}: ${body}"`,
-    );
   } catch (error) {
     console.error("Error scheduling daily reminder:", error);
   }

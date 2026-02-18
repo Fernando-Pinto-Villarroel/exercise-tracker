@@ -307,6 +307,17 @@
       }
     ]
   },
+  "stats": {
+    "trainingDistribution": "Training Distribution",
+    "earlyTraining": "Early (AM)",
+    "lateTraining": "Late (PM)",
+    "noTraining": "No Training"
+  },
+  "annual": {
+    "viewAnnualStats": "View Annual Statistics",
+    "annualOverview": "Annual Overview",
+    "monthlyCompletions": "Monthly Completions"
+  },
   "common": {
     "cancel": "Cancel",
     "save": "Save",

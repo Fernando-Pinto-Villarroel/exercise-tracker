@@ -574,38 +574,50 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
     try {
       const db = getDatabase();
 
-      // Check if this is a past date
-      const today = getTodayDate();
-      const isPastDate = date < today;
-
-      // For past dates: ONLY check individual rest day marking (ignore weekly pattern)
-      if (isPastDate) {
-        const dailyCompletion = await db.getFirstAsync<DailyCompletion>(
-          "SELECT * FROM daily_completion WHERE date = ?",
-          [date]
-        );
-        return dailyCompletion?.is_rest_day || false;
-      }
-
-      // For today and future dates: check weekly pattern first, then individual marking
-      const dateObj = new Date(date + "T00:00:00");
-      const dayOfWeek = dateObj.getDay();
-      const adjustedDay = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-
-      const weeklyRest = await db.getFirstAsync<{ day_of_week: number }>(
-        "SELECT day_of_week FROM weekly_rest_days WHERE day_of_week = ?",
-        [adjustedDay]
-      );
-
-      if (weeklyRest) return true;
-
-      // Then check explicit marking
+      // Check explicit individual marking first (works for all dates)
       const dailyCompletion = await db.getFirstAsync<DailyCompletion>(
         "SELECT * FROM daily_completion WHERE date = ?",
         [date]
       );
+      if (dailyCompletion?.is_rest_day) return true;
 
-      return dailyCompletion?.is_rest_day || false;
+      // Check weekly pattern
+      const dateObj = new Date(date + "T00:00:00");
+      const dayOfWeek = dateObj.getDay();
+      const adjustedDay = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+
+      // For past dates: only apply weekly pattern if the rest day was created
+      // on or before that date (don't retroactively affect past weeks)
+      const today = getTodayDate();
+      const isPastDate = date < today;
+
+      if (isPastDate) {
+        // The date string is end-of-day, so the weekly rest day must have been
+        // created on or before the next day to apply to this date
+        const nextDay = new Date(dateObj);
+        nextDay.setDate(nextDay.getDate() + 1);
+        const nextDayStr =
+          nextDay.getFullYear() +
+          "-" +
+          String(nextDay.getMonth() + 1).padStart(2, "0") +
+          "-" +
+          String(nextDay.getDate()).padStart(2, "0");
+
+        const weeklyRest = await db.getFirstAsync<{ day_of_week: number }>(
+          "SELECT day_of_week FROM weekly_rest_days WHERE day_of_week = ? AND created_at < ?",
+          [adjustedDay, nextDayStr]
+        );
+        if (weeklyRest) return true;
+      } else {
+        // For today and future: apply weekly pattern unconditionally
+        const weeklyRest = await db.getFirstAsync<{ day_of_week: number }>(
+          "SELECT day_of_week FROM weekly_rest_days WHERE day_of_week = ?",
+          [adjustedDay]
+        );
+        if (weeklyRest) return true;
+      }
+
+      return false;
     } catch (error) {
       console.error("Error checking rest day:", error);
       return false;

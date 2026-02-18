@@ -2,21 +2,16 @@ import { useFocusEffect } from "@react-navigation/native";
 import React, { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Dimensions, ScrollView, StyleSheet, Text, View } from "react-native";
-import { ProgressChart } from "react-native-chart-kit";
+import { PieChart, ProgressChart } from "react-native-chart-kit";
+import ExerciseStatsGrid, {
+  ExerciseStatItem,
+} from "../components/ExerciseStatsGrid";
 import { useTheme } from "../contexts/ThemeContext";
 import { getDatabase } from "../database/init";
 import { useExerciseStore } from "../store/exerciseStore";
 import { DailyCompletion, DailySnapshot } from "../types";
 
 const { width } = Dimensions.get("window");
-
-interface ExerciseStats {
-  name: string;
-  totalSets: number;
-  totalReps: number;
-  totalTime: number;
-  daysPerformed: number;
-}
 
 export default function WeeklyStatsScreen() {
   const { t } = useTranslation();
@@ -28,12 +23,18 @@ export default function WeeklyStatsScreen() {
     totalDays: number;
     restDaysCount: number;
     totalTime: number;
-    exerciseStats: ExerciseStats[];
+    earlyTraining: number;
+    lateTraining: number;
+    noTraining: number;
+    exerciseStats: ExerciseStatItem[];
   }>({
     daysCompleted: 0,
     totalDays: 7,
     restDaysCount: 0,
     totalTime: 0,
+    earlyTraining: 0,
+    lateTraining: 0,
+    noTraining: 0,
     exerciseStats: [],
   });
 
@@ -66,15 +67,17 @@ export default function WeeklyStatsScreen() {
     let completed = 0;
     let totalTime = 0;
     let restDaysCount = 0;
+    let early = 0;
+    let late = 0;
+    let noTraining = 0;
 
-    const exerciseMap = new Map<string, ExerciseStats>();
+    const exerciseMap = new Map<string, ExerciseStatItem>();
 
     for (const date of dates) {
-      // Check if this day is a rest day
       const isRest = await isRestDay(date);
       if (isRest) {
         restDaysCount++;
-        continue; // Skip rest days entirely
+        continue;
       }
 
       const completion = await db.getFirstAsync<DailyCompletion>(
@@ -85,6 +88,15 @@ export default function WeeklyStatsScreen() {
       if (completion && completion.is_completed) {
         completed++;
         totalTime += completion.training_time;
+
+        if (completion.completed_at) {
+          const hour = new Date(completion.completed_at).getHours();
+          if (hour < 12) {
+            early++;
+          } else {
+            late++;
+          }
+        }
 
         const exercises = await db.getAllAsync<DailySnapshot>(
           "SELECT * FROM daily_snapshot WHERE date = ?",
@@ -109,6 +121,8 @@ export default function WeeklyStatsScreen() {
             } else {
               exerciseMap.set(ex.exercise_name, {
                 name: ex.exercise_name,
+                iconName: ex.icon_name,
+                iconFamily: ex.icon_family,
                 totalSets:
                   ex.sets && ex.reps && ex.sets > 0 && ex.reps > 0
                     ? ex.sets
@@ -123,6 +137,8 @@ export default function WeeklyStatsScreen() {
             }
           }
         });
+      } else {
+        noTraining++;
       }
     }
 
@@ -131,6 +147,9 @@ export default function WeeklyStatsScreen() {
       totalDays: 7,
       restDaysCount,
       totalTime,
+      earlyTraining: early,
+      lateTraining: late,
+      noTraining,
       exerciseStats: Array.from(exerciseMap.values()),
     });
     setCurrentMonday(dates[0]);
@@ -183,6 +202,34 @@ export default function WeeklyStatsScreen() {
     },
   };
 
+  const totalTrainingDays =
+    stats.earlyTraining + stats.lateTraining + stats.noTraining;
+  const hasPieData = totalTrainingDays > 0;
+
+  const pieData = [
+    {
+      name: t("stats.earlyTraining"),
+      count: stats.earlyTraining,
+      color: "#22c55e",
+      legendFontColor: theme.text,
+      legendFontSize: 13,
+    },
+    {
+      name: t("stats.lateTraining"),
+      count: stats.lateTraining,
+      color: "#f59e0b",
+      legendFontColor: theme.text,
+      legendFontSize: 13,
+    },
+    {
+      name: t("stats.noTraining"),
+      count: stats.noTraining,
+      color: "#ef4444",
+      legendFontColor: theme.text,
+      legendFontSize: 13,
+    },
+  ];
+
   const styles = createStyles(theme);
 
   return (
@@ -211,6 +258,21 @@ export default function WeeklyStatsScreen() {
             </Text>
             <Text style={styles.statValue}>{formatTime(stats.totalTime)}</Text>
           </View>
+
+          <View style={styles.statRow}>
+            <Text style={styles.statLabel}>{t("weekly.earlyTraining")}</Text>
+            <Text style={styles.statValue}>{stats.earlyTraining}</Text>
+          </View>
+
+          <View style={styles.statRow}>
+            <Text style={styles.statLabel}>{t("weekly.lateTraining")}</Text>
+            <Text style={styles.statValue}>{stats.lateTraining}</Text>
+          </View>
+
+          <View style={styles.statRow}>
+            <Text style={styles.statLabel}>{t("weekly.noTraining")}</Text>
+            <Text style={styles.statValue}>{stats.noTraining}</Text>
+          </View>
         </View>
 
         <Text style={styles.chartTitle}>{t("weekly.completionRate")}</Text>
@@ -226,67 +288,32 @@ export default function WeeklyStatsScreen() {
         />
       </View>
 
+      {hasPieData && (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>
+            {t("stats.trainingDistribution")}
+          </Text>
+          <PieChart
+            data={pieData}
+            width={width - 64}
+            height={200}
+            chartConfig={chartConfig}
+            accessor="count"
+            backgroundColor="transparent"
+            paddingLeft="15"
+            absolute
+            style={styles.chart}
+          />
+        </View>
+      )}
+
       {stats.exerciseStats.length > 0 && (
         <View style={styles.card}>
           <Text style={styles.cardTitle}>{t("weekly.exerciseStats")}</Text>
-
-          <View style={styles.exerciseList}>
-            {stats.exerciseStats.map((ex, index) => {
-              const avgSets =
-                ex.daysPerformed > 0
-                  ? (ex.totalSets / ex.daysPerformed).toFixed(1)
-                  : "0";
-              const avgReps =
-                ex.daysPerformed > 0
-                  ? (ex.totalReps / ex.daysPerformed).toFixed(0)
-                  : "0";
-              const avgTime =
-                ex.daysPerformed > 0
-                  ? Math.round(ex.totalTime / ex.daysPerformed)
-                  : 0;
-
-              return (
-                <View key={index} style={styles.exerciseItem}>
-                  <Text style={styles.exerciseName}>{ex.name}</Text>
-                  <View style={styles.exerciseStatsRow}>
-                    {ex.totalSets > 0 && (
-                      <>
-                        <Text style={styles.exerciseStat}>
-                          {t("weekly.totalSets")}: {ex.totalSets}
-                        </Text>
-                        <Text style={styles.exerciseStat}>
-                          {t("weekly.averageSets")}: {avgSets}
-                        </Text>
-                      </>
-                    )}
-                    {ex.totalReps > 0 && (
-                      <>
-                        <Text style={styles.exerciseStat}>
-                          {t("weekly.totalReps")}: {ex.totalReps}
-                        </Text>
-                        <Text style={styles.exerciseStat}>
-                          {t("weekly.averageReps")}: {avgReps}
-                        </Text>
-                      </>
-                    )}
-                    {ex.totalTime > 0 && (
-                      <>
-                        <Text style={styles.exerciseStat}>
-                          {t("weekly.totalTime")}: {formatTime(ex.totalTime)}
-                        </Text>
-                        <Text style={styles.exerciseStat}>
-                          {t("weekly.averageTime")}: {formatTime(avgTime)}
-                        </Text>
-                      </>
-                    )}
-                    <Text style={styles.exerciseStat}>
-                      {t("weekly.daysPerformed")}: {ex.daysPerformed}
-                    </Text>
-                  </View>
-                </View>
-              );
-            })}
-          </View>
+          <ExerciseStatsGrid
+            exercises={stats.exerciseStats}
+            formatTime={formatTime}
+          />
         </View>
       )}
     </ScrollView>
@@ -347,27 +374,5 @@ const createStyles = (theme: any) =>
       fontWeight: "600",
       color: theme.text,
       fontSize: 15,
-    },
-    exerciseList: {
-      gap: 16,
-    },
-    exerciseItem: {
-      borderBottomWidth: 1,
-      borderBottomColor: theme.borderLight,
-      paddingBottom: 12,
-    },
-    exerciseName: {
-      fontWeight: "600",
-      color: theme.text,
-      marginBottom: 8,
-      fontSize: 16,
-    },
-    exerciseStatsRow: {
-      flexDirection: "column",
-      gap: 6,
-    },
-    exerciseStat: {
-      fontSize: 14,
-      color: theme.textSecondary,
     },
   });

@@ -307,6 +307,17 @@
       }
     ]
   },
+  "stats": {
+    "trainingDistribution": "Distribución de Entrenamiento",
+    "earlyTraining": "Matutino (AM)",
+    "lateTraining": "Vespertino (PM)",
+    "noTraining": "Sin Entrenos"
+  },
+  "annual": {
+    "viewAnnualStats": "Ver Estadísticas Anuales",
+    "annualOverview": "Resumen Anual",
+    "monthlyCompletions": "Completaciones Mensuales"
+  },
   "common": {
     "cancel": "Cancelar",
     "save": "Guardar",

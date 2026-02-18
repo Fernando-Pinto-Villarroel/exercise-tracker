@@ -15,6 +15,7 @@ import { getDatabase } from "../database/init";
 import i18n from "../i18n";
 import { useExerciseStore } from "../store/exerciseStore";
 import { DailyCompletion } from "../types";
+import AnnualStatsScreen from "./AnnualStatsScreen";
 import DayDetailScreen from "./DayDetailScreen";
 import MonthlyStatsScreen from "./MonthlyStatsScreen";
 
@@ -245,6 +246,19 @@ function MonthlyOverview({ navigation }: any) {
             {t("monthly.viewMonthlyStats")}
           </Text>
         </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.statsButtonSecondary}
+          onPress={() =>
+            navigation.navigate("AnnualStats", {
+              year: currentMonth.getFullYear(),
+            })
+          }
+        >
+          <Text style={styles.statsButtonSecondaryText}>
+            {t("annual.viewAnnualStats")}
+          </Text>
+        </TouchableOpacity>
       </ScrollView>
     </View>
   );
@@ -291,6 +305,14 @@ export default function MonthlyScreen() {
         options={{
           title: t("monthly.monthlyOverview"),
           header: () => <CustomHeader title={t("monthly.monthlyOverview")} />,
+        }}
+      />
+      <Stack.Screen
+        name="AnnualStats"
+        component={AnnualStatsScreen}
+        options={{
+          title: t("annual.annualOverview"),
+          header: () => <CustomHeader title={t("annual.annualOverview")} />,
         }}
       />
     </Stack.Navigator>
@@ -386,11 +408,25 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.primary,
       paddingVertical: 16,
       borderRadius: 8,
-      marginBottom: 24,
+      marginBottom: 12,
     },
     statsButtonText: {
       textAlign: "center",
       color: "#ffffff",
+      fontSize: 16,
+      fontWeight: "600",
+    },
+    statsButtonSecondary: {
+      backgroundColor: theme.card,
+      paddingVertical: 16,
+      borderRadius: 8,
+      marginBottom: 24,
+      borderWidth: 1,
+      borderColor: theme.primary,
+    },
+    statsButtonSecondaryText: {
+      textAlign: "center",
+      color: theme.primary,
       fontSize: 16,
       fontWeight: "600",
     },
