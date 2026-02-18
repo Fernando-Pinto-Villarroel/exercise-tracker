@@ -1,12 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as Notifications from "expo-notifications";
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   AppState,
   Modal,
-  Platform,
   StyleSheet,
   Text,
   TextInput,
@@ -18,17 +16,6 @@ import { useTheme } from "../contexts/ThemeContext";
 const TIMER_STORAGE_KEY = "timer_seconds";
 const TIMER_START_KEY = "timer_start_time";
 const TIMER_RUNNING_KEY = "timer_is_running";
-const NOTIFICATION_UPDATE_INTERVAL = 30; // Update notification every 30 seconds
-
-// Configure notification handler
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: false,
-    shouldSetBadge: false,
-  }),
-});
 
 export default function Timer({ resetTrigger }: { resetTrigger?: number }) {
   const { t } = useTranslation();
@@ -39,13 +26,9 @@ export default function Timer({ resetTrigger }: { resetTrigger?: number }) {
   const [editMinutes, setEditMinutes] = useState("");
   const [editSeconds, setEditSeconds] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-  const notificationIdRef = useRef<string | null>(null);
-  const backgroundNotificationIdsRef = useRef<string[]>([]);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const lastNotificationUpdateRef = useRef<number>(0);
 
   useEffect(() => {
-    setupNotifications();
     loadTimer();
     checkMidnightReset();
 
@@ -59,29 +42,8 @@ export default function Timer({ resetTrigger }: { resetTrigger?: number }) {
 
   const handleAppStateChange = async (nextAppState: string) => {
     if (nextAppState === "active") {
-      // App came to foreground - cancel background notifications and recalculate
-      await cancelBackgroundNotifications();
+      // App came to foreground - recalculate timer
       await recalculateTimer();
-    } else if (nextAppState === "background" || nextAppState === "inactive") {
-      // App going to background - schedule periodic updates + finish notification
-      await scheduleBackgroundNotifications();
-    }
-  };
-
-  const setupNotifications = async () => {
-    if (Platform.OS === "android") {
-      await Notifications.setNotificationChannelAsync("timer", {
-        name: "Timer",
-        importance: Notifications.AndroidImportance.HIGH,
-        sound: null,
-        vibrationPattern: [],
-        enableVibrate: false,
-      });
-    }
-
-    const { status } = await Notifications.requestPermissionsAsync();
-    if (status !== "granted") {
-      console.warn("Notification permissions not granted");
     }
   };
 
@@ -113,7 +75,7 @@ export default function Timer({ resetTrigger }: { resetTrigger?: number }) {
     }
 
     if (isRunning && remainingSeconds > 0) {
-      intervalRef.current = setInterval(async () => {
+      intervalRef.current = setInterval(() => {
         setRemainingSeconds((prev) => {
           const newSeconds = Math.max(0, prev - 1);
           if (newSeconds === 0) {
@@ -121,21 +83,6 @@ export default function Timer({ resetTrigger }: { resetTrigger?: number }) {
           }
           return newSeconds;
         });
-
-        // Update notification every 30 seconds or when finishing
-        if (Platform.OS === "android") {
-          const now = Math.floor(Date.now() / 1000);
-          const secondsSinceLastUpdate =
-            now - lastNotificationUpdateRef.current;
-
-          if (
-            secondsSinceLastUpdate >= NOTIFICATION_UPDATE_INTERVAL ||
-            remainingSeconds <= 1
-          ) {
-            await updateNotification();
-            lastNotificationUpdateRef.current = now;
-          }
-        }
       }, 1000);
     } else if (remainingSeconds <= 0 && isRunning) {
       setIsRunning(false);
@@ -203,152 +150,12 @@ export default function Timer({ resetTrigger }: { resetTrigger?: number }) {
     await AsyncStorage.setItem(TIMER_START_KEY, startTime.toString());
     await AsyncStorage.setItem(TIMER_RUNNING_KEY, "true");
     setIsRunning(true);
-
-    if (Platform.OS === "android") {
-      await showNotification();
-    }
   };
 
   const stopTimer = async () => {
     await AsyncStorage.setItem(TIMER_RUNNING_KEY, "false");
     await AsyncStorage.removeItem(TIMER_START_KEY);
     setIsRunning(false);
-
-    await cancelBackgroundNotifications();
-    if (Platform.OS === "android") {
-      await hideNotification();
-    }
-  };
-
-  const showNotification = async () => {
-    if (Platform.OS !== "android") return;
-
-    const notificationId = await Notifications.scheduleNotificationAsync({
-      content: {
-        title: "⏱️ Timer Running",
-        body: `Time remaining: ${formatTime(remainingSeconds)}`,
-        sticky: true,
-        priority: Notifications.AndroidNotificationPriority.HIGH,
-        sound: false,
-      },
-      trigger: null,
-    });
-
-    notificationIdRef.current = notificationId;
-    lastNotificationUpdateRef.current = Math.floor(Date.now() / 1000);
-  };
-
-  const updateNotification = async () => {
-    if (Platform.OS !== "android" || !notificationIdRef.current) return;
-
-    try {
-      await Notifications.dismissNotificationAsync(notificationIdRef.current);
-      const notificationId = await Notifications.scheduleNotificationAsync({
-        content: {
-          title: "⏱️ Timer Running",
-          body: `Time remaining: ${formatTime(remainingSeconds)}`,
-          sticky: true,
-          priority: Notifications.AndroidNotificationPriority.HIGH,
-          sound: false,
-        },
-        trigger: null,
-      });
-      notificationIdRef.current = notificationId;
-    } catch (error) {
-      console.error("Error updating notification:", error);
-    }
-  };
-
-  const hideNotification = async () => {
-    if (Platform.OS !== "android") return;
-
-    if (notificationIdRef.current) {
-      await Notifications.dismissNotificationAsync(notificationIdRef.current);
-      notificationIdRef.current = null;
-    }
-    await Notifications.dismissAllNotificationsAsync();
-  };
-
-  const scheduleBackgroundNotifications = async () => {
-    try {
-      const wasRunning = await AsyncStorage.getItem(TIMER_RUNNING_KEY);
-      const startTimeStr = await AsyncStorage.getItem(TIMER_START_KEY);
-      const initialSeconds = await AsyncStorage.getItem(TIMER_STORAGE_KEY);
-
-      if (wasRunning !== "true" || !startTimeStr || !initialSeconds) return;
-
-      const startTime = parseInt(startTimeStr);
-      const initial = parseInt(initialSeconds);
-      const now = Date.now();
-      const elapsed = Math.floor((now - startTime) / 1000);
-      const remaining = Math.max(0, initial - elapsed);
-
-      if (remaining <= 0) return;
-
-      const ids: string[] = [];
-
-      // Schedule periodic update notifications every 30 seconds
-      for (
-        let secondsFromNow = NOTIFICATION_UPDATE_INTERVAL;
-        secondsFromNow < remaining;
-        secondsFromNow += NOTIFICATION_UPDATE_INTERVAL
-      ) {
-        const timeLeft = remaining - secondsFromNow;
-        const triggerDate = new Date(now + secondsFromNow * 1000);
-        const id = await Notifications.scheduleNotificationAsync({
-          content: {
-            title: "⏱️ Timer Running",
-            body: `Time remaining: ${formatTime(timeLeft)}`,
-            sticky: true,
-            priority: Notifications.AndroidNotificationPriority.HIGH,
-            sound: false,
-          },
-          trigger: {
-            type: Notifications.SchedulableTriggerInputTypes.DATE,
-            date: triggerDate,
-          },
-        });
-        ids.push(id);
-      }
-
-      // Schedule the finish notification
-      const finishDate = new Date(now + remaining * 1000);
-      const finishId = await Notifications.scheduleNotificationAsync({
-        content: {
-          title: "⏱️ Timer Finished!",
-          body: "Your timer has completed.",
-          sound: true,
-          priority: Notifications.AndroidNotificationPriority.HIGH,
-        },
-        trigger: {
-          type: Notifications.SchedulableTriggerInputTypes.DATE,
-          date: finishDate,
-        },
-      });
-      ids.push(finishId);
-
-      backgroundNotificationIdsRef.current = ids;
-    } catch (error) {
-      console.error("Error scheduling background notifications:", error);
-    }
-  };
-
-  const cancelBackgroundNotifications = async () => {
-    const ids = backgroundNotificationIdsRef.current;
-    if (ids.length > 0) {
-      for (const id of ids) {
-        try {
-          await Notifications.cancelScheduledNotificationAsync(id);
-        } catch (error) {
-          // Notification may have already fired
-        }
-      }
-      backgroundNotificationIdsRef.current = [];
-    }
-    // Also dismiss any visible background update notifications
-    if (Platform.OS === "android") {
-      await Notifications.dismissAllNotificationsAsync();
-    }
   };
 
   const formatTime = (totalSeconds: number) => {
@@ -402,9 +209,6 @@ export default function Timer({ resetTrigger }: { resetTrigger?: number }) {
         await AsyncStorage.setItem(TIMER_START_KEY, startTime.toString());
         await AsyncStorage.setItem(TIMER_RUNNING_KEY, "true");
         setIsRunning(true);
-        if (Platform.OS === "android") {
-          await showNotification();
-        }
       }
 
       setShowEditModal(false);
