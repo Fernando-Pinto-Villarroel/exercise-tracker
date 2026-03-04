@@ -9,6 +9,7 @@ import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Alert,
+  Linking,
   ScrollView,
   StyleSheet,
   Switch,
@@ -19,6 +20,7 @@ import {
 import CustomHeader from "../components/CustomHeader";
 import { useTheme } from "../contexts/ThemeContext";
 import { getDatabase } from "../database/init";
+import { rescheduleDailyReminders } from "../services/dailyReminderService";
 import { useUserStore } from "../store/userStore";
 import {
   BodyRecord,
@@ -50,6 +52,8 @@ function SettingsMain({ navigation }: any) {
     try {
       await updateLanguage(language);
       setCurrentLanguage(language);
+      // Reschedule so notification messages use the new language
+      await rescheduleDailyReminders();
     } catch (error) {
       console.error("Error changing language:", error);
       Alert.alert(t("common.error"), "Failed to change language");
@@ -62,23 +66,23 @@ function SettingsMain({ navigation }: any) {
       const db = getDatabase();
 
       const userInfo = await db.getAllAsync<UserInfo>(
-        "SELECT * FROM user_info"
+        "SELECT * FROM user_info",
       );
       const bodyRecords = await db.getAllAsync<BodyRecord>(
-        "SELECT * FROM body_records"
+        "SELECT * FROM body_records",
       );
       const weeklyPlan = await db.getAllAsync<WeeklyPlanExercise>(
-        "SELECT * FROM weekly_plan"
+        "SELECT * FROM weekly_plan",
       );
       const weeklyRestDays = await db.getAllAsync<{
         day_of_week: number;
         created_at: string;
       }>("SELECT day_of_week, created_at FROM weekly_rest_days");
       const dailySnapshots = await db.getAllAsync<DailySnapshot>(
-        "SELECT * FROM daily_snapshot"
+        "SELECT * FROM daily_snapshot",
       );
       const dailyCompletions = await db.getAllAsync<DailyCompletion>(
-        "SELECT * FROM daily_completion"
+        "SELECT * FROM daily_completion",
       );
 
       const exportData: ExportData = {
@@ -100,7 +104,7 @@ function SettingsMain({ navigation }: any) {
 
       await FileSystem.writeAsStringAsync(
         filePath,
-        JSON.stringify(exportData, null, 2)
+        JSON.stringify(exportData, null, 2),
       );
 
       if (await Sharing.isAvailableAsync()) {
@@ -114,6 +118,149 @@ function SettingsMain({ navigation }: any) {
     } finally {
       setIsExporting(false);
     }
+  };
+
+  const validateImportData = (data: any): string | null => {
+    // Check required fields
+    const requiredFields = [
+      "version",
+      "schema_version",
+      "exported_at",
+      "user_info",
+      "body_records",
+      "weekly_plan",
+      "weekly_rest_days",
+      "daily_snapshots",
+      "daily_completions",
+    ];
+
+    for (const field of requiredFields) {
+      if (!(field in data)) {
+        return t("settings.missingField", { field });
+      }
+    }
+
+    // Validate version format
+    if (!/^\d+\.\d+\.\d+$/.test(data.version)) {
+      return t("settings.invalidVersion");
+    }
+
+    // Validate schema version
+    if (!Number.isInteger(data.schema_version) || data.schema_version < 0) {
+      return t("settings.invalidSchemaVersion");
+    }
+
+    // Validate exported_at is a valid date
+    if (isNaN(new Date(data.exported_at).getTime())) {
+      return t("settings.invalidDate");
+    }
+
+    // Validate user_info
+    if (!Array.isArray(data.user_info)) {
+      return t("settings.invalidUserInfo");
+    }
+    for (const user of data.user_info) {
+      if (!user.full_name || !user.birthday || !user.gender) {
+        return t("settings.invalidUserInfo");
+      }
+      if (!["male", "female"].includes(user.gender)) {
+        return t("settings.invalidGender");
+      }
+      if (isNaN(new Date(user.birthday).getTime())) {
+        return t("settings.invalidBirthday");
+      }
+    }
+
+    // Validate body_records
+    if (!Array.isArray(data.body_records)) {
+      return t("settings.invalidBodyRecords");
+    }
+    for (const record of data.body_records) {
+      if (
+        !record.user_id ||
+        !record.date ||
+        record.weight == null ||
+        record.height == null
+      ) {
+        return t("settings.invalidBodyRecords");
+      }
+      if (isNaN(new Date(record.date).getTime())) {
+        return t("settings.invalidRecordDate");
+      }
+      if (record.weight < 20 || record.weight > 500) {
+        return t("settings.invalidWeight");
+      }
+      if (record.height < 50 || record.height > 300) {
+        return t("settings.invalidHeight");
+      }
+    }
+
+    // Validate weekly_plan
+    if (!Array.isArray(data.weekly_plan)) {
+      return t("settings.invalidWeeklyPlan");
+    }
+    for (const plan of data.weekly_plan) {
+      if (
+        plan.day_of_week == null ||
+        !plan.exercise_name ||
+        !plan.icon_name ||
+        !plan.icon_family
+      ) {
+        return t("settings.invalidWeeklyPlan");
+      }
+      if (plan.day_of_week < 0 || plan.day_of_week > 6) {
+        return t("settings.invalidDayOfWeek");
+      }
+    }
+
+    // Validate weekly_rest_days
+    if (!Array.isArray(data.weekly_rest_days)) {
+      return t("settings.invalidWeeklyRestDays");
+    }
+    for (const restDay of data.weekly_rest_days) {
+      if (restDay.day_of_week == null || !restDay.created_at) {
+        return t("settings.invalidWeeklyRestDays");
+      }
+      if (restDay.day_of_week < 0 || restDay.day_of_week > 6) {
+        return t("settings.invalidDayOfWeek");
+      }
+      if (isNaN(new Date(restDay.created_at).getTime())) {
+        return t("settings.invalidRestDayDate");
+      }
+    }
+
+    // Validate daily_snapshots
+    if (!Array.isArray(data.daily_snapshots)) {
+      return t("settings.invalidDailySnapshots");
+    }
+    for (const snapshot of data.daily_snapshots) {
+      if (
+        !snapshot.date ||
+        !snapshot.exercise_name ||
+        !snapshot.icon_name ||
+        !snapshot.icon_family
+      ) {
+        return t("settings.invalidDailySnapshots");
+      }
+      if (isNaN(new Date(snapshot.date).getTime())) {
+        return t("settings.invalidSnapshotDate");
+      }
+    }
+
+    // Validate daily_completions
+    if (!Array.isArray(data.daily_completions)) {
+      return t("settings.invalidDailyCompletions");
+    }
+    for (const completion of data.daily_completions) {
+      if (!completion.date || completion.is_completed == null) {
+        return t("settings.invalidDailyCompletions");
+      }
+      if (isNaN(new Date(completion.date).getTime())) {
+        return t("settings.invalidCompletionDate");
+      }
+    }
+
+    return null;
   };
 
   const handleImport = async () => {
@@ -131,12 +278,14 @@ function SettingsMain({ navigation }: any) {
       }
 
       const fileContent = await FileSystem.readAsStringAsync(
-        result.assets[0].uri
+        result.assets[0].uri,
       );
       const importData: ExportData = JSON.parse(fileContent);
 
-      if (!importData.version) {
-        Alert.alert(t("common.error"), t("settings.invalidBackup"));
+      // Validate the imported data
+      const validationError = validateImportData(importData);
+      if (validationError) {
+        Alert.alert(t("common.error"), validationError);
         setIsImporting(false);
         return;
       }
@@ -200,7 +349,7 @@ function SettingsMain({ navigation }: any) {
           user.created_at,
           user.language || "en",
           user.theme || "light",
-        ]
+        ],
       );
     }
 
@@ -221,7 +370,7 @@ function SettingsMain({ navigation }: any) {
             record.calf_perimeter ?? null,
             record.shoulder_perimeter ?? null,
             record.created_at,
-          ]
+          ],
         );
       }
     }
@@ -239,7 +388,7 @@ function SettingsMain({ navigation }: any) {
           plan.estimated_time ?? null,
           plan.training_reference_url ?? null,
           plan.sort_order,
-        ]
+        ],
       );
     }
 
@@ -248,7 +397,7 @@ function SettingsMain({ navigation }: any) {
       for (const restDay of data.weekly_rest_days) {
         await db.runAsync(
           "INSERT INTO weekly_rest_days (day_of_week, created_at) VALUES (?, ?)",
-          [restDay.day_of_week, restDay.created_at]
+          [restDay.day_of_week, restDay.created_at],
         );
       }
     }
@@ -266,7 +415,7 @@ function SettingsMain({ navigation }: any) {
           snapshot.estimated_time ?? null,
           snapshot.training_reference_url ?? null,
           snapshot.sort_order,
-        ]
+        ],
       );
     }
 
@@ -279,7 +428,7 @@ function SettingsMain({ navigation }: any) {
           completion.completed_at ?? null,
           completion.training_time || 0,
           completion.is_rest_day ? 1 : 0,
-        ]
+        ],
       );
     }
 
@@ -450,6 +599,26 @@ function SettingsMain({ navigation }: any) {
         </TouchableOpacity>
 
         <Text style={styles.warningText}>{t("settings.resetWarning")}</Text>
+      </View>
+
+      <View style={styles.footer}>
+        <View style={styles.copyrightContainer}>
+          <Text style={styles.copyrightText}>
+            {t("settings.copyright", { year: new Date().getFullYear() })}
+          </Text>
+          <TouchableOpacity
+            onPress={() =>
+              Linking.openURL(
+                "https://www.linkedin.com/in/fernando-pinto-villarroel/?skipRedirect=true",
+              )
+            }
+          >
+            <Text style={styles.linkedInText}>Fernando Pinto Villarroel</Text>
+          </TouchableOpacity>
+        </View>
+        <Text style={styles.copyrightText}>
+          {t("settings.version", { version: "1.2.0" })}
+        </Text>
       </View>
     </ScrollView>
   );
@@ -663,5 +832,34 @@ const createStyles = (theme: any) =>
       fontSize: 14,
       color: theme.textSecondary,
       marginTop: 12,
+    },
+    footer: {
+      marginTop: 32,
+      marginBottom: 32,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+    },
+    copyrightText: {
+      fontSize: 14,
+      color: theme.textSecondary,
+      textAlign: "center",
+    },
+    linkedInContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+    },
+    linkedInText: {
+      fontSize: 14,
+      color: theme.primary,
+      textAlign: "center",
+      textDecorationLine: "underline",
+    },
+    copyrightContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 4,
     },
   });

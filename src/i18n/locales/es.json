@@ -98,6 +98,8 @@
     "seconds": "Segundos",
     "cancel": "Cancelar",
     "save": "Guardar",
+    "exerciseLimitTitle": "Límite de Ejercicios Alcanzado",
+    "exerciseLimitMessage": "Puedes agregar un máximo de 20 ejercicios por día.",
     "deleteExercise": "Eliminar Ejercicio",
     "deleteConfirm": "¿Estás seguro de que quieres eliminar este ejercicio?",
     "delete": "Eliminar",
@@ -119,6 +121,8 @@
     "pastePlan": "Pegar Plan",
     "pastePlanMessage": "¿Copiar plan de {{fromDay}} a {{toDay}}?",
     "paste": "Pegar",
+    "exerciseLimitTitle": "Límite de Ejercicios Alcanzado",
+    "exerciseLimitMessage": "Puedes agregar un máximo de 20 ejercicios por día.",
     "restDayConfirmTitle": "¿Marcar como Día de Descanso?",
     "restDayConfirmMessage": "Esto eliminará todos los ejercicios planificados para este día. ¿Estás seguro de que quieres marcar este día como día de descanso?",
     "days": {
@@ -183,11 +187,33 @@
     "import": "Importar",
     "dataImported": "Datos importados exitosamente. Por favor reinicia la app.",
     "invalidBackup": "Archivo de respaldo inválido",
+    "missingField": "Campo requerido faltante: {{field}}",
+    "invalidVersion": "Formato de versión inválido",
+    "invalidSchemaVersion": "Versión de esquema inválida",
+    "invalidDate": "Formato de fecha inválido",
+    "invalidUserInfo": "Información de usuario inválida",
+    "invalidGender": "Valor de género inválido",
+    "invalidBirthday": "Fecha de nacimiento inválida",
+    "invalidBodyRecords": "Registros de cuerpo inválidos",
+    "invalidRecordDate": "Fecha de registro inválida",
+    "invalidWeight": "Valor de peso inválido",
+    "invalidHeight": "Valor de altura inválido",
+    "invalidWeeklyPlan": "Plan semanal inválido",
+    "invalidDayOfWeek": "Día de semana inválido (debe ser 0-6)",
+    "invalidWeeklyRestDays": "Días de descanso semanales inválidos",
+    "invalidRestDayDate": "Fecha de día de descanso inválida",
+    "invalidDailySnapshots": "Instantáneas diarias inválidas",
+    "invalidSnapshotDate": "Fecha de instantánea inválida",
+    "invalidDailyCompletions": "Completaciones diarias inválidas",
+    "invalidCompletionDate": "Fecha de completación inválida",
     "exportError": "Error al exportar datos",
     "importError": "Error al importar datos",
     "resetError": "Error al restablecer la app. Por favor intente nuevamente.",
     "languageEnglish": "Inglés",
-    "languageSpanish": "Español"
+    "languageSpanish": "Español",
+    "copyright": "Copyright © {{year}} por",
+    "version": "Versión {{version}}",
+    "linkedIn": "Fernando Pinto Villarroel"
   },
   "bodyStats": {
     "myPersonalStats": "Mis Estadísticas Personales",
@@ -266,44 +292,64 @@
   "dailyReminder": {
     "messages": [
       {
-        "title": "💪 ¡Tus músculos te llaman!",
-        "body": "Te extrañan. ¡Hora de darles algo de amor!"
+        "title": "🛋️ ¿Sigues en el sillón?",
+        "body": "Tus zapatillas te están juzgando. Y la verdad… tienen razón."
       },
       {
-        "title": "🏋️ ¡Hora de ejercicio!",
-        "body": "¡Tu yo del futuro te lo agradecerá!"
+        "title": "🚨 Modo flojera activado",
+        "body": "Levántate. Muévete un poco. Finge que estás en un película de Rocky Balboa."
       },
       {
-        "title": "🔥 ¡Hora de quemar!",
-        "body": "Esas calorías no se van a quemar solas... lamentablemente 😅"
+        "title": "🔥 Suda ahora, presume después",
+        "body": "Tu yo futuro quiere abdominales. Tu yo actual quiere papitas. Decide cuál vencerá."
       },
       {
-        "title": "⚡ ¡Energía en camino!",
-        "body": "30 minutos de ejercicio = horas sintiéndote increíble!"
+        "title": "🏋️ Menos drama, más repeticiones",
+        "body": "No necesitas motivación. Necesitas 10 flexiones. Empieza ahí."
       },
       {
-        "title": "🎯 ¡Hora de metas!",
-        "body": "¡Cada entrenamiento te acerca a tu mejor versión!"
+        "title": "⚡ La energía no aparece por magia",
+        "body": "Pero 20 minutos moviéndote pueden hacerte sentir invencible."
       },
       {
-        "title": "🚀 ¡Secuencia de lanzamiento iniciada!",
-        "body": "¡T-menos 5 minutos para el ejercicio!"
+        "title": "👀 Sí, es contigo",
+        "body": "Deja de scrollear. Tu entrenamiento no se va a hacer solo, crack."
       },
       {
-        "title": "🏆 ¡Alerta de campeón!",
-        "body": "Los campeones entrenan incluso cuando no tienen ganas. ¡Tú puedes!"
+        "title": "💀 Músculos cargando...",
+        "body": "Efectos secundarios: confianza, fuerza y muchas nenas."
       },
       {
-        "title": "🧘 ¡Medicina en movimiento!",
-        "body": "¡La mejor cura para un día flojo es un buen entrenamiento!"
+        "title": "🍕 Te lo comiste. Ahora gánatelo.",
+        "body": "Sin culpa. Solo sentadillas."
       },
       {
-        "title": "💥 ¡Modo bestia: ACTIVAR!",
-        "body": "¡Hora de liberar tu atleta interior!"
+        "title": "🧠 ¿Cerebro apagado?",
+        "body": "Muévete antes de convertirte oficialmente en una ballena."
       },
       {
-        "title": "🌟 ¡Brilla con fuerza!",
-        "body": "¡Tu entrenamiento te espera para hacerte sentir increíble!"
+        "title": "🏆 ¿Aún no eres héroe?",
+        "body": "Tranquilo. Los héroes empiezan igual que tú. Con piernas macurcadas."
+      },
+      {
+        "title": "⏳ 1% batería, 100% excusas",
+        "body": "Si tu celular puede sobrevivir todo el día, tú también. Muévete."
+      },
+      {
+        "title": "🧃 ¿Pre-entreno?",
+        "body": "No necesitas polvitos mágicos. Necesitas empezar. Ya."
+      },
+      {
+        "title": "😤 Nadie nunca dijo...",
+        "body": "\"Qué mala idea fue entrenar hoy.\" Exacto. Levántate."
+      },
+      {
+        "title": "🦵 ¿Día de pierna?",
+        "body": "Sí, mañana caminarás raro. Pero con orgullo."
+      },
+      {
+        "title": "🎮 Conviértete en el prota",
+        "body": "Hazte el dueño de tu vida de ensueños. La música es opcional. El esfuerzo no."
       }
     ]
   },

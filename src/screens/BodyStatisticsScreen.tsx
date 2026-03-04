@@ -1,9 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  ScrollView,
+  ActivityIndicator,
+  FlatList,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -12,76 +13,90 @@ import {
 import AddRecordModal from "../components/AddRecordModal";
 import { useTheme } from "../contexts/ThemeContext";
 import { useBodyRecordsStore } from "../store/bodyRecordsStore";
+import { BodyRecord } from "../types";
 
 export default function BodyStatisticsScreen({ navigation }: any) {
   const { t } = useTranslation();
   const { theme } = useTheme();
-  const { records, loadRecords } = useBodyRecordsStore();
+  const { records, hasMore, loadRecords, loadMoreRecords } =
+    useBodyRecordsStore();
   const [showAddModal, setShowAddModal] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   useFocusEffect(
-    React.useCallback(() => {
+    useCallback(() => {
       loadRecords();
-    }, [])
+    }, []),
   );
+
+  const handleLoadMore = async () => {
+    if (!hasMore || loadingMore) return;
+    setLoadingMore(true);
+    await loadMoreRecords();
+    setLoadingMore(false);
+  };
+
+  const renderRecord = ({ item }: { item: BodyRecord }) => (
+    <TouchableOpacity
+      style={styles.recordCard}
+      onPress={() => navigation.navigate("RecordDetail", { recordId: item.id })}
+    >
+      <View style={styles.recordHeader}>
+        <Text style={styles.recordDate}>{item.date}</Text>
+        <Ionicons
+          name="chevron-forward"
+          size={20}
+          color={theme.textSecondary}
+        />
+      </View>
+      <View style={styles.recordData}>
+        <View style={styles.dataItem}>
+          <Text style={styles.dataLabel}>{t("bodyStats.weight")}</Text>
+          <Text style={styles.dataValue}>{item.weight} kg</Text>
+        </View>
+        <View style={styles.dataItem}>
+          <Text style={styles.dataLabel}>{t("bodyStats.height")}</Text>
+          <Text style={styles.dataValue}>{item.height} cm</Text>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+
+  const renderEmpty = () => (
+    <View style={styles.emptyContainer}>
+      <Ionicons name="body-outline" size={64} color={theme.textTertiary} />
+      <Text style={styles.emptyText}>{t("bodyStats.noRecords")}</Text>
+      <Text style={styles.emptySubtext}>{t("bodyStats.addRecordsHint")}</Text>
+    </View>
+  );
+
+  const renderFooter = () => {
+    if (!loadingMore) return null;
+    return (
+      <View style={styles.footerLoader}>
+        <ActivityIndicator size="small" color={theme.primary} />
+      </View>
+    );
+  };
 
   const styles = createStyles(theme);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-      >
-        {records.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Ionicons
-              name="body-outline"
-              size={64}
-              color={theme.textTertiary}
-            />
-            <Text style={styles.emptyText}>{t("bodyStats.noRecords")}</Text>
-            <Text style={styles.emptySubtext}>
-              {t("bodyStats.addRecordsHint")}
-            </Text>
-          </View>
-        ) : (
-          <View style={styles.recordsList}>
-            {records.map((record) => (
-              <TouchableOpacity
-                key={record.id}
-                style={styles.recordCard}
-                onPress={() =>
-                  navigation.navigate("RecordDetail", { recordId: record.id })
-                }
-              >
-                <View style={styles.recordHeader}>
-                  <Text style={styles.recordDate}>{record.date}</Text>
-                  <Ionicons
-                    name="chevron-forward"
-                    size={20}
-                    color={theme.textSecondary}
-                  />
-                </View>
-                <View style={styles.recordData}>
-                  <View style={styles.dataItem}>
-                    <Text style={styles.dataLabel}>
-                      {t("bodyStats.weight")}
-                    </Text>
-                    <Text style={styles.dataValue}>{record.weight} kg</Text>
-                  </View>
-                  <View style={styles.dataItem}>
-                    <Text style={styles.dataLabel}>
-                      {t("bodyStats.height")}
-                    </Text>
-                    <Text style={styles.dataValue}>{record.height} cm</Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-      </ScrollView>
+      <FlatList
+        data={records}
+        renderItem={renderRecord}
+        keyExtractor={(item) => String(item.id)}
+        contentContainerStyle={[
+          styles.listContent,
+          records.length === 0 && styles.listContentEmpty,
+        ]}
+        ListEmptyComponent={renderEmpty}
+        ListFooterComponent={renderFooter}
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.3}
+        ItemSeparatorComponent={() => <View style={styles.separator} />}
+      />
 
       <View style={styles.buttonContainer}>
         <TouchableOpacity
@@ -118,13 +133,13 @@ const createStyles = (theme: any) =>
       flex: 1,
       backgroundColor: theme.background,
     },
-    scrollView: {
-      flex: 1,
-    },
-    scrollContent: {
+    listContent: {
       paddingHorizontal: 16,
       paddingTop: 16,
       paddingBottom: 16,
+    },
+    listContentEmpty: {
+      flex: 1,
     },
     emptyContainer: {
       alignItems: "center",
@@ -141,9 +156,8 @@ const createStyles = (theme: any) =>
       fontSize: 14,
       marginTop: 8,
     },
-    recordsList: {
-      gap: 12,
-      marginBottom: 16,
+    separator: {
+      height: 12,
     },
     recordCard: {
       backgroundColor: theme.card,
@@ -211,5 +225,9 @@ const createStyles = (theme: any) =>
       paddingVertical: 16,
       paddingBottom: 24,
       gap: 12,
+    },
+    footerLoader: {
+      paddingVertical: 16,
+      alignItems: "center",
     },
   });

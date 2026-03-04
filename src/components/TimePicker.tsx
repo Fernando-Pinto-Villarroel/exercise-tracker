@@ -142,9 +142,6 @@ export default function TimePicker({
             <Text style={styles.modalTitle}>
               {t("timePicker.selectCompletionTime")}
             </Text>
-            <TouchableOpacity onPress={onClose}>
-              <Ionicons name="close" size={28} color={theme.textSecondary} />
-            </TouchableOpacity>
           </View>
 
           <View style={styles.clockContainer}>

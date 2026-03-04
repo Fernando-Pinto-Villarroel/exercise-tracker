@@ -504,6 +504,13 @@ export default function DayDetailScreen({ route }: any) {
                 <TouchableOpacity
                   style={styles.addButton}
                   onPress={() => {
+                    if (snapshot.length >= 20) {
+                      Alert.alert(
+                        t("dayDetail.exerciseLimitTitle"),
+                        t("dayDetail.exerciseLimitMessage"),
+                      );
+                      return;
+                    }
                     setEditingExercise(null);
                     setShowEditModal(true);
                   }}

@@ -98,6 +98,8 @@
     "seconds": "Seconds",
     "cancel": "Cancel",
     "save": "Save",
+    "exerciseLimitTitle": "Exercise Limit Reached",
+    "exerciseLimitMessage": "You can add a maximum of 20 exercises per day.",
     "deleteExercise": "Delete Exercise",
     "deleteConfirm": "Are you sure you want to delete this exercise?",
     "delete": "Delete",
@@ -119,6 +121,8 @@
     "pastePlan": "Paste Plan",
     "pastePlanMessage": "Copy plan from {{fromDay}} to {{toDay}}?",
     "paste": "Paste",
+    "exerciseLimitTitle": "Exercise Limit Reached",
+    "exerciseLimitMessage": "You can add a maximum of 20 exercises per day.",
     "restDayConfirmTitle": "Mark as Rest Day?",
     "restDayConfirmMessage": "This will remove all exercises planned for this day. Are you sure you want to mark this day as a rest day?",
     "days": {
@@ -183,11 +187,33 @@
     "import": "Import",
     "dataImported": "Data imported successfully. Please restart the app.",
     "invalidBackup": "Invalid backup file",
+    "missingField": "Missing required field: {{field}}",
+    "invalidVersion": "Invalid version format",
+    "invalidSchemaVersion": "Invalid schema version",
+    "invalidDate": "Invalid date format",
+    "invalidUserInfo": "Invalid user information",
+    "invalidGender": "Invalid gender value",
+    "invalidBirthday": "Invalid birthday date",
+    "invalidBodyRecords": "Invalid body records",
+    "invalidRecordDate": "Invalid record date",
+    "invalidWeight": "Invalid weight value",
+    "invalidHeight": "Invalid height value",
+    "invalidWeeklyPlan": "Invalid weekly plan",
+    "invalidDayOfWeek": "Invalid day of week (must be 0-6)",
+    "invalidWeeklyRestDays": "Invalid weekly rest days",
+    "invalidRestDayDate": "Invalid rest day date",
+    "invalidDailySnapshots": "Invalid daily snapshots",
+    "invalidSnapshotDate": "Invalid snapshot date",
+    "invalidDailyCompletions": "Invalid daily completions",
+    "invalidCompletionDate": "Invalid completion date",
     "exportError": "Failed to export data",
     "importError": "Failed to import data",
     "resetError": "Failed to reset app. Please try again.",
     "languageEnglish": "English",
-    "languageSpanish": "Spanish"
+    "languageSpanish": "Spanish",
+    "copyright": "Copyright © {{year}} by",
+    "version": "Version {{version}}",
+    "linkedIn": "Fernando Pinto Villarroel"
   },
   "bodyStats": {
     "myPersonalStats": "My Personal Statistics",
@@ -266,44 +292,64 @@
   "dailyReminder": {
     "messages": [
       {
-        "title": "💪 Your muscles are calling!",
-        "body": "They miss you. Time to show them some love!"
+        "title": "🛋️ Still on the couch?",
+        "body": "Your sneakers are judging you. And honestly... they’re right."
       },
       {
-        "title": "🏋️ Exercise o'clock!",
-        "body": "Your future self will thank you for this workout!"
+        "title": "🚨 Lazy mode detected",
+        "body": "Stand up. Move a little. Pretend you're in a Rocky Balboa movie."
       },
       {
-        "title": "🔥 Burn time!",
-        "body": "Those calories won't burn themselves... unfortunately 😅"
+        "title": "🔥 Sweat now, flex later",
+        "body": "Future you wants abs. Present you wants snacks. Choose your fighter."
       },
       {
-        "title": "⚡ Energy boost incoming!",
-        "body": "30 minutes of exercise = hours of feeling awesome!"
+        "title": "🏋️ No drama, just reps",
+        "body": "You don’t need motivation. You need 10 push-ups. Start there."
       },
       {
-        "title": "🎯 Goal time!",
-        "body": "Every workout brings you closer to your best self!"
+        "title": "⚡ Energy doesn’t magically appear",
+        "body": "But 20 minutes of moving might make you feel like a superhero."
       },
       {
-        "title": "🚀 Launch sequence initiated!",
-        "body": "T-minus 5 minutes until exercise time!"
+        "title": "👀 Yes, this is your sign",
+        "body": "Stop scrolling. Your workout isn’t going to do itself, champ."
       },
       {
-        "title": "🏆 Champion alert!",
-        "body": "Champions train even when they don't feel like it. You got this!"
+        "title": "💀 Muscles loading...",
+        "body": "Warning: results may include confidence, strength, and slight badass energy."
       },
       {
-        "title": "🧘 Movement medicine!",
-        "body": "The best cure for a lazy day is a good workout!"
+        "title": "🍕 You ate it. Now earn it.",
+        "body": "No regrets. Just squats."
       },
       {
-        "title": "💥 Beast mode: ACTIVATE!",
-        "body": "Time to unleash your inner athlete!"
+        "title": "🧠 Brain fog?",
+        "body": "Move your body before it turns into mashed potatoes."
       },
       {
-        "title": "🌟 Shine bright!",
-        "body": "Your workout is waiting to make you feel amazing!"
+        "title": "🏆 Not a hero yet?",
+        "body": "Cool. Heroes start somewhere. Usually with sore legs."
+      },
+      {
+        "title": "⏳ 1% battery, 100% excuses",
+        "body": "If your phone can survive all day, so can you. Let’s move."
+      },
+      {
+        "title": "🧃 Pre-workout? Nah.",
+        "body": "You don’t need magic powder. You need to start. Go."
+      },
+      {
+        "title": "😤 No one ever said...",
+        "body": "\"Wow, I regret that workout.\" Exactly. Get up."
+      },
+      {
+        "title": "🦵 Leg day? Oh boy.",
+        "body": "Yes, walking tomorrow will feel illegal. Worth it."
+      },
+      {
+        "title": "🎮 Main character moment",
+        "body": "This is your training arc. Soundtrack optional. Effort mandatory."
       }
     ]
   },

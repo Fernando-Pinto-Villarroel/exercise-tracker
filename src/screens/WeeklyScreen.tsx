@@ -3,6 +3,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  ActivityIndicator,
   ScrollView,
   StyleSheet,
   Text,
@@ -28,6 +29,7 @@ function WeeklyOverview({ navigation }: any) {
   const { weeklyPlanCounter, completionCounter, isRestDay } =
     useExerciseStore();
   const [restDays, setRestDays] = useState<Set<string>>(new Set());
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     loadWeekData();
@@ -71,6 +73,7 @@ function WeeklyOverview({ navigation }: any) {
     setWeekData(data);
     setRestDays(restDaysSet);
     setCurrentMonday(dates[0]);
+    setIsLoading(false);
   };
 
   const getWeekDates = () => {
@@ -131,6 +134,14 @@ function WeeklyOverview({ navigation }: any) {
   };
 
   const styles = createStyles(theme);
+
+  if (isLoading) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" color={theme.primary} />
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -261,6 +272,10 @@ const createStyles = (theme: any) =>
     container: {
       flex: 1,
       backgroundColor: theme.background,
+    },
+    loadingContainer: {
+      justifyContent: "center",
+      alignItems: "center",
     },
     scrollView: {
       flex: 1,

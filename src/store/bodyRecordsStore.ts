@@ -2,23 +2,57 @@ import { create } from "zustand";
 import { getDatabase } from "../database/init";
 import { BodyRecord } from "../types";
 
+const PAGE_SIZE = 10;
+
 interface BodyRecordsStore {
   records: BodyRecord[];
+  hasMore: boolean;
   loadRecords: () => Promise<void>;
+  loadMoreRecords: () => Promise<void>;
+  loadAllRecords: () => Promise<BodyRecord[]>;
+  resetRecords: () => void;
   addRecord: (record: Omit<BodyRecord, "id" | "created_at">) => Promise<void>;
   deleteRecord: (id: number) => Promise<void>;
   getRecordById: (id: number) => Promise<BodyRecord | null>;
 }
 
-export const useBodyRecordsStore = create<BodyRecordsStore>((set) => ({
+export const useBodyRecordsStore = create<BodyRecordsStore>((set, get) => ({
   records: [],
+  hasMore: true,
 
   loadRecords: async () => {
     const db = getDatabase();
     const records = await db.getAllAsync<BodyRecord>(
+      "SELECT * FROM body_records ORDER BY date DESC LIMIT ?",
+      [PAGE_SIZE]
+    );
+    set({ records, hasMore: records.length >= PAGE_SIZE });
+  },
+
+  loadMoreRecords: async () => {
+    const { records, hasMore } = get();
+    if (!hasMore) return;
+
+    const db = getDatabase();
+    const moreRecords = await db.getAllAsync<BodyRecord>(
+      "SELECT * FROM body_records ORDER BY date DESC LIMIT ? OFFSET ?",
+      [PAGE_SIZE, records.length]
+    );
+    set({
+      records: [...records, ...moreRecords],
+      hasMore: moreRecords.length >= PAGE_SIZE,
+    });
+  },
+
+  loadAllRecords: async () => {
+    const db = getDatabase();
+    return await db.getAllAsync<BodyRecord>(
       "SELECT * FROM body_records ORDER BY date DESC"
     );
-    set({ records });
+  },
+
+  resetRecords: () => {
+    set({ records: [], hasMore: true });
   },
 
   addRecord: async (record) => {
@@ -26,7 +60,7 @@ export const useBodyRecordsStore = create<BodyRecordsStore>((set) => ({
     const created_at = new Date().toISOString();
 
     await db.runAsync(
-      `INSERT INTO body_records (user_id, date, weight, height, neck_perimeter, waist_perimeter, hip_perimeter, bicep_perimeter, thigh_perimeter, calf_perimeter, shoulder_perimeter, created_at) 
+      `INSERT INTO body_records (user_id, date, weight, height, neck_perimeter, waist_perimeter, hip_perimeter, bicep_perimeter, thigh_perimeter, calf_perimeter, shoulder_perimeter, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         record.user_id,

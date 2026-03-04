@@ -1,7 +1,7 @@
 import { FontAwesome5, Ionicons, MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Alert,
@@ -28,6 +28,12 @@ interface ExerciseProgress {
   };
 }
 
+type ActionType =
+  | { type: "incrementSets"; exerciseName: string; maxSets: number }
+  | { type: "decrementSets"; exerciseName: string }
+  | { type: "incrementTime"; exerciseName: string; maxTime: number }
+  | { type: "decrementTime"; exerciseName: string };
+
 export default function TodayScreen() {
   const { t } = useTranslation();
   const { theme } = useTheme();
@@ -43,6 +49,120 @@ export default function TodayScreen() {
   } = useExerciseStore();
 
   const [progress, setProgress] = useState<ExerciseProgress>({});
+
+  // State for press handling (similar to TimePicker)
+  const pressTimer = useRef<NodeJS.Timeout | null>(null);
+  const pressInterval = useRef<NodeJS.Timeout | null>(null);
+  const repetitionCount = useRef(0);
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      if (pressTimer.current) clearTimeout(pressTimer.current);
+      if (pressInterval.current) clearInterval(pressInterval.current);
+    };
+  }, []);
+
+  const getSpeed = (count: number): number => {
+    // Acceleration tiers based on repetition count
+    if (count >= 15) return 25; // Very fast
+    if (count >= 10) return 50; // Fast
+    if (count >= 5) return 100; // Medium
+    return 180; // Initial speed
+  };
+
+  const shouldExecuteAction = (action: ActionType): boolean => {
+    switch (action.type) {
+      case "incrementSets":
+        return (
+          (progress[action.exerciseName]?.currentSets || 0) < action.maxSets
+        );
+      case "decrementSets":
+        return (progress[action.exerciseName]?.currentSets || 0) > 0;
+      case "incrementTime":
+        return (
+          (progress[action.exerciseName]?.currentTime || 0) < action.maxTime
+        );
+      case "decrementTime":
+        return (progress[action.exerciseName]?.currentTime || 0) > 0;
+      default:
+        return true;
+    }
+  };
+
+  const executeAction = (action: ActionType) => {
+    if (!shouldExecuteAction(action)) {
+      // Stop the timer if we can't execute the action anymore
+      if (pressInterval.current) {
+        clearInterval(pressInterval.current);
+        pressInterval.current = null;
+      }
+      if (pressTimer.current) {
+        clearTimeout(pressTimer.current);
+        pressTimer.current = null;
+      }
+      repetitionCount.current = 0;
+      return;
+    }
+
+    switch (action.type) {
+      case "incrementSets":
+        incrementSets(action.exerciseName, action.maxSets);
+        break;
+      case "decrementSets":
+        decrementSets(action.exerciseName);
+        break;
+      case "incrementTime":
+        incrementTime(action.exerciseName, action.maxTime);
+        break;
+      case "decrementTime":
+        decrementTime(action.exerciseName);
+        break;
+    }
+  };
+
+  const handlePressIn = (action: ActionType) => {
+    // Execute immediately on press
+    executeAction(action);
+    repetitionCount.current = 0;
+
+    // Start the initial timer (300ms delay before repeating)
+    pressTimer.current = setTimeout(() => {
+      repetitionCount.current = 1;
+
+      // Start repeating with acceleration
+      const startRepeating = () => {
+        if (pressInterval.current) clearInterval(pressInterval.current);
+
+        const speed = getSpeed(repetitionCount.current);
+        pressInterval.current = setInterval(() => {
+          executeAction(action);
+          repetitionCount.current++;
+
+          // Check if we need to accelerate
+          const newSpeed = getSpeed(repetitionCount.current);
+          if (newSpeed !== speed) {
+            startRepeating(); // Restart with new speed
+          }
+        }, speed);
+      };
+
+      startRepeating();
+    }, 300);
+  };
+
+  const handlePressOut = () => {
+    // Clear all timers
+    if (pressTimer.current) {
+      clearTimeout(pressTimer.current);
+      pressTimer.current = null;
+    }
+    if (pressInterval.current) {
+      clearInterval(pressInterval.current);
+      pressInterval.current = null;
+    }
+    repetitionCount.current = 0;
+  };
   const [todayDate, setTodayDate] = useState("");
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [showTimeModal, setShowTimeModal] = useState(false);
@@ -50,7 +170,7 @@ export default function TodayScreen() {
   const [timeSeconds, setTimeSeconds] = useState("");
   const [completionHour, setCompletionHour] = useState(new Date().getHours());
   const [completionMinute, setCompletionMinute] = useState(
-    new Date().getMinutes()
+    new Date().getMinutes(),
   );
   const [timerResetTrigger, setTimerResetTrigger] = useState(0);
   const [isTodayRestDay, setIsTodayRestDay] = useState(false);
@@ -59,14 +179,14 @@ export default function TodayScreen() {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(
       2,
-      "0"
+      "0",
     )}-${String(now.getDate()).padStart(2, "0")}`;
   };
 
   useFocusEffect(
     React.useCallback(() => {
       initializeToday();
-    }, [weeklyPlanCounter])
+    }, [weeklyPlanCounter]),
   );
 
   useEffect(() => {
@@ -115,7 +235,7 @@ export default function TodayScreen() {
     try {
       await AsyncStorage.setItem(
         `progress_${todayDate}`,
-        JSON.stringify(newProgress)
+        JSON.stringify(newProgress),
       );
       setProgress(newProgress);
     } catch (error) {
@@ -173,67 +293,83 @@ export default function TodayScreen() {
   };
 
   const incrementSets = (exerciseName: string, maxSets: number) => {
-    const current = progress[exerciseName]?.currentSets || 0;
-    if (current < maxSets) {
-      const newProgress = {
-        ...progress,
-        [exerciseName]: {
-          ...progress[exerciseName],
-          currentSets: current + 1,
-          currentTime: progress[exerciseName]?.currentTime || 0,
-        },
-      };
-      saveProgress(newProgress);
-    }
+    setProgress((prevProgress) => {
+      const current = prevProgress[exerciseName]?.currentSets || 0;
+      if (current < maxSets) {
+        const newProgress = {
+          ...prevProgress,
+          [exerciseName]: {
+            ...prevProgress[exerciseName],
+            currentSets: current + 1,
+            currentTime: prevProgress[exerciseName]?.currentTime || 0,
+          },
+        };
+        saveProgress(newProgress);
+        return newProgress;
+      }
+      return prevProgress;
+    });
   };
 
   const decrementSets = (exerciseName: string) => {
-    const current = progress[exerciseName]?.currentSets || 0;
-    if (current > 0) {
-      const newProgress = {
-        ...progress,
-        [exerciseName]: {
-          ...progress[exerciseName],
-          currentSets: current - 1,
-          currentTime: progress[exerciseName]?.currentTime || 0,
-        },
-      };
-      saveProgress(newProgress);
-    }
+    setProgress((prevProgress) => {
+      const current = prevProgress[exerciseName]?.currentSets || 0;
+      if (current > 0) {
+        const newProgress = {
+          ...prevProgress,
+          [exerciseName]: {
+            ...prevProgress[exerciseName],
+            currentSets: current - 1,
+            currentTime: prevProgress[exerciseName]?.currentTime || 0,
+          },
+        };
+        saveProgress(newProgress);
+        return newProgress;
+      }
+      return prevProgress;
+    });
   };
 
   const incrementTime = (exerciseName: string, maxTime: number) => {
-    const current = progress[exerciseName]?.currentTime || 0;
-    if (current < maxTime) {
-      const increment = 30;
-      const newValue = Math.min(current + increment, maxTime);
-      const newProgress = {
-        ...progress,
-        [exerciseName]: {
-          ...progress[exerciseName],
-          currentTime: newValue,
-          currentSets: progress[exerciseName]?.currentSets || 0,
-        },
-      };
-      saveProgress(newProgress);
-    }
+    setProgress((prevProgress) => {
+      const current = prevProgress[exerciseName]?.currentTime || 0;
+      if (current < maxTime) {
+        const increment = 30;
+        const newValue = Math.min(current + increment, maxTime);
+        const newProgress = {
+          ...prevProgress,
+          [exerciseName]: {
+            ...prevProgress[exerciseName],
+            currentTime: newValue,
+            currentSets: prevProgress[exerciseName]?.currentSets || 0,
+          },
+        };
+        saveProgress(newProgress);
+        return newProgress;
+      }
+      return prevProgress;
+    });
   };
 
   const decrementTime = (exerciseName: string) => {
-    const current = progress[exerciseName]?.currentTime || 0;
-    if (current > 0) {
-      const decrement = 30;
-      const newValue = Math.max(current - decrement, 0);
-      const newProgress = {
-        ...progress,
-        [exerciseName]: {
-          ...progress[exerciseName],
-          currentTime: newValue,
-          currentSets: progress[exerciseName]?.currentSets || 0,
-        },
-      };
-      saveProgress(newProgress);
-    }
+    setProgress((prevProgress) => {
+      const current = prevProgress[exerciseName]?.currentTime || 0;
+      if (current > 0) {
+        const decrement = 30;
+        const newValue = Math.max(current - decrement, 0);
+        const newProgress = {
+          ...prevProgress,
+          [exerciseName]: {
+            ...prevProgress[exerciseName],
+            currentTime: newValue,
+            currentSets: prevProgress[exerciseName]?.currentSets || 0,
+          },
+        };
+        saveProgress(newProgress);
+        return newProgress;
+      }
+      return prevProgress;
+    });
   };
 
   const formatTime = (seconds: number) => {
@@ -318,19 +454,30 @@ export default function TodayScreen() {
                     <View style={styles.iconContainer}>
                       {getIconComponent(
                         exercise.icon_family,
-                        exercise.icon_name
+                        exercise.icon_name,
                       )}
                     </View>
                     <View style={styles.exerciseInfo}>
                       {exercise.training_reference_url ? (
                         <TouchableOpacity
-                          onPress={() => handleOpenUrl(exercise.training_reference_url!)}
+                          onPress={() =>
+                            handleOpenUrl(exercise.training_reference_url!)
+                          }
                           style={styles.exerciseNameContainer}
                         >
-                          <Text style={[styles.exerciseName, styles.exerciseNameLink]}>
+                          <Text
+                            style={[
+                              styles.exerciseName,
+                              styles.exerciseNameLink,
+                            ]}
+                          >
                             {exercise.exercise_name}
                           </Text>
-                          <Ionicons name="open-outline" size={16} color={theme.primary} />
+                          <Ionicons
+                            name="open-outline"
+                            size={16}
+                            color={theme.primary}
+                          />
                         </TouchableOpacity>
                       ) : (
                         <Text style={styles.exerciseName}>
@@ -360,7 +507,13 @@ export default function TodayScreen() {
                       <View style={styles.counterContainer}>
                         <TouchableOpacity
                           style={styles.counterButton}
-                          onPress={() => decrementSets(exercise.exercise_name)}
+                          onPressIn={() =>
+                            handlePressIn({
+                              type: "decrementSets",
+                              exerciseName: exercise.exercise_name,
+                            })
+                          }
+                          onPressOut={handlePressOut}
                         >
                           <Ionicons
                             name="remove-circle"
@@ -373,12 +526,14 @@ export default function TodayScreen() {
                         </Text>
                         <TouchableOpacity
                           style={styles.counterButton}
-                          onPress={() =>
-                            incrementSets(
-                              exercise.exercise_name,
-                              exercise.sets!
-                            )
+                          onPressIn={() =>
+                            handlePressIn({
+                              type: "incrementSets",
+                              exerciseName: exercise.exercise_name,
+                              maxSets: exercise.sets!,
+                            })
                           }
+                          onPressOut={handlePressOut}
                         >
                           <Ionicons
                             name="add-circle"
@@ -398,7 +553,13 @@ export default function TodayScreen() {
                       <View style={styles.counterContainer}>
                         <TouchableOpacity
                           style={styles.counterButton}
-                          onPress={() => decrementTime(exercise.exercise_name)}
+                          onPressIn={() =>
+                            handlePressIn({
+                              type: "decrementTime",
+                              exerciseName: exercise.exercise_name,
+                            })
+                          }
+                          onPressOut={handlePressOut}
                         >
                           <Ionicons
                             name="remove-circle"
@@ -412,12 +573,14 @@ export default function TodayScreen() {
                         </Text>
                         <TouchableOpacity
                           style={styles.counterButton}
-                          onPress={() =>
-                            incrementTime(
-                              exercise.exercise_name,
-                              exercise.estimated_time!
-                            )
+                          onPressIn={() =>
+                            handlePressIn({
+                              type: "incrementTime",
+                              exerciseName: exercise.exercise_name,
+                              maxTime: exercise.estimated_time!,
+                            })
                           }
+                          onPressOut={handlePressOut}
                         >
                           <Ionicons
                             name="add-circle"

@@ -1,6 +1,15 @@
-import React, { useEffect, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
+import React, { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Dimensions, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Dimensions,
+  InteractionManager,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { LineChart } from "react-native-chart-kit";
 import { useTheme } from "../contexts/ThemeContext";
 import { useBodyRecordsStore } from "../store/bodyRecordsStore";
@@ -11,19 +20,26 @@ const { width } = Dimensions.get("window");
 export default function LongTermStatsScreen() {
   const { t } = useTranslation();
   const { theme } = useTheme();
-  const { records, loadRecords } = useBodyRecordsStore();
+  const { loadAllRecords } = useBodyRecordsStore();
   const [sortedRecords, setSortedRecords] = useState<BodyRecord[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    loadRecords();
-  }, []);
-
-  useEffect(() => {
-    const sorted = [...records].sort(
-      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
-    );
-    setSortedRecords(sorted);
-  }, [records]);
+  // Wait for the navigation animation to finish, THEN load + sort data.
+  // This prevents the heavy chart rendering from blocking the transition.
+  useFocusEffect(
+    useCallback(() => {
+      setIsLoading(true);
+      const task = InteractionManager.runAfterInteractions(async () => {
+        const fresh = await loadAllRecords();
+        const sorted = [...fresh].sort(
+          (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+        );
+        setSortedRecords(sorted);
+        setIsLoading(false);
+      });
+      return () => task.cancel();
+    }, []),
+  );
 
   const chartConfig = {
     backgroundGradientFrom: theme.card,
@@ -84,6 +100,14 @@ export default function LongTermStatsScreen() {
   const shoulderData = createChartData("shoulder_perimeter");
 
   const styles = createStyles(theme);
+
+  if (isLoading) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" color={theme.primary} />
+      </View>
+    );
+  }
 
   if (sortedRecords.length < 2) {
     return (
@@ -306,6 +330,10 @@ const createStyles = (theme: any) =>
     container: {
       flex: 1,
       backgroundColor: theme.background,
+    },
+    loadingContainer: {
+      justifyContent: "center",
+      alignItems: "center",
     },
     scrollView: {
       flex: 1,

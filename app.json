@@ -2,7 +2,7 @@
   "expo": {
     "name": "Exercise Tracker",
     "slug": "exercise-tracker",
-    "version": "1.0.0",
+    "version": "1.2.0",
     "orientation": "portrait",
     "icon": "./assets/images/AppIcons/playstore.png",
     "userInterfaceStyle": "light",
@@ -13,16 +13,17 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.yourcompany.exercisetracker",
+      "bundleIdentifier": "com.ferchostudios.exercisetracker",
       "icon": "./assets/images/AppIcons/appstore.png"
     },
     "android": {
       "icon": "./assets/images/AppIcons/playstore.png",
-      "package": "com.yourcompany.exercisetracker",
+      "package": "com.ferchostudios.exercisetracker",
       "permissions": [
         "POST_NOTIFICATIONS",
         "FOREGROUND_SERVICE",
-        "WAKE_LOCK"
+        "WAKE_LOCK",
+        "SCHEDULE_EXACT_ALARM"
       ]
     },
     "web": {

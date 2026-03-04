@@ -118,7 +118,17 @@ export default function MyExercisesScreen() {
     }
   };
 
+  const MAX_EXERCISES_PER_DAY = 20;
+
   const handleAddExercise = () => {
+    const exercises = weeklyPlan[selectedDay] || [];
+    if (exercises.length >= MAX_EXERCISES_PER_DAY) {
+      Alert.alert(
+        t("myExercises.exerciseLimitTitle"),
+        t("myExercises.exerciseLimitMessage"),
+      );
+      return;
+    }
     setEditingExercise(null);
     setShowModal(true);
   };

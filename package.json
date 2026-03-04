@@ -1,14 +1,14 @@
 {
   "name": "my-exercises-plan",
   "main": "expo/AppEntry.js",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "scripts": {
     "dev": "expo start --tunnel",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "expo lint",
-    "build": "eas build -p android --profile preview"
+    "build-android": "eas build -p android --profile preview"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

@@ -1,5 +1,6 @@
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import * as Notifications from "expo-notifications";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useState } from "react";
 import { View } from "react-native";
@@ -11,6 +12,16 @@ import MainTabs from "./src/navigation/MainTabs";
 import IntroScreen from "./src/screens/IntroScreen";
 import { initializeDailyReminders } from "./src/services/dailyReminderService";
 import { useUserStore } from "./src/store/userStore";
+
+// Must be called at module level so notifications show even when app is foregrounded
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
 
 const Stack = createNativeStackNavigator();
 

@@ -1,18 +1,20 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Notifications from "expo-notifications";
+import { Alert, Linking, Platform } from "react-native";
 import i18n from "../i18n";
 import { useExerciseStore } from "../store/exerciseStore";
 
 // Configuration - easy to extend
 const CONFIG = {
   START_HOUR: 7, // 7 AM
-  END_HOUR: 22, // 10 PM (22:00)
+  END_HOUR: 21, // 9 PM (21:00)
   NOTIFICATIONS_PER_DAY: 2,
   DAYS_AHEAD: 7, // Schedule reminders for a full week
   CHANNEL_ID: "daily-reminder",
 };
 
 const LAST_SCHEDULED_DATE_KEY = "last_scheduled_reminder_date";
+const LAST_SCHEDULED_LANGUAGE_KEY = "last_scheduled_reminder_language";
 
 /**
  * Format a Date as YYYY-MM-DD
@@ -143,9 +145,10 @@ export const scheduleDailyReminders = async (): Promise<void> => {
       currentDate.setDate(currentDate.getDate() + 1);
     }
 
-    // Save the last date we scheduled up to
+    // Save the last date and language we scheduled with
     if (lastScheduled) {
       await AsyncStorage.setItem(LAST_SCHEDULED_DATE_KEY, lastScheduled);
+      await AsyncStorage.setItem(LAST_SCHEDULED_LANGUAGE_KEY, i18n.language);
     }
 
     console.log(`Reminders scheduled up to ${lastScheduled}`);
@@ -155,8 +158,24 @@ export const scheduleDailyReminders = async (): Promise<void> => {
 };
 
 /**
- * Initialize daily reminders
- * Call this when the app starts
+ * Cancel all scheduled reminders and re-schedule from scratch.
+ * Call this when the language changes so new messages are in the correct language.
+ */
+export const rescheduleDailyReminders = async (): Promise<void> => {
+  try {
+    await Notifications.cancelAllScheduledNotificationsAsync();
+    await AsyncStorage.removeItem(LAST_SCHEDULED_DATE_KEY);
+    await AsyncStorage.removeItem(LAST_SCHEDULED_LANGUAGE_KEY);
+    await scheduleDailyReminders();
+    console.log("Daily reminders rescheduled");
+  } catch (error) {
+    console.error("Error rescheduling daily reminders:", error);
+  }
+};
+
+/**
+ * Initialize daily reminders.
+ * Call this when the app starts.
  *
  * HOW TO EXTEND:
  * - Add more messages: Edit i18n files (en.json, es.json) under "dailyReminder.messages"
@@ -166,11 +185,37 @@ export const scheduleDailyReminders = async (): Promise<void> => {
  */
 export const initializeDailyReminders = async (): Promise<void> => {
   try {
-    // Request notification permissions
+    // Request notification permissions (POST_NOTIFICATIONS on Android 13+)
     const { status } = await Notifications.requestPermissionsAsync();
     if (status !== "granted") {
       console.warn("Notification permissions not granted");
       return;
+    }
+
+    // On Android 12+ (API 31+) exact alarms also need the SCHEDULE_EXACT_ALARM
+    // permission to be granted by the user under Settings > Apps > Special app
+    // access > Alarms & reminders. Prompt them if the OS version warrants it.
+    if (
+      Platform.OS === "android" &&
+      typeof Platform.Version === "number" &&
+      Platform.Version >= 31
+    ) {
+      const { granted: hasExactAlarm } =
+        await Notifications.getPermissionsAsync();
+      if (!hasExactAlarm) {
+        Alert.alert(
+          "Enable Alarms & Reminders",
+          "To receive workout reminders on time, please allow this app to schedule exact alarms in Settings.",
+          [
+            { text: "Later", style: "cancel" },
+            {
+              text: "Open Settings",
+              onPress: () => Linking.openSettings(),
+            },
+          ],
+        );
+        // Continue anyway — the OS may still deliver inexact alarms
+      }
     }
 
     // Create notification channel for Android
@@ -181,6 +226,19 @@ export const initializeDailyReminders = async (): Promise<void> => {
       vibrationPattern: [0, 250, 250, 250],
       enableVibrate: true,
     });
+
+    // If existing notifications were scheduled in a different language,
+    // cancel them and reschedule so messages match the current language.
+    const scheduledLang = await AsyncStorage.getItem(
+      LAST_SCHEDULED_LANGUAGE_KEY,
+    );
+    if (scheduledLang && scheduledLang !== i18n.language) {
+      console.log(
+        `Language changed (${scheduledLang} → ${i18n.language}), rescheduling reminders`,
+      );
+      await rescheduleDailyReminders();
+      return;
+    }
 
     // Schedule reminders for the week ahead
     await scheduleDailyReminders();
@@ -198,6 +256,7 @@ export const cancelDailyReminders = async (): Promise<void> => {
   try {
     await Notifications.cancelAllScheduledNotificationsAsync();
     await AsyncStorage.removeItem(LAST_SCHEDULED_DATE_KEY);
+    await AsyncStorage.removeItem(LAST_SCHEDULED_LANGUAGE_KEY);
     console.log("Daily reminders canceled");
   } catch (error) {
     console.error("Error canceling daily reminders:", error);

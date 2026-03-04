@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import DatePicker from "../components/DatePicker";
 import { useTheme } from "../contexts/ThemeContext";
+import i18n from "../i18n";
 import { useUserStore } from "../store/userStore";
 
 export default function IntroScreen() {
@@ -21,6 +22,12 @@ export default function IntroScreen() {
   const [fullName, setFullName] = useState("");
   const [birthday, setBirthday] = useState("");
   const [gender, setGender] = useState<"male" | "female" | null>(null);
+  const [language, setLanguage] = useState<string>(i18n.language || "en");
+
+  const handleLanguageSelect = (lang: string) => {
+    setLanguage(lang);
+    i18n.changeLanguage(lang);
+  };
 
   const handleSubmit = async () => {
     if (!fullName.trim() || !birthday || !gender) {
@@ -31,7 +38,7 @@ export default function IntroScreen() {
       full_name: fullName.trim(),
       birthday,
       gender,
-      language: "en",
+      language,
       theme: "light",
     });
   };
@@ -42,11 +49,52 @@ export default function IntroScreen() {
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      behavior={Platform.OS === "ios" ? "padding" : "padding"}
       style={styles.container}
     >
-      <ScrollView style={styles.scrollView}>
+      <ScrollView
+        style={styles.scrollView}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={styles.content}>
+          {/* Language toggle — top right */}
+          <View style={styles.languageRow}>
+            <TouchableOpacity
+              style={[
+                styles.langButton,
+                language === "en" && styles.langButtonActive,
+              ]}
+              onPress={() => handleLanguageSelect("en")}
+              activeOpacity={0.7}
+            >
+              <Text
+                style={[
+                  styles.langButtonText,
+                  language === "en" && styles.langButtonTextActive,
+                ]}
+              >
+                EN
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.langButton,
+                language === "es" && styles.langButtonActive,
+              ]}
+              onPress={() => handleLanguageSelect("es")}
+              activeOpacity={0.7}
+            >
+              <Text
+                style={[
+                  styles.langButtonText,
+                  language === "es" && styles.langButtonTextActive,
+                ]}
+              >
+                ES
+              </Text>
+            </TouchableOpacity>
+          </View>
+
           <Text style={styles.title}>{t("intro.title")}</Text>
           <Text style={styles.subtitle}>{t("intro.subtitle")}</Text>
 
@@ -137,8 +185,35 @@ const createStyles = (theme: any) =>
     content: {
       flex: 1,
       paddingHorizontal: 24,
-      paddingTop: 80,
+      paddingTop: 60,
       paddingBottom: 40,
+    },
+    languageRow: {
+      flexDirection: "row",
+      justifyContent: "flex-end",
+      marginBottom: 24,
+      gap: 8,
+    },
+    langButton: {
+      paddingHorizontal: 16,
+      paddingVertical: 6,
+      borderRadius: 20,
+      borderWidth: 1.5,
+      borderColor: theme.border,
+      backgroundColor: theme.card,
+    },
+    langButtonActive: {
+      backgroundColor: theme.primary,
+      borderColor: theme.primary,
+    },
+    langButtonText: {
+      fontSize: 13,
+      fontWeight: "700",
+      color: theme.textSecondary,
+      letterSpacing: 0.5,
+    },
+    langButtonTextActive: {
+      color: "#ffffff",
     },
     title: {
       fontSize: 30,

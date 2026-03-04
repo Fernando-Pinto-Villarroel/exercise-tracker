@@ -1,7 +1,14 @@
 import { useFocusEffect } from "@react-navigation/native";
 import React, { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Dimensions, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Dimensions,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { LineChart, PieChart, ProgressChart } from "react-native-chart-kit";
 import ExerciseStatsGrid, {
   ExerciseStatItem,
@@ -18,6 +25,7 @@ export default function AnnualStatsScreen({ route }: any) {
   const { theme } = useTheme();
   const { year } = route.params;
   const { completionCounter, isRestDay } = useExerciseStore();
+  const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState<{
     daysCompleted: number;
     totalDays: number;
@@ -161,6 +169,7 @@ export default function AnnualStatsScreen({ route }: any) {
       exerciseStats: Array.from(exerciseMap.values()),
       monthlyCompletions,
     });
+    setIsLoading(false);
   };
 
   const getMonthDates = (year: number, month: number) => {
@@ -305,6 +314,14 @@ export default function AnnualStatsScreen({ route }: any) {
 
   const styles = createStyles(theme);
 
+  if (isLoading) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" color={theme.primary} />
+      </View>
+    );
+  }
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.card}>
@@ -438,6 +455,10 @@ const createStyles = (theme: any) =>
     container: {
       flex: 1,
       backgroundColor: theme.background,
+    },
+    loadingContainer: {
+      justifyContent: "center",
+      alignItems: "center",
     },
     content: {
       paddingHorizontal: 16,
