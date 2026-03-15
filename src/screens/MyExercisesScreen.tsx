@@ -46,7 +46,8 @@ export default function MyExercisesScreen() {
     weeklyPlan,
     loadWeeklyPlan,
     deleteExercise,
-    copyDayPlan,
+    mergeExercisesToDay,
+    bulkDeleteWeeklyExercises,
     toggleWeeklyRestDay,
     loadWeeklyRestDays,
   } = useExerciseStore();
@@ -57,8 +58,16 @@ export default function MyExercisesScreen() {
   const [showModal, setShowModal] = useState(false);
   const [editingExercise, setEditingExercise] =
     useState<WeeklyPlanExercise | null>(null);
-  const [copyFromDay, setCopyFromDay] = useState<number | null>(null);
   const [weeklyRestDays, setWeeklyRestDays] = useState<number[]>([]);
+
+  const [selectionMode, setSelectionMode] = useState<"copy" | "delete" | null>(
+    null,
+  );
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [copiedExercises, setCopiedExercises] = useState<WeeklyPlanExercise[]>(
+    [],
+  );
+  const [copyFromDay, setCopyFromDay] = useState<number | null>(null);
 
   const DAYS = [
     t("myExercises.days.monday"),
@@ -75,13 +84,17 @@ export default function MyExercisesScreen() {
     loadRestDays();
   }, []);
 
+  useEffect(() => {
+    setSelectionMode(null);
+    setSelectedIds(new Set());
+  }, [selectedDay]);
+
   const loadRestDays = async () => {
     const restDays = await loadWeeklyRestDays();
     setWeeklyRestDays(restDays);
   };
 
   const handleRestDayToggle = async () => {
-    // Check if we're marking as rest day (not already a rest day)
     const isCurrentlyRestDay = weeklyRestDays.includes(selectedDay);
 
     if (!isCurrentlyRestDay) {
@@ -106,7 +119,6 @@ export default function MyExercisesScreen() {
         ],
       );
     } else {
-      // If we're removing rest day, just proceed
       try {
         await toggleWeeklyRestDay(selectedDay);
         await loadRestDays();
@@ -160,36 +172,138 @@ export default function MyExercisesScreen() {
     );
   };
 
-  const handleCopyDay = () => {
-    if (copyFromDay === null) {
-      setCopyFromDay(selectedDay);
-      Alert.alert(
-        t("myExercises.copyMode"),
-        t("myExercises.copyModeMessage", { day: DAYS[selectedDay] }),
-      );
+  const toggleSelection = (id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === exercises.length) {
+      setSelectedIds(new Set());
     } else {
-      Alert.alert(
-        t("myExercises.pastePlan"),
-        t("myExercises.pastePlanMessage", {
-          fromDay: DAYS[copyFromDay],
-          toDay: DAYS[selectedDay],
-        }),
-        [
-          {
-            text: t("common.cancel"),
-            style: "cancel",
-            onPress: () => setCopyFromDay(null),
-          },
-          {
-            text: t("myExercises.paste"),
-            onPress: async () => {
-              await copyDayPlan(copyFromDay, selectedDay);
-              setCopyFromDay(null);
-            },
-          },
-        ],
-      );
+      setSelectedIds(new Set(exercises.map((e) => e.id!)));
     }
+  };
+
+  const handleStartCopy = () => {
+    if (exercises.length === 0) return;
+    setSelectionMode("copy");
+    setSelectedIds(new Set(exercises.map((e) => e.id!)));
+  };
+
+  const handleConfirmCopy = () => {
+    const selected = exercises.filter((e) => selectedIds.has(e.id!));
+    if (selected.length === 0) {
+      Alert.alert(t("common.error"), t("myExercises.noExercisesSelected"));
+      return;
+    }
+    setCopiedExercises(selected);
+    setCopyFromDay(selectedDay);
+    setSelectionMode(null);
+    setSelectedIds(new Set());
+    Alert.alert(t("myExercises.copyMode"), t("myExercises.selectDestination"));
+  };
+
+  const handleCancelCopy = () => {
+    setCopiedExercises([]);
+    setCopyFromDay(null);
+  };
+
+  const handlePaste = () => {
+    const targetExercises = weeklyPlan[selectedDay] || [];
+    const targetNames = new Set(targetExercises.map((e) => e.exercise_name));
+    const duplicateNames = copiedExercises
+      .filter((e) => targetNames.has(e.exercise_name))
+      .map((e) => e.exercise_name);
+
+    const nonDuplicateCount = copiedExercises.length - duplicateNames.length;
+    const newTotal = targetExercises.length + nonDuplicateCount;
+
+    if (newTotal > MAX_EXERCISES_PER_DAY) {
+      Alert.alert(
+        t("myExercises.exerciseLimitTitle"),
+        t("myExercises.exerciseLimitMessage"),
+      );
+      return;
+    }
+
+    let message = t("myExercises.pasteConfirmMessage", {
+      count: copiedExercises.length,
+      day: DAYS[selectedDay],
+    });
+
+    if (duplicateNames.length > 0) {
+      message +=
+        "\n\n" +
+        t("myExercises.duplicateWarning", {
+          names: duplicateNames.join(", "),
+        });
+    }
+
+    Alert.alert(t("myExercises.pastePlan"), message, [
+      {
+        text: t("common.cancel"),
+        style: "cancel",
+      },
+      {
+        text: t("myExercises.paste"),
+        onPress: async () => {
+          const exercisesToMerge = copiedExercises.map(
+            ({ id, day_of_week, ...rest }) => rest,
+          );
+          await mergeExercisesToDay(exercisesToMerge, selectedDay);
+          setCopiedExercises([]);
+          setCopyFromDay(null);
+        },
+      },
+    ]);
+  };
+
+  const handleStartBulkDelete = () => {
+    if (exercises.length === 0) return;
+    setSelectionMode("delete");
+    setSelectedIds(new Set(exercises.map((e) => e.id!)));
+  };
+
+  const handleConfirmBulkDelete = () => {
+    const count = selectedIds.size;
+    if (count === 0) {
+      Alert.alert(t("common.error"), t("myExercises.noExercisesSelected"));
+      return;
+    }
+    Alert.alert(
+      t("myExercises.deleteExercise"),
+      t("myExercises.bulkDeleteConfirm", { count }),
+      [
+        { text: t("common.cancel"), style: "cancel" },
+        {
+          text: t("common.delete"),
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await bulkDeleteWeeklyExercises(
+                Array.from(selectedIds),
+                selectedDay,
+              );
+              setSelectionMode(null);
+              setSelectedIds(new Set());
+            } catch (error) {
+              console.error("Error bulk deleting:", error);
+              Alert.alert(t("common.error"), t("myExercises.deleteError"));
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const handleCancelSelection = () => {
+    setSelectionMode(null);
+    setSelectedIds(new Set());
   };
 
   const handleDragEnd = async ({ data }: { data: WeeklyPlanExercise[] }) => {
@@ -259,19 +373,26 @@ export default function MyExercisesScreen() {
       return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
     };
 
+    const isSelected = selectedIds.has(item.id!);
+
     return (
       <ScaleDecorator>
         <TouchableOpacity
-          onLongPress={drag}
+          onLongPress={selectionMode ? undefined : drag}
+          onPress={selectionMode ? () => toggleSelection(item.id!) : undefined}
           disabled={isActive}
-          style={[styles.exerciseCard, isActive && { opacity: 0.7 }]}
+          style={[
+            styles.exerciseCard,
+            isActive && { opacity: 0.7 },
+            selectionMode && isSelected && styles.exerciseCardSelected,
+          ]}
         >
           <View style={styles.iconContainer}>
             {getIconComponent(item.icon_family, item.icon_name, theme.primary)}
           </View>
 
           <View style={styles.exerciseInfo}>
-            {item.training_reference_url ? (
+            {!selectionMode && item.training_reference_url ? (
               <TouchableOpacity
                 onPress={async () => {
                   try {
@@ -311,22 +432,40 @@ export default function MyExercisesScreen() {
             </View>
           </View>
 
-          <View style={styles.exerciseActions}>
-            <TouchableOpacity
-              onPress={() => handleEditExercise(item)}
-              style={styles.actionButton}
-            >
-              <Ionicons name="create-outline" size={24} color={theme.primary} />
-            </TouchableOpacity>
-            {item.id && (
+          {selectionMode ? (
+            <View style={styles.selectionIndicator}>
+              <Ionicons
+                name={isSelected ? "checkmark-circle" : "ellipse-outline"}
+                size={28}
+                color={isSelected ? theme.primary : theme.textSecondary}
+              />
+            </View>
+          ) : (
+            <View style={styles.exerciseActions}>
               <TouchableOpacity
-                onPress={() => handleDeleteExercise(item.id!)}
+                onPress={() => handleEditExercise(item)}
                 style={styles.actionButton}
               >
-                <Ionicons name="trash-outline" size={24} color={theme.error} />
+                <Ionicons
+                  name="create-outline"
+                  size={24}
+                  color={theme.primary}
+                />
               </TouchableOpacity>
-            )}
-          </View>
+              {item.id && (
+                <TouchableOpacity
+                  onPress={() => handleDeleteExercise(item.id!)}
+                  style={styles.actionButton}
+                >
+                  <Ionicons
+                    name="trash-outline"
+                    size={24}
+                    color={theme.error}
+                  />
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
         </TouchableOpacity>
       </ScaleDecorator>
     );
@@ -334,8 +473,142 @@ export default function MyExercisesScreen() {
 
   const exercises = weeklyPlan[selectedDay] || [];
   const isSelectedDayRestDay = weeklyRestDays.includes(selectedDay);
+  const hasCopiedExercises =
+    copiedExercises.length > 0 && copyFromDay !== selectedDay;
 
   const styles = createStyles(theme);
+
+  const renderRestDayToggle = () => (
+    <View style={styles.restDayToggleContainer}>
+      <View style={styles.restDayLabelContainer}>
+        <Text style={styles.restDayLabel}>{t("restDay.validRestDay")}</Text>
+        <Text style={styles.restDaySubLabel}>{t("restDay.restDayInfo")}</Text>
+      </View>
+      <Switch
+        value={isSelectedDayRestDay}
+        onValueChange={handleRestDayToggle}
+        trackColor={{ false: theme.borderLight, true: theme.primary }}
+        thumbColor={
+          isSelectedDayRestDay ? theme.primaryLight : theme.textSecondary
+        }
+      />
+    </View>
+  );
+
+  const renderSelectionToolbar = () => {
+    if (!selectionMode) return null;
+    return (
+      <View style={styles.selectionToolbar}>
+        <Text style={styles.selectedCount}>
+          {selectedIds.size} / {exercises.length} {t("myExercises.selected")}
+        </Text>
+        <TouchableOpacity onPress={toggleSelectAll}>
+          <Text style={styles.selectAllText}>
+            {selectedIds.size === exercises.length
+              ? t("myExercises.deselectAll")
+              : t("myExercises.selectAll")}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
+  const renderCopyBanner = () => {
+    if (!copiedExercises.length || selectionMode) return null;
+    return (
+      <View style={styles.copyBanner}>
+        <Text style={styles.copyBannerText}>
+          {t("myExercises.copiedFrom", {
+            count: copiedExercises.length,
+            day: DAYS[copyFromDay!],
+          })}
+        </Text>
+        <TouchableOpacity onPress={handleCancelCopy}>
+          <Ionicons name="close-circle" size={22} color={theme.error} />
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
+  const renderButtons = () => {
+    if (selectionMode === "copy") {
+      return (
+        <View style={styles.buttonRow}>
+          <TouchableOpacity
+            style={styles.cancelButton}
+            onPress={handleCancelSelection}
+          >
+            <Text style={styles.cancelButtonText}>{t("common.cancel")}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.addButton,
+              selectedIds.size === 0 && styles.buttonDisabled,
+            ]}
+            onPress={handleConfirmCopy}
+          >
+            <Text style={styles.addButtonText}>
+              {t("myExercises.copySelected")} ({selectedIds.size})
+            </Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    if (selectionMode === "delete") {
+      return (
+        <View style={styles.buttonRow}>
+          <TouchableOpacity
+            style={styles.cancelButton}
+            onPress={handleCancelSelection}
+          >
+            <Text style={styles.cancelButtonText}>{t("common.cancel")}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.deleteActionButton,
+              selectedIds.size === 0 && styles.buttonDisabled,
+            ]}
+            onPress={handleConfirmBulkDelete}
+          >
+            <Text style={styles.addButtonText}>
+              {t("myExercises.bulkDelete")} ({selectedIds.size})
+            </Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.buttonRow}>
+        <TouchableOpacity style={styles.addButton} onPress={handleAddExercise}>
+          <Text style={styles.addButtonText}>
+            {t("myExercises.addExercise")}
+          </Text>
+        </TouchableOpacity>
+        {hasCopiedExercises ? (
+          <TouchableOpacity
+            style={[styles.copyButton, styles.copyButtonActive]}
+            onPress={handlePaste}
+          >
+            <Text style={styles.copyButtonText}>
+              {t("myExercises.pasteHere")}
+            </Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity style={styles.copyButton} onPress={handleStartCopy}>
+            <Text style={styles.copyButtonText}>{t("myExercises.copy")}</Text>
+          </TouchableOpacity>
+        )}
+        <TouchableOpacity
+          style={styles.bulkDeleteButton}
+          onPress={handleStartBulkDelete}
+        >
+          <Ionicons name="trash-outline" size={22} color="#ffffff" />
+        </TouchableOpacity>
+      </View>
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -345,7 +618,7 @@ export default function MyExercisesScreen() {
         style={styles.daysScrollView}
         data={DAYS}
         initialScrollIndex={selectedDay}
-        getItemLayout={(data, index) => ({
+        getItemLayout={(_data, index) => ({
           length: 100,
           offset: 100 * index,
           index,
@@ -368,31 +641,13 @@ export default function MyExercisesScreen() {
             </Text>
           </TouchableOpacity>
         )}
-        keyExtractor={(item, index) => index.toString()}
+        keyExtractor={(_item, index) => index.toString()}
       />
 
       <View style={styles.content}>
         {isSelectedDayRestDay ? (
           <>
-            <View style={styles.restDayToggleContainer}>
-              <View style={styles.restDayLabelContainer}>
-                <Text style={styles.restDayLabel}>
-                  {t("restDay.validRestDay")}
-                </Text>
-                <Text style={styles.restDaySubLabel}>
-                  {t("restDay.restDayInfo")}
-                </Text>
-              </View>
-              <Switch
-                value={isSelectedDayRestDay}
-                onValueChange={handleRestDayToggle}
-                trackColor={{ false: theme.borderLight, true: theme.primary }}
-                thumbColor={
-                  isSelectedDayRestDay ? "#0891b2" : theme.textSecondary
-                }
-              />
-            </View>
-
+            {renderRestDayToggle()}
             <View style={styles.restDayMessage}>
               <Ionicons name="moon" size={48} color={theme.primary} />
               <Text style={styles.restDayMessageText}>
@@ -402,25 +657,8 @@ export default function MyExercisesScreen() {
           </>
         ) : exercises.length === 0 ? (
           <>
-            <View style={styles.restDayToggleContainer}>
-              <View style={styles.restDayLabelContainer}>
-                <Text style={styles.restDayLabel}>
-                  {t("restDay.validRestDay")}
-                </Text>
-                <Text style={styles.restDaySubLabel}>
-                  {t("restDay.restDayInfo")}
-                </Text>
-              </View>
-              <Switch
-                value={isSelectedDayRestDay}
-                onValueChange={handleRestDayToggle}
-                trackColor={{ false: theme.borderLight, true: theme.primary }}
-                thumbColor={
-                  isSelectedDayRestDay ? "#0891b2" : theme.textSecondary
-                }
-              />
-            </View>
-
+            {renderRestDayToggle()}
+            {renderCopyBanner()}
             <View style={styles.emptyContainer}>
               <Ionicons
                 name="barbell-outline"
@@ -443,56 +681,18 @@ export default function MyExercisesScreen() {
             renderItem={renderExerciseItem}
             contentContainerStyle={styles.listContent}
             ListHeaderComponent={
-              <View style={styles.restDayToggleContainer}>
-                <View style={styles.restDayLabelContainer}>
-                  <Text style={styles.restDayLabel}>
-                    {t("restDay.validRestDay")}
-                  </Text>
-                  <Text style={styles.restDaySubLabel}>
-                    {t("restDay.restDayInfo")}
-                  </Text>
-                </View>
-                <Switch
-                  value={isSelectedDayRestDay}
-                  onValueChange={handleRestDayToggle}
-                  trackColor={{ false: theme.borderLight, true: theme.primary }}
-                  thumbColor={
-                    isSelectedDayRestDay ? "#0891b2" : theme.textSecondary
-                  }
-                />
-              </View>
+              <>
+                {renderRestDayToggle()}
+                {renderCopyBanner()}
+                {renderSelectionToolbar()}
+              </>
             }
           />
         )}
       </View>
 
       {!isSelectedDayRestDay && (
-        <View style={styles.fixedButtonContainer}>
-          <View style={styles.buttonRow}>
-            <TouchableOpacity
-              style={styles.addButton}
-              onPress={handleAddExercise}
-            >
-              <Text style={styles.addButtonText}>
-                {t("myExercises.addExercise")}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.copyButton,
-                copyFromDay !== null && styles.copyButtonActive,
-              ]}
-              onPress={handleCopyDay}
-            >
-              <Text style={styles.copyButtonText}>
-                {copyFromDay !== null
-                  ? t("myExercises.pasteHere")
-                  : t("myExercises.copyDay")}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+        <View style={styles.fixedButtonContainer}>{renderButtons()}</View>
       )}
 
       <ExerciseModal
@@ -575,6 +775,10 @@ const createStyles = (theme: any) =>
       marginBottom: 12,
       minHeight: 120,
     },
+    exerciseCardSelected: {
+      borderWidth: 2,
+      borderColor: theme.primary,
+    },
     iconContainer: {
       width: 48,
       height: 48,
@@ -614,6 +818,45 @@ const createStyles = (theme: any) =>
     actionButton: {
       padding: 4,
     },
+    selectionIndicator: {
+      padding: 4,
+    },
+    selectionToolbar: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      backgroundColor: theme.primaryLight,
+      padding: 12,
+      borderRadius: 8,
+      marginBottom: 12,
+    },
+    selectedCount: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: theme.primary,
+    },
+    selectAllText: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: theme.primary,
+      textDecorationLine: "underline",
+    },
+    copyBanner: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      backgroundColor: theme.primaryLight,
+      padding: 12,
+      borderRadius: 8,
+      marginBottom: 12,
+    },
+    copyBannerText: {
+      fontSize: 13,
+      fontWeight: "500",
+      color: theme.primary,
+      flex: 1,
+      marginRight: 8,
+    },
     buttonRow: {
       flexDirection: "row",
       gap: 12,
@@ -645,6 +888,35 @@ const createStyles = (theme: any) =>
       color: "#ffffff",
       fontSize: 16,
       fontWeight: "600",
+    },
+    bulkDeleteButton: {
+      backgroundColor: theme.error,
+      paddingVertical: 16,
+      paddingHorizontal: 16,
+      borderRadius: 8,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    cancelButton: {
+      flex: 1,
+      backgroundColor: theme.borderLight,
+      paddingVertical: 16,
+      borderRadius: 8,
+    },
+    cancelButtonText: {
+      textAlign: "center",
+      color: theme.text,
+      fontSize: 16,
+      fontWeight: "600",
+    },
+    deleteActionButton: {
+      flex: 1,
+      backgroundColor: theme.error,
+      paddingVertical: 16,
+      borderRadius: 8,
+    },
+    buttonDisabled: {
+      opacity: 0.5,
     },
     restDayToggleContainer: {
       flexDirection: "row",

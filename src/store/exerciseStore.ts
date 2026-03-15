@@ -51,6 +51,17 @@ interface ExerciseStore {
   toggleRestDay: (date: string) => Promise<void>;
   isRestDay: (date: string) => Promise<boolean>;
   loadWeeklyRestDays: () => Promise<number[]>;
+
+  mergeExercisesToDay: (
+    exercises: Omit<WeeklyPlanExercise, "id" | "day_of_week">[],
+    toDay: number
+  ) => Promise<void>;
+  mergeToDailySnapshot: (
+    date: string,
+    exercises: Omit<DailySnapshot, "id" | "date">[]
+  ) => Promise<void>;
+  bulkDeleteWeeklyExercises: (ids: number[], dayOfWeek: number) => Promise<void>;
+  bulkDeleteDailyExercises: (ids: number[]) => Promise<void>;
 }
 
 function getTodayDate(): string {
@@ -634,6 +645,180 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
     } catch (error) {
       console.error("Error loading weekly rest days:", error);
       return [];
+    }
+  },
+
+  mergeExercisesToDay: async (exercises, toDay) => {
+    try {
+      const db = getDatabase();
+      const existing = await db.getAllAsync<WeeklyPlanExercise>(
+        "SELECT * FROM weekly_plan WHERE day_of_week = ? ORDER BY sort_order",
+        [toDay]
+      );
+
+      const existingByName = new Map(
+        existing.map((e) => [e.exercise_name, e])
+      );
+      let maxOrder =
+        existing.length > 0
+          ? Math.max(...existing.map((e) => e.sort_order))
+          : -1;
+
+      for (const ex of exercises) {
+        const existingEx = existingByName.get(ex.exercise_name);
+
+        if (existingEx) {
+          await db.runAsync(
+            "UPDATE weekly_plan SET icon_name = ?, icon_family = ?, sets = ?, reps = ?, estimated_time = ?, training_reference_url = ? WHERE id = ?",
+            [
+              ex.icon_name,
+              ex.icon_family,
+              ex.sets ?? null,
+              ex.reps ?? null,
+              ex.estimated_time ?? null,
+              ex.training_reference_url ?? null,
+              existingEx.id!,
+            ]
+          );
+        } else {
+          maxOrder++;
+          await db.runAsync(
+            "INSERT INTO weekly_plan (day_of_week, exercise_name, icon_name, icon_family, sets, reps, estimated_time, training_reference_url, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [
+              toDay,
+              ex.exercise_name,
+              ex.icon_name,
+              ex.icon_family,
+              ex.sets ?? null,
+              ex.reps ?? null,
+              ex.estimated_time ?? null,
+              ex.training_reference_url ?? null,
+              maxOrder,
+            ]
+          );
+        }
+      }
+
+      await get().loadWeeklyPlan();
+
+      const todayDayOfWeek = new Date().getDay();
+      const adjustedTodayDay = todayDayOfWeek === 0 ? 6 : todayDayOfWeek - 1;
+      if (toDay === adjustedTodayDay) {
+        await get().createTodaySnapshot();
+        get().incrementWeeklyPlanCounter();
+      }
+    } catch (error) {
+      console.error("Error merging exercises:", error);
+      throw new Error("Failed to paste exercises. Please try again.");
+    }
+  },
+
+  mergeToDailySnapshot: async (date, exercises) => {
+    try {
+      const db = getDatabase();
+      const existing = await db.getAllAsync<DailySnapshot>(
+        "SELECT * FROM daily_snapshot WHERE date = ? ORDER BY sort_order",
+        [date]
+      );
+
+      const existingByName = new Map(
+        existing.map((e) => [e.exercise_name, e])
+      );
+      let maxOrder =
+        existing.length > 0
+          ? Math.max(...existing.map((e) => e.sort_order))
+          : -1;
+
+      for (const ex of exercises) {
+        const existingEx = existingByName.get(ex.exercise_name);
+
+        if (existingEx) {
+          await db.runAsync(
+            "UPDATE daily_snapshot SET icon_name = ?, icon_family = ?, sets = ?, reps = ?, estimated_time = ?, training_reference_url = ? WHERE id = ?",
+            [
+              ex.icon_name,
+              ex.icon_family,
+              ex.sets ?? null,
+              ex.reps ?? null,
+              ex.estimated_time ?? null,
+              ex.training_reference_url ?? null,
+              existingEx.id!,
+            ]
+          );
+        } else {
+          maxOrder++;
+          await db.runAsync(
+            "INSERT INTO daily_snapshot (date, exercise_name, icon_name, icon_family, sets, reps, estimated_time, training_reference_url, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [
+              date,
+              ex.exercise_name,
+              ex.icon_name,
+              ex.icon_family,
+              ex.sets ?? null,
+              ex.reps ?? null,
+              ex.estimated_time ?? null,
+              ex.training_reference_url ?? null,
+              maxOrder,
+            ]
+          );
+        }
+      }
+
+      get().incrementCompletionCounter();
+    } catch (error) {
+      console.error("Error merging to daily snapshot:", error);
+      throw new Error("Failed to paste exercises. Please try again.");
+    }
+  },
+
+  bulkDeleteWeeklyExercises: async (ids, dayOfWeek) => {
+    try {
+      const db = getDatabase();
+
+      for (const id of ids) {
+        await db.runAsync("DELETE FROM weekly_plan WHERE id = ?", [id]);
+      }
+
+      const remaining = await db.getAllAsync<WeeklyPlanExercise>(
+        "SELECT * FROM weekly_plan WHERE day_of_week = ? ORDER BY sort_order",
+        [dayOfWeek]
+      );
+
+      for (let i = 0; i < remaining.length; i++) {
+        if (remaining[i].id !== undefined) {
+          await db.runAsync(
+            "UPDATE weekly_plan SET sort_order = ? WHERE id = ?",
+            [i, remaining[i].id!]
+          );
+        }
+      }
+
+      await get().loadWeeklyPlan();
+
+      const todayDayOfWeek = new Date().getDay();
+      const adjustedTodayDay = todayDayOfWeek === 0 ? 6 : todayDayOfWeek - 1;
+      if (dayOfWeek === adjustedTodayDay) {
+        await get().createTodaySnapshot();
+        get().incrementWeeklyPlanCounter();
+      }
+    } catch (error) {
+      console.error("Error bulk deleting exercises:", error);
+      throw new Error("Failed to delete exercises. Please try again.");
+    }
+  },
+
+  bulkDeleteDailyExercises: async (ids) => {
+    try {
+      const db = getDatabase();
+
+      for (const id of ids) {
+        await db.runAsync("DELETE FROM daily_snapshot WHERE id = ?", [id]);
+      }
+
+      get().incrementRefreshCounter();
+    } catch (error) {
+      console.error("Error bulk deleting daily exercises:", error);
+      throw new Error("Failed to delete exercises. Please try again.");
     }
   },
 }));

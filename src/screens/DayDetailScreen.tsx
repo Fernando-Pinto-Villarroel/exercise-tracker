@@ -3,8 +3,10 @@ import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Alert,
+  FlatList,
   Linking,
   Modal,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -22,7 +24,7 @@ import TimePicker from "../components/TimePicker";
 import { useTheme } from "../contexts/ThemeContext";
 import { getDatabase } from "../database/init";
 import { useExerciseStore } from "../store/exerciseStore";
-import { DailyCompletion, DailySnapshot, Exercise } from "../types";
+import { DailyCompletion, DailySnapshot, Exercise, WeeklyPlanExercise } from "../types";
 
 const formatTime = (totalSeconds: number) => {
   const hrs = Math.floor(totalSeconds / 3600);
@@ -86,6 +88,9 @@ export default function DayDetailScreen({ route }: any) {
     deleteDailyExercise,
     toggleRestDay,
     isRestDay,
+    loadWeeklyPlan,
+    mergeToDailySnapshot,
+    bulkDeleteDailyExercises,
   } = useExerciseStore();
   const [snapshot, setSnapshot] = useState<DailySnapshot[]>([]);
   const [completion, setCompletion] = useState<DailyCompletion | null>(null);
@@ -110,6 +115,27 @@ export default function DayDetailScreen({ route }: any) {
   const [isRestDayState, setIsRestDayState] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
+  const [deleteMode, setDeleteMode] = useState(false);
+  const [deleteSelectedIds, setDeleteSelectedIds] = useState<Set<number>>(
+    new Set(),
+  );
+
+  const [showCopyPlanModal, setShowCopyPlanModal] = useState(false);
+  const [copyPlanDay, setCopyPlanDay] = useState(0);
+  const [copyPlanSelectedIds, setCopyPlanSelectedIds] = useState<Set<number>>(
+    new Set(),
+  );
+
+  const DAYS = [
+    t("myExercises.days.monday"),
+    t("myExercises.days.tuesday"),
+    t("myExercises.days.wednesday"),
+    t("myExercises.days.thursday"),
+    t("myExercises.days.friday"),
+    t("myExercises.days.saturday"),
+    t("myExercises.days.sunday"),
+  ];
+
   useEffect(() => {
     setIsFuture(isFutureDate(date));
     loadData();
@@ -121,7 +147,6 @@ export default function DayDetailScreen({ route }: any) {
       const data = await loadDayData(date);
       let exercises = data.snapshot;
 
-      // Check if this day is a rest day
       const restDay = await isRestDay(date);
       setIsRestDayState(restDay);
 
@@ -146,7 +171,6 @@ export default function DayDetailScreen({ route }: any) {
   };
 
   const handleToggleRestDay = async () => {
-    // If we're marking as rest day (not already a rest day), show confirmation
     if (!isRestDayState) {
       Alert.alert(
         t("dayDetail.restDayConfirmTitle"),
@@ -168,7 +192,6 @@ export default function DayDetailScreen({ route }: any) {
         ],
       );
     } else {
-      // If we're removing rest day, just proceed
       try {
         await toggleRestDay(date);
         await loadData();
@@ -332,6 +355,154 @@ export default function DayDetailScreen({ route }: any) {
     }
   };
 
+  const toggleDeleteSelection = (id: number) => {
+    setDeleteSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleDeleteSelectAll = () => {
+    if (deleteSelectedIds.size === snapshot.length) {
+      setDeleteSelectedIds(new Set());
+    } else {
+      setDeleteSelectedIds(new Set(snapshot.map((e) => e.id!)));
+    }
+  };
+
+  const handleStartDeleteMode = () => {
+    if (snapshot.length === 0) return;
+    setDeleteMode(true);
+    setDeleteSelectedIds(new Set(snapshot.map((e) => e.id!)));
+  };
+
+  const handleCancelDeleteMode = () => {
+    setDeleteMode(false);
+    setDeleteSelectedIds(new Set());
+  };
+
+  const handleConfirmBulkDelete = () => {
+    const count = deleteSelectedIds.size;
+    if (count === 0) {
+      Alert.alert(t("common.error"), t("dayDetail.noExercisesSelected"));
+      return;
+    }
+    Alert.alert(
+      t("dayDetail.deleteExercise"),
+      t("dayDetail.bulkDeleteConfirm", { count }),
+      [
+        { text: t("common.cancel"), style: "cancel" },
+        {
+          text: t("common.delete"),
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await bulkDeleteDailyExercises(Array.from(deleteSelectedIds));
+              setDeleteMode(false);
+              setDeleteSelectedIds(new Set());
+              await loadData();
+            } catch (error) {
+              console.error("Error bulk deleting:", error);
+              Alert.alert(t("common.error"), "Failed to delete exercises.");
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const handleOpenCopyPlanModal = async () => {
+    await loadWeeklyPlan();
+    const dateObj = new Date(date + "T00:00:00");
+    const dayOfWeek = dateObj.getDay();
+    const adjustedDay = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    setCopyPlanDay(adjustedDay);
+    const planExercises = weeklyPlan[adjustedDay] || [];
+    setCopyPlanSelectedIds(new Set(planExercises.map((e) => e.id!)));
+    setShowCopyPlanModal(true);
+  };
+
+  const handleCopyPlanDayChange = (day: number) => {
+    setCopyPlanDay(day);
+    const planExercises = weeklyPlan[day] || [];
+    setCopyPlanSelectedIds(new Set(planExercises.map((e) => e.id!)));
+  };
+
+  const toggleCopyPlanSelection = (id: number) => {
+    setCopyPlanSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleCopyPlanSelectAll = () => {
+    const planExercises = weeklyPlan[copyPlanDay] || [];
+    if (copyPlanSelectedIds.size === planExercises.length) {
+      setCopyPlanSelectedIds(new Set());
+    } else {
+      setCopyPlanSelectedIds(new Set(planExercises.map((e) => e.id!)));
+    }
+  };
+
+  const handleConfirmCopyFromPlan = () => {
+    const planExercises = weeklyPlan[copyPlanDay] || [];
+    const selected = planExercises.filter((e) =>
+      copyPlanSelectedIds.has(e.id!),
+    );
+
+    if (selected.length === 0) {
+      Alert.alert(t("common.error"), t("dayDetail.noExercisesSelected"));
+      return;
+    }
+
+    const existingNames = new Set(snapshot.map((e) => e.exercise_name));
+    const duplicateNames = selected
+      .filter((e) => existingNames.has(e.exercise_name))
+      .map((e) => e.exercise_name);
+
+    const nonDuplicateCount = selected.length - duplicateNames.length;
+    const newTotal = snapshot.length + nonDuplicateCount;
+
+    if (newTotal > 20) {
+      Alert.alert(
+        t("dayDetail.exerciseLimitTitle"),
+        t("dayDetail.exerciseLimitMessage"),
+      );
+      return;
+    }
+
+    let message = t("dayDetail.pasteConfirmMessage", {
+      count: selected.length,
+    });
+
+    if (duplicateNames.length > 0) {
+      message +=
+        "\n\n" +
+        t("dayDetail.duplicateWarning", {
+          names: duplicateNames.join(", "),
+        });
+    }
+
+    Alert.alert(t("dayDetail.pasteSelected"), message, [
+      { text: t("common.cancel"), style: "cancel" },
+      {
+        text: t("common.confirm"),
+        onPress: async () => {
+          const exercisesToMerge = selected.map(
+            ({ id, day_of_week, ...rest }) => rest,
+          );
+          await mergeToDailySnapshot(date, exercisesToMerge);
+          setShowCopyPlanModal(false);
+          await loadData();
+        },
+      },
+    ]);
+  };
+
   const renderDraggableItem = ({
     item,
     drag,
@@ -356,19 +527,28 @@ export default function DayDetailScreen({ route }: any) {
       return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
     };
 
+    const isSelected = deleteSelectedIds.has(item.id!);
+
     return (
       <ScaleDecorator>
         <TouchableOpacity
-          onLongPress={drag}
+          onLongPress={deleteMode ? undefined : drag}
+          onPress={
+            deleteMode ? () => toggleDeleteSelection(item.id!) : undefined
+          }
           disabled={isActive}
-          style={[styles.exerciseCard, isActive && { opacity: 0.7 }]}
+          style={[
+            styles.exerciseCard,
+            isActive && { opacity: 0.7 },
+            deleteMode && isSelected && styles.exerciseCardSelected,
+          ]}
         >
           <View style={styles.iconContainer}>
             {getIconComponent(item.icon_family, item.icon_name, theme)}
           </View>
 
           <View style={styles.exerciseInfo}>
-            {item.training_reference_url ? (
+            {!deleteMode && item.training_reference_url ? (
               <TouchableOpacity
                 onPress={async () => {
                   try {
@@ -408,30 +588,66 @@ export default function DayDetailScreen({ route }: any) {
             </View>
           </View>
 
-          <View style={styles.exerciseActions}>
-            <TouchableOpacity
-              onPress={() => handleEditExercise(item)}
-              style={styles.actionButton}
-            >
-              <Ionicons name="create-outline" size={24} color={theme.primary} />
-            </TouchableOpacity>
-            {item.id && (
+          {deleteMode ? (
+            <View style={styles.selectionIndicator}>
+              <Ionicons
+                name={isSelected ? "checkmark-circle" : "ellipse-outline"}
+                size={28}
+                color={isSelected ? theme.primary : theme.textSecondary}
+              />
+            </View>
+          ) : (
+            <View style={styles.exerciseActions}>
               <TouchableOpacity
-                onPress={() => handleDeleteExercise(item.id!)}
+                onPress={() => handleEditExercise(item)}
                 style={styles.actionButton}
               >
-                <Ionicons name="trash-outline" size={24} color={theme.error} />
+                <Ionicons
+                  name="create-outline"
+                  size={24}
+                  color={theme.primary}
+                />
               </TouchableOpacity>
-            )}
-          </View>
+              {item.id && (
+                <TouchableOpacity
+                  onPress={() => handleDeleteExercise(item.id!)}
+                  style={styles.actionButton}
+                >
+                  <Ionicons
+                    name="trash-outline"
+                    size={24}
+                    color={theme.error}
+                  />
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
         </TouchableOpacity>
       </ScaleDecorator>
     );
   };
 
+  const renderDeleteToolbar = () => {
+    if (!deleteMode) return null;
+    return (
+      <View style={styles.selectionToolbar}>
+        <Text style={styles.selectedCount}>
+          {deleteSelectedIds.size} / {snapshot.length}{" "}
+          {t("dayDetail.selected")}
+        </Text>
+        <TouchableOpacity onPress={toggleDeleteSelectAll}>
+          <Text style={styles.selectAllText}>
+            {deleteSelectedIds.size === snapshot.length
+              ? t("dayDetail.deselectAll")
+              : t("dayDetail.selectAll")}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
   const isCompleted = completion?.is_completed || false;
   const isPast = isPastDate(date);
-  const isToday = date === getTodayDate();
 
   const styles = createStyles(theme);
 
@@ -454,6 +670,64 @@ export default function DayDetailScreen({ route }: any) {
     );
   }
 
+  const renderCopyPlanExerciseItem = (exercise: WeeklyPlanExercise) => {
+    const isSelected = copyPlanSelectedIds.has(exercise.id!);
+    const hasSets =
+      exercise.sets !== null &&
+      exercise.sets !== undefined &&
+      exercise.reps !== null &&
+      exercise.reps !== undefined &&
+      exercise.sets > 0 &&
+      exercise.reps > 0;
+    const hasTime =
+      exercise.estimated_time !== null &&
+      exercise.estimated_time !== undefined &&
+      exercise.estimated_time > 0;
+
+    const formatTimeShort = (seconds: number) => {
+      const mins = Math.floor(seconds / 60);
+      const secs = seconds % 60;
+      return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+    };
+
+    return (
+      <TouchableOpacity
+        key={exercise.id}
+        style={[
+          styles.copyPlanExerciseCard,
+          isSelected && styles.exerciseCardSelected,
+        ]}
+        onPress={() => toggleCopyPlanSelection(exercise.id!)}
+      >
+        <View style={styles.iconContainer}>
+          {getIconComponent(exercise.icon_family, exercise.icon_name, theme)}
+        </View>
+        <View style={styles.exerciseInfo}>
+          <Text style={styles.exerciseName}>{exercise.exercise_name}</Text>
+          <View>
+            {hasSets && (
+              <Text style={styles.exerciseStats}>
+                {exercise.sets} sets × {exercise.reps} reps
+              </Text>
+            )}
+            {hasTime && (
+              <Text style={styles.exerciseStats}>
+                {formatTimeShort(exercise.estimated_time!)}
+              </Text>
+            )}
+          </View>
+        </View>
+        <View style={styles.selectionIndicator}>
+          <Ionicons
+            name={isSelected ? "checkmark-circle" : "ellipse-outline"}
+            size={28}
+            color={isSelected ? theme.primary : theme.textSecondary}
+          />
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={styles.content}>
@@ -468,6 +742,7 @@ export default function DayDetailScreen({ route }: any) {
             keyExtractor={(item, index) => `daily-${item.id || index}`}
             renderItem={renderDraggableItem}
             contentContainerStyle={styles.listContent}
+            ListHeaderComponent={renderDeleteToolbar()}
           />
         ) : (
           <ExerciseList
@@ -477,76 +752,126 @@ export default function DayDetailScreen({ route }: any) {
         )}
 
         <View style={styles.stickyButtons}>
-          {isPast && !isCompleted && (
-            <TouchableOpacity
-              style={[
-                styles.restDayButton,
-                isRestDayState && styles.restDayButtonActive,
-              ]}
-              onPress={handleToggleRestDay}
-            >
-              <Text
-                style={[
-                  styles.restDayButtonText,
-                  isRestDayState && styles.restDayButtonTextActive,
-                ]}
+          {deleteMode ? (
+            <View style={styles.deleteButtonRow}>
+              <TouchableOpacity
+                style={styles.deleteCancelButton}
+                onPress={handleCancelDeleteMode}
               >
-                {isRestDayState
-                  ? t("restDay.removeRestDay")
-                  : t("restDay.markAsRestDay")}
-              </Text>
-            </TouchableOpacity>
-          )}
-
-          {!isRestDayState && (
+                <Text style={styles.deleteCancelButtonText}>
+                  {t("common.cancel")}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.deleteConfirmButton,
+                  deleteSelectedIds.size === 0 && styles.buttonDisabled,
+                ]}
+                onPress={handleConfirmBulkDelete}
+              >
+                <Text style={styles.deleteConfirmButtonText}>
+                  {t("dayDetail.bulkDelete")} ({deleteSelectedIds.size})
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
             <>
-              {isPast && (
-                <TouchableOpacity
-                  style={styles.addButton}
-                  onPress={() => {
-                    if (snapshot.length >= 20) {
-                      Alert.alert(
-                        t("dayDetail.exerciseLimitTitle"),
-                        t("dayDetail.exerciseLimitMessage"),
-                      );
-                      return;
-                    }
-                    setEditingExercise(null);
-                    setShowEditModal(true);
-                  }}
-                >
-                  <Text style={styles.addButtonText}>
-                    {t("dayDetail.addExercise")}
-                  </Text>
-                </TouchableOpacity>
-              )}
-
-              {!isFuture && (
+              {isPast && !isCompleted && (
                 <TouchableOpacity
                   style={[
-                    styles.completeButton,
-                    isCompleted && styles.completeButtonDone,
+                    styles.restDayButton,
+                    isRestDayState && styles.restDayButtonActive,
                   ]}
-                  onPress={handleToggle}
+                  onPress={handleToggleRestDay}
                 >
-                  <Text style={styles.completeButtonText}>
-                    {isCompleted
-                      ? t("today.markAsUndone")
-                      : t("today.markAsDone")}
+                  <Text
+                    style={[
+                      styles.restDayButtonText,
+                      isRestDayState && styles.restDayButtonTextActive,
+                    ]}
+                  >
+                    {isRestDayState
+                      ? t("restDay.removeRestDay")
+                      : t("restDay.markAsRestDay")}
                   </Text>
                 </TouchableOpacity>
               )}
 
-              {isCompleted && !isFuture && (
-                <TouchableOpacity
-                  style={styles.timeEditButton}
-                  onPress={handleEditTime}
-                >
-                  <Text style={styles.timeEditButtonText}>
-                    {t("dayDetail.editTrainingTime")}:{" "}
-                    {formatTime(completion?.training_time || 0)}
-                  </Text>
-                </TouchableOpacity>
+              {!isRestDayState && (
+                <>
+                  {isPast && (
+                    <View style={styles.pastButtonsRow}>
+                      <TouchableOpacity
+                        style={styles.addButton}
+                        onPress={() => {
+                          if (snapshot.length >= 20) {
+                            Alert.alert(
+                              t("dayDetail.exerciseLimitTitle"),
+                              t("dayDetail.exerciseLimitMessage"),
+                            );
+                            return;
+                          }
+                          setEditingExercise(null);
+                          setShowEditModal(true);
+                        }}
+                      >
+                        <Text style={styles.addButtonText}>
+                          {t("dayDetail.addExercise")}
+                        </Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.copyFromPlanButton}
+                        onPress={handleOpenCopyPlanModal}
+                      >
+                        <Text style={styles.copyFromPlanButtonText}>
+                          {t("dayDetail.copyFromPlan")}
+                        </Text>
+                      </TouchableOpacity>
+
+                      {snapshot.length > 0 && (
+                        <TouchableOpacity
+                          style={styles.bulkDeleteButton}
+                          onPress={handleStartDeleteMode}
+                        >
+                          <Ionicons
+                            name="trash-outline"
+                            size={22}
+                            color="#ffffff"
+                          />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  )}
+
+                  {!isFuture && (
+                    <TouchableOpacity
+                      style={[
+                        styles.completeButton,
+                        isCompleted && styles.completeButtonDone,
+                      ]}
+                      onPress={handleToggle}
+                    >
+                      <Text style={styles.completeButtonText}>
+                        {isCompleted
+                          ? t("today.markAsUndone")
+                          : t("today.markAsDone")}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+
+                  {isCompleted && !isFuture && (
+                    <TouchableOpacity
+                      style={styles.timeEditButton}
+                      onPress={handleEditTime}
+                    >
+                      <Text style={styles.timeEditButtonText}>
+                        {t("dayDetail.editTrainingTime")}:{" "}
+                        {formatTime(completion?.training_time || 0)}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </>
               )}
             </>
           )}
@@ -655,6 +980,94 @@ export default function DayDetailScreen({ route }: any) {
         </View>
       </Modal>
 
+      <Modal visible={showCopyPlanModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.copyPlanModalContent}>
+            <Text style={styles.modalTitle}>
+              {t("dayDetail.copyFromPlan")}
+            </Text>
+
+            <FlatList
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.copyPlanDaysScroll}
+              data={DAYS}
+              renderItem={({ item: dayName, index }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.copyPlanDayButton,
+                    copyPlanDay === index && styles.copyPlanDayButtonActive,
+                  ]}
+                  onPress={() => handleCopyPlanDayChange(index)}
+                >
+                  <Text
+                    style={[
+                      styles.copyPlanDayButtonText,
+                      copyPlanDay === index &&
+                        styles.copyPlanDayButtonTextActive,
+                    ]}
+                  >
+                    {dayName}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              keyExtractor={(_item, index) => index.toString()}
+            />
+
+            {(weeklyPlan[copyPlanDay] || []).length > 0 && (
+              <View style={styles.copyPlanSelectAllRow}>
+                <Text style={styles.selectedCount}>
+                  {copyPlanSelectedIds.size} /{" "}
+                  {(weeklyPlan[copyPlanDay] || []).length}{" "}
+                  {t("dayDetail.selected")}
+                </Text>
+                <TouchableOpacity onPress={toggleCopyPlanSelectAll}>
+                  <Text style={styles.selectAllText}>
+                    {copyPlanSelectedIds.size ===
+                    (weeklyPlan[copyPlanDay] || []).length
+                      ? t("dayDetail.deselectAll")
+                      : t("dayDetail.selectAll")}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            <ScrollView style={styles.copyPlanExerciseList}>
+              {(weeklyPlan[copyPlanDay] || []).length === 0 ? (
+                <Text style={styles.copyPlanEmptyText}>
+                  {t("dayDetail.noExercisesInPlan")}
+                </Text>
+              ) : (
+                (weeklyPlan[copyPlanDay] || []).map((exercise) =>
+                  renderCopyPlanExerciseItem(exercise),
+                )
+              )}
+            </ScrollView>
+
+            <View style={styles.modalButtonRow}>
+              <TouchableOpacity
+                style={styles.modalCancelButton}
+                onPress={() => setShowCopyPlanModal(false)}
+              >
+                <Text style={styles.modalCancelText}>{t("common.cancel")}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.modalSaveButton,
+                  copyPlanSelectedIds.size === 0 && styles.buttonDisabled,
+                ]}
+                onPress={handleConfirmCopyFromPlan}
+              >
+                <Text style={styles.modalSaveText}>
+                  {t("dayDetail.pasteSelected")} ({copyPlanSelectedIds.size})
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <ExerciseModal
         visible={showEditModal}
         onClose={() => setShowEditModal(false)}
@@ -693,10 +1106,10 @@ const createStyles = (theme: any) =>
       paddingBottom: 4,
     },
     listContent: {
-      paddingBottom: 240, // space for sticky buttons
+      paddingBottom: 280,
     },
     listTodayContent: {
-      paddingBottom: 190, // space for sticky buttons
+      paddingBottom: 190,
     },
     emptyContainer: {
       alignItems: "center",
@@ -720,6 +1133,10 @@ const createStyles = (theme: any) =>
       elevation: 2,
       marginBottom: 12,
       minHeight: 120,
+    },
+    exerciseCardSelected: {
+      borderWidth: 2,
+      borderColor: theme.primary,
     },
     iconContainer: {
       width: 48,
@@ -760,6 +1177,66 @@ const createStyles = (theme: any) =>
     actionButton: {
       padding: 4,
     },
+    selectionIndicator: {
+      padding: 4,
+    },
+    selectionToolbar: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      backgroundColor: theme.primaryLight,
+      padding: 12,
+      borderRadius: 8,
+      marginBottom: 12,
+    },
+    selectedCount: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: theme.primary,
+    },
+    selectAllText: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: theme.primary,
+      textDecorationLine: "underline",
+    },
+    pastButtonsRow: {
+      flexDirection: "row",
+      gap: 8,
+      marginTop: 12,
+    },
+    deleteButtonRow: {
+      flexDirection: "row",
+      gap: 12,
+      marginBottom: 24,
+    },
+    deleteCancelButton: {
+      flex: 1,
+      backgroundColor: theme.borderLight,
+      paddingVertical: 16,
+      borderRadius: 8,
+    },
+    deleteCancelButtonText: {
+      textAlign: "center",
+      color: theme.text,
+      fontSize: 16,
+      fontWeight: "600",
+    },
+    deleteConfirmButton: {
+      flex: 1,
+      backgroundColor: theme.error,
+      paddingVertical: 16,
+      borderRadius: 8,
+    },
+    deleteConfirmButtonText: {
+      textAlign: "center",
+      color: "#ffffff",
+      fontSize: 16,
+      fontWeight: "600",
+    },
+    buttonDisabled: {
+      opacity: 0.5,
+    },
     completeButton: {
       marginTop: 12,
       paddingVertical: 16,
@@ -777,8 +1254,8 @@ const createStyles = (theme: any) =>
       fontWeight: "600",
     },
     addButton: {
+      flex: 1,
       paddingVertical: 16,
-      marginTop: 12,
       borderRadius: 8,
       backgroundColor: theme.primary,
     },
@@ -787,6 +1264,26 @@ const createStyles = (theme: any) =>
       color: "#ffffff",
       fontSize: 16,
       fontWeight: "600",
+    },
+    copyFromPlanButton: {
+      flex: 1,
+      paddingVertical: 16,
+      borderRadius: 8,
+      backgroundColor: theme.textSecondary,
+    },
+    copyFromPlanButtonText: {
+      textAlign: "center",
+      color: "#ffffff",
+      fontSize: 16,
+      fontWeight: "600",
+    },
+    bulkDeleteButton: {
+      backgroundColor: theme.error,
+      paddingVertical: 16,
+      paddingHorizontal: 16,
+      borderRadius: 8,
+      alignItems: "center",
+      justifyContent: "center",
     },
     timeEditButton: {
       marginBottom: 24,
@@ -813,6 +1310,13 @@ const createStyles = (theme: any) =>
       borderRadius: 8,
       padding: 24,
       width: 320,
+    },
+    copyPlanModalContent: {
+      backgroundColor: theme.card,
+      borderRadius: 12,
+      padding: 24,
+      width: "90%",
+      maxHeight: "80%",
     },
     modalTitle: {
       fontSize: 20,
@@ -888,5 +1392,52 @@ const createStyles = (theme: any) =>
     },
     restDayButtonTextActive: {
       color: theme.text,
+    },
+    copyPlanDaysScroll: {
+      maxHeight: 40,
+      marginBottom: 12,
+    },
+    copyPlanDayButton: {
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 20,
+      backgroundColor: theme.background,
+      marginRight: 8,
+    },
+    copyPlanDayButtonActive: {
+      backgroundColor: theme.primary,
+    },
+    copyPlanDayButtonText: {
+      fontWeight: "500",
+      color: theme.text,
+      fontSize: 13,
+    },
+    copyPlanDayButtonTextActive: {
+      color: "#ffffff",
+    },
+    copyPlanSelectAllRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 8,
+    },
+    copyPlanExerciseList: {
+      maxHeight: 300,
+      marginBottom: 16,
+    },
+    copyPlanExerciseCard: {
+      backgroundColor: theme.background,
+      borderRadius: 8,
+      padding: 12,
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 8,
+      minHeight: 60,
+    },
+    copyPlanEmptyText: {
+      color: theme.textSecondary,
+      fontSize: 14,
+      textAlign: "center",
+      paddingVertical: 24,
     },
   });

@@ -46,6 +46,15 @@ export default function TimePicker({
   useEffect(() => { minTimeRef.current = minTime; }, [minTime]);
   useEffect(() => { maxTimeRef.current = maxTime; }, [maxTime]);
 
+  useEffect(() => {
+    if (visible) {
+      setHours(initialHours);
+      setMinutes(initialMinutes);
+      hoursRef.current = initialHours;
+      minutesRef.current = initialMinutes;
+    }
+  }, [visible, initialHours, initialMinutes]);
+
   const pressTimer = useRef<NodeJS.Timeout | null>(null);
   const pressInterval = useRef<NodeJS.Timeout | null>(null);
   const repetitionCount = useRef(0);
