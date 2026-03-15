@@ -24,7 +24,12 @@ import TimePicker from "../components/TimePicker";
 import { useTheme } from "../contexts/ThemeContext";
 import { getDatabase } from "../database/init";
 import { useExerciseStore } from "../store/exerciseStore";
-import { DailyCompletion, DailySnapshot, Exercise, WeeklyPlanExercise } from "../types";
+import {
+  DailyCompletion,
+  DailySnapshot,
+  Exercise,
+  WeeklyPlanExercise,
+} from "../types";
 
 const formatTime = (totalSeconds: number) => {
   const hrs = Math.floor(totalSeconds / 3600);
@@ -632,8 +637,7 @@ export default function DayDetailScreen({ route }: any) {
     return (
       <View style={styles.selectionToolbar}>
         <Text style={styles.selectedCount}>
-          {deleteSelectedIds.size} / {snapshot.length}{" "}
-          {t("dayDetail.selected")}
+          {deleteSelectedIds.size} / {snapshot.length} {t("dayDetail.selected")}
         </Text>
         <TouchableOpacity onPress={toggleDeleteSelectAll}>
           <Text style={styles.selectAllText}>
@@ -983,9 +987,7 @@ export default function DayDetailScreen({ route }: any) {
       <Modal visible={showCopyPlanModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.copyPlanModalContent}>
-            <Text style={styles.modalTitle}>
-              {t("dayDetail.copyFromPlan")}
-            </Text>
+            <Text style={styles.modalTitle}>{t("dayDetail.copyFromPlan")}</Text>
 
             <FlatList
               horizontal
@@ -1262,19 +1264,19 @@ const createStyles = (theme: any) =>
     addButtonText: {
       textAlign: "center",
       color: "#ffffff",
-      fontSize: 16,
+      fontSize: 14,
       fontWeight: "600",
     },
     copyFromPlanButton: {
       flex: 1,
       paddingVertical: 16,
       borderRadius: 8,
-      backgroundColor: theme.textSecondary,
+      backgroundColor: theme.border,
     },
     copyFromPlanButtonText: {
       textAlign: "center",
       color: "#ffffff",
-      fontSize: 16,
+      fontSize: 14,
       fontWeight: "600",
     },
     bulkDeleteButton: {

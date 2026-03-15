@@ -871,12 +871,12 @@ const createStyles = (theme: any) =>
     addButtonText: {
       textAlign: "center",
       color: "#ffffff",
-      fontSize: 16,
+      fontSize: 14,
       fontWeight: "600",
     },
     copyButton: {
       flex: 1,
-      backgroundColor: theme.textSecondary,
+      backgroundColor: theme.border,
       paddingVertical: 16,
       borderRadius: 8,
     },

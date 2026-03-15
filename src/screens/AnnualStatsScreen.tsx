@@ -295,21 +295,21 @@ export default function AnnualStatsScreen({ route }: any) {
       count: stats.earlyTraining,
       color: "#22c55e",
       legendFontColor: theme.text,
-      legendFontSize: 13,
+      legendFontSize: 11,
     },
     {
       name: t("stats.lateTraining"),
       count: stats.lateTraining,
       color: "#f59e0b",
       legendFontColor: theme.text,
-      legendFontSize: 13,
+      legendFontSize: 11,
     },
     {
       name: t("stats.noTraining"),
       count: stats.noTraining,
       color: "#ef4444",
       legendFontColor: theme.text,
-      legendFontSize: 13,
+      legendFontSize: 11,
     },
   ];
 
