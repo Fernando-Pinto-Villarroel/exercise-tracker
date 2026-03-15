@@ -18,10 +18,10 @@ export default function MainTabs() {
   return (
     <Tab.Navigator
       screenOptions={({ navigation }) => ({
-        headerStyle: { backgroundColor: "#3b82f6" },
-        headerTintColor: "#fff",
-        tabBarActiveTintColor: "#3b82f6",
-        tabBarInactiveTintColor: "#9ca3af",
+        headerStyle: { backgroundColor: theme.primary },
+        headerTintColor: theme.headerText,
+        tabBarActiveTintColor: theme.primary,
+        tabBarInactiveTintColor: theme.textTertiary,
         tabBarStyle: {
           backgroundColor: theme.card,
           borderTopColor: theme.border,

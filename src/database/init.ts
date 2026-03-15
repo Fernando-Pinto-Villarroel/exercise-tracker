@@ -97,6 +97,46 @@ async function applyMigration2(database: SQLite.SQLiteDatabase): Promise<void> {
   console.log("Migration 2 applied successfully");
 }
 
+async function applyMigration3(database: SQLite.SQLiteDatabase): Promise<void> {
+  console.log("Applying migration 3: Adding color palette and notification settings");
+
+  const tableInfo = await database.getAllAsync<{ name: string }>(
+    "PRAGMA table_info(user_info)"
+  );
+  const hasColorPalette = tableInfo.some((col) => col.name === "color_palette");
+
+  if (!hasColorPalette) {
+    await database.execAsync(`
+      ALTER TABLE user_info
+      ADD COLUMN color_palette TEXT DEFAULT 'cobalt';
+    `);
+  }
+
+  await database.execAsync(`
+    CREATE TABLE IF NOT EXISTS notification_settings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      notifications_per_day INTEGER NOT NULL DEFAULT 2,
+      start_hour INTEGER NOT NULL DEFAULT 7,
+      start_minute INTEGER NOT NULL DEFAULT 0,
+      end_hour INTEGER NOT NULL DEFAULT 21,
+      end_minute INTEGER NOT NULL DEFAULT 0,
+      enabled_days TEXT NOT NULL DEFAULT '[0,1,2,3,4,5,6]'
+    );
+  `);
+
+  const existing = await database.getFirstAsync<{ id: number }>(
+    "SELECT id FROM notification_settings LIMIT 1"
+  );
+  if (!existing) {
+    await database.runAsync(
+      "INSERT INTO notification_settings (notifications_per_day, start_hour, start_minute, end_hour, end_minute, enabled_days) VALUES (2, 7, 0, 21, 0, '[0,1,2,3,4,5,6]')"
+    );
+  }
+
+  await setSchemaVersion(database, 3);
+  console.log("Migration 3 applied successfully");
+}
+
 async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
   const currentVersion = await getCurrentSchemaVersion(database);
   console.log(`Current schema version: ${currentVersion}`);
@@ -107,6 +147,10 @@ async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
 
   if (currentVersion < 2) {
     await applyMigration2(database);
+  }
+
+  if (currentVersion < 3) {
+    await applyMigration3(database);
   }
 
   console.log("All migrations completed");

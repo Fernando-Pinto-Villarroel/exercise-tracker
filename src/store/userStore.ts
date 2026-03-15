@@ -52,7 +52,7 @@ export const useUserStore = create<UserStore>((set, get) => ({
     const created_at = new Date().toISOString();
 
     await db.runAsync(
-      "INSERT INTO user_info (full_name, birthday, gender, created_at, language, theme) VALUES (?, ?, ?, ?, ?, ?)",
+      "INSERT INTO user_info (full_name, birthday, gender, created_at, language, theme, color_palette) VALUES (?, ?, ?, ?, ?, ?, ?)",
       [
         info.full_name,
         info.birthday,
@@ -60,6 +60,7 @@ export const useUserStore = create<UserStore>((set, get) => ({
         created_at,
         info.language || "en",
         info.theme || "light",
+        info.color_palette || "cobalt",
       ]
     );
 

@@ -36,7 +36,8 @@ function AppContent() {
       await loadUserData();
       await loadThemePreference();
 
-      // Initialize daily reminders only if user is onboarded
+      await Notifications.requestPermissionsAsync();
+
       if (isOnboarded) {
         await initializeDailyReminders();
       }

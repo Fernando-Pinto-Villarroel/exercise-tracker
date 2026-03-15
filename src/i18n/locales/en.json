@@ -364,6 +364,38 @@
     "annualOverview": "Annual Overview",
     "monthlyCompletions": "Monthly Completions"
   },
+  "notifications": {
+    "title": "Notifications",
+    "subtitle": "Reminders, schedule & active days",
+    "notificationsPerDay": "Notifications Per Day",
+    "notificationsPerDayDescription": "How many reminder notifications to send each day within the time window.",
+    "notificationsDisabled": "Notifications are disabled. Set to 1 or more to receive reminders.",
+    "timeWindow": "Time Window",
+    "timeWindowDescription": "Notifications will be sent at random times within this window.",
+    "from": "From",
+    "to": "To",
+    "activeDays": "Active Days",
+    "activeDaysDescription": "Choose which days of the week to receive notifications.",
+    "restDayInfo": "Notifications are automatically skipped on rest days configured in your weekly plan."
+  },
+  "colorPalette": {
+    "title": "Color Palette",
+    "description": "Choose a color palette to personalize the look of your app. Changes apply instantly.",
+    "palettes": {
+      "cobalt": "Cobalt",
+      "crimson": "Crimson",
+      "emerald": "Emerald",
+      "amber": "Amber",
+      "orchid": "Orchid",
+      "rose": "Rose",
+      "sienna": "Sienna",
+      "teal": "Teal",
+      "slate": "Slate",
+      "tangerine": "Tangerine",
+      "indigo": "Indigo",
+      "sage": "Sage"
+    }
+  },
   "common": {
     "cancel": "Cancel",
     "save": "Save",

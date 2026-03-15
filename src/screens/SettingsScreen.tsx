@@ -27,11 +27,14 @@ import {
   DailyCompletion,
   DailySnapshot,
   ExportData,
+  NotificationSettings,
   UserInfo,
   WeeklyPlanExercise,
 } from "../types";
 import BodyStatisticsScreen from "./BodyStatisticsScreen";
+import ColorPaletteScreen from "./ColorPaletteScreen";
 import LongTermStatsScreen from "./LongTermStatsScreen";
+import NotificationSettingsScreen from "./NotificationSettingsScreen";
 import RecordDetailScreen from "./RecordDetailScreen";
 
 const Stack = createNativeStackNavigator();
@@ -39,7 +42,7 @@ const Stack = createNativeStackNavigator();
 function SettingsMain({ navigation }: any) {
   const { t, i18n } = useTranslation();
   const { userInfo, resetUserData, updateLanguage } = useUserStore();
-  const { theme, isDark, toggleTheme } = useTheme();
+  const { theme, isDark, toggleTheme, paletteId } = useTheme();
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [currentLanguage, setCurrentLanguage] = useState(i18n.language);
@@ -84,10 +87,13 @@ function SettingsMain({ navigation }: any) {
       const dailyCompletions = await db.getAllAsync<DailyCompletion>(
         "SELECT * FROM daily_completion",
       );
+      const notifSettings = await db.getFirstAsync<NotificationSettings>(
+        "SELECT * FROM notification_settings ORDER BY id DESC LIMIT 1",
+      );
 
       const exportData: ExportData = {
-        version: "1.2.0",
-        schema_version: 2,
+        version: "1.3.0",
+        schema_version: 3,
         exported_at: new Date().toISOString(),
         user_info: userInfo,
         body_records: bodyRecords,
@@ -95,6 +101,7 @@ function SettingsMain({ navigation }: any) {
         weekly_rest_days: weeklyRestDays,
         daily_snapshots: dailySnapshots,
         daily_completions: dailyCompletions,
+        notification_settings: notifSettings || undefined,
       };
 
       const filename = `exercise_tracker_backup_${
@@ -341,7 +348,7 @@ function SettingsMain({ navigation }: any) {
 
     for (const user of data.user_info) {
       await db.runAsync(
-        "INSERT INTO user_info (full_name, birthday, gender, created_at, language, theme) VALUES (?, ?, ?, ?, ?, ?)",
+        "INSERT INTO user_info (full_name, birthday, gender, created_at, language, theme, color_palette) VALUES (?, ?, ?, ?, ?, ?, ?)",
         [
           user.full_name,
           user.birthday,
@@ -349,6 +356,7 @@ function SettingsMain({ navigation }: any) {
           user.created_at,
           user.language || "en",
           user.theme || "light",
+          user.color_palette || "cobalt",
         ],
       );
     }
@@ -428,6 +436,21 @@ function SettingsMain({ navigation }: any) {
           completion.completed_at ?? null,
           completion.training_time || 0,
           completion.is_rest_day ? 1 : 0,
+        ],
+      );
+    }
+
+    if (data.notification_settings) {
+      const ns = data.notification_settings;
+      await db.runAsync(
+        "UPDATE notification_settings SET notifications_per_day = ?, start_hour = ?, start_minute = ?, end_hour = ?, end_minute = ?, enabled_days = ? WHERE id = (SELECT id FROM notification_settings ORDER BY id DESC LIMIT 1)",
+        [
+          ns.notifications_per_day ?? 2,
+          ns.start_hour ?? 7,
+          ns.start_minute ?? 0,
+          ns.end_hour ?? 21,
+          ns.end_minute ?? 0,
+          ns.enabled_days ?? "[0,1,2,3,4,5,6]",
         ],
       );
     }
@@ -546,6 +569,56 @@ function SettingsMain({ navigation }: any) {
             thumbColor={isDark ? theme.primaryLight : theme.card}
           />
         </View>
+
+        <View style={styles.divider} />
+
+        <TouchableOpacity
+          style={styles.preferenceRow}
+          onPress={() => navigation.navigate("ColorPalette")}
+        >
+          <View style={{ flex: 1 }}>
+            <Text style={styles.preferenceLabel}>
+              {t("colorPalette.title")}
+            </Text>
+            <Text style={styles.preferenceSubLabel}>
+              {t(`colorPalette.palettes.${paletteId}`)}
+            </Text>
+          </View>
+          <View style={styles.palettePreviewRow}>
+            <View
+              style={[
+                styles.palettePreviewDot,
+                { backgroundColor: theme.primary },
+              ]}
+            />
+            <Ionicons
+              name="chevron-forward"
+              size={20}
+              color={theme.textTertiary}
+            />
+          </View>
+        </TouchableOpacity>
+
+        <View style={styles.divider} />
+
+        <TouchableOpacity
+          style={styles.preferenceRow}
+          onPress={() => navigation.navigate("NotificationSettings")}
+        >
+          <View style={{ flex: 1 }}>
+            <Text style={styles.preferenceLabel}>
+              {t("notifications.title")}
+            </Text>
+            <Text style={styles.preferenceSubLabel}>
+              {t("notifications.subtitle")}
+            </Text>
+          </View>
+          <Ionicons
+            name="chevron-forward"
+            size={20}
+            color={theme.textTertiary}
+          />
+        </TouchableOpacity>
       </View>
 
       <View style={styles.card}>
@@ -617,7 +690,7 @@ function SettingsMain({ navigation }: any) {
           </TouchableOpacity>
         </View>
         <Text style={styles.copyrightText}>
-          {t("settings.version", { version: "1.2.0" })}
+          {t("settings.version", { version: "1.3.0" })}
         </Text>
       </View>
     </ScrollView>
@@ -650,6 +723,22 @@ export default function SettingsScreen() {
         name="SettingsMain"
         component={SettingsMain}
         options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="ColorPalette"
+        component={ColorPaletteScreen}
+        options={{
+          title: t("colorPalette.title"),
+          header: () => <CustomHeader title={t("colorPalette.title")} />,
+        }}
+      />
+      <Stack.Screen
+        name="NotificationSettings"
+        component={NotificationSettingsScreen}
+        options={{
+          title: t("notifications.title"),
+          header: () => <CustomHeader title={t("notifications.title")} />,
+        }}
       />
       <Stack.Screen
         name="BodyStatistics"
@@ -861,5 +950,15 @@ const createStyles = (theme: any) =>
       alignItems: "center",
       justifyContent: "center",
       gap: 4,
+    },
+    palettePreviewRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+    },
+    palettePreviewDot: {
+      width: 24,
+      height: 24,
+      borderRadius: 12,
     },
   });

@@ -13,6 +13,7 @@ import {
 import DatePicker from "../components/DatePicker";
 import { useTheme } from "../contexts/ThemeContext";
 import i18n from "../i18n";
+import { initializeDailyReminders } from "../services/dailyReminderService";
 import { useUserStore } from "../store/userStore";
 
 export default function IntroScreen() {
@@ -41,6 +42,8 @@ export default function IntroScreen() {
       language,
       theme: "light",
     });
+
+    await initializeDailyReminders();
   };
 
   const isValid = fullName.trim() && birthday && gender;

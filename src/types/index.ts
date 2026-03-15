@@ -6,6 +6,7 @@ export interface UserInfo {
   created_at: string;
   language?: string;
   theme?: string;
+  color_palette?: string;
 }
 
 export interface BodyRecord {
@@ -58,6 +59,16 @@ export interface WeeklyRestDay {
   created_at: string;
 }
 
+export interface NotificationSettings {
+  id?: number;
+  notifications_per_day: number;
+  start_hour: number;
+  start_minute: number;
+  end_hour: number;
+  end_minute: number;
+  enabled_days: string;
+}
+
 export interface ExportData {
   version: string;
   schema_version: number;
@@ -68,6 +79,7 @@ export interface ExportData {
   weekly_rest_days: WeeklyRestDay[];
   daily_snapshots: DailySnapshot[];
   daily_completions: DailyCompletion[];
+  notification_settings?: NotificationSettings;
 }
 
 export interface ExerciseProgress {

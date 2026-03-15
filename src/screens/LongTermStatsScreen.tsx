@@ -13,6 +13,7 @@ import {
 import { LineChart } from "react-native-chart-kit";
 import { useTheme } from "../contexts/ThemeContext";
 import { useBodyRecordsStore } from "../store/bodyRecordsStore";
+import { hexToRgba } from "../themes/palettes";
 import { BodyRecord } from "../types";
 
 const { width } = Dimensions.get("window");
@@ -44,7 +45,7 @@ export default function LongTermStatsScreen() {
   const chartConfig = {
     backgroundGradientFrom: theme.card,
     backgroundGradientTo: theme.card,
-    color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
+    color: (opacity = 1) => hexToRgba(theme.primary, opacity),
     labelColor: (opacity = 1) => theme.text,
     strokeWidth: 2,
     propsForLabels: {
@@ -82,7 +83,7 @@ export default function LongTermStatsScreen() {
       datasets: [
         {
           data: sampledRecords.map((r) => Number(r[field])),
-          color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
+          color: (opacity = 1) => hexToRgba(theme.primary, opacity),
           strokeWidth: 2,
         },
       ],

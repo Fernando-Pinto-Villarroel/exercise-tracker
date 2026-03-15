@@ -15,6 +15,7 @@ import ExerciseStatsGrid, {
 } from "../components/ExerciseStatsGrid";
 import { useTheme } from "../contexts/ThemeContext";
 import { getDatabase } from "../database/init";
+import { hexToRgba } from "../themes/palettes";
 import { useExerciseStore } from "../store/exerciseStore";
 import { DailyCompletion, DailySnapshot } from "../types";
 
@@ -246,7 +247,7 @@ export default function MonthlyStatsScreen({ route }: any) {
   const chartConfig = {
     backgroundGradientFrom: theme.card,
     backgroundGradientTo: theme.card,
-    color: (opacity: number = 1) => `rgba(59, 130, 246, ${opacity})`,
+    color: (opacity: number = 1) => hexToRgba(theme.primary, opacity),
     labelColor: () => theme.text,
     strokeWidth: 2,
     propsForLabels: {
@@ -261,7 +262,7 @@ export default function MonthlyStatsScreen({ route }: any) {
     datasets: [
       {
         data: hasWeeklyData ? stats.weeklyCompletions : [0, 0, 0, 0, 0.1],
-        color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
+        color: (opacity = 1) => hexToRgba(theme.primary, opacity),
         strokeWidth: 3,
       },
     ],

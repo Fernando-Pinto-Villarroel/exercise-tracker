@@ -364,6 +364,38 @@
     "annualOverview": "Resumen Anual",
     "monthlyCompletions": "Completaciones Mensuales"
   },
+  "notifications": {
+    "title": "Notificaciones",
+    "subtitle": "Recordatorios, horario y días activos",
+    "notificationsPerDay": "Notificaciones por Día",
+    "notificationsPerDayDescription": "Cuántas notificaciones de recordatorio enviar cada día dentro de la ventana de tiempo.",
+    "notificationsDisabled": "Las notificaciones están desactivadas. Establece 1 o más para recibir recordatorios.",
+    "timeWindow": "Ventana de Tiempo",
+    "timeWindowDescription": "Las notificaciones se enviarán en momentos aleatorios dentro de esta ventana.",
+    "from": "Desde",
+    "to": "Hasta",
+    "activeDays": "Días Activos",
+    "activeDaysDescription": "Elige en qué días de la semana recibir notificaciones.",
+    "restDayInfo": "Las notificaciones se omiten automáticamente en los días de descanso configurados en tu plan semanal."
+  },
+  "colorPalette": {
+    "title": "Paleta de Colores",
+    "description": "Elige una paleta de colores para personalizar la apariencia de tu app. Los cambios se aplican al instante.",
+    "palettes": {
+      "cobalt": "Cobalto",
+      "crimson": "Carmesí",
+      "emerald": "Esmeralda",
+      "amber": "Ámbar",
+      "orchid": "Orquídea",
+      "rose": "Rosa",
+      "sienna": "Siena",
+      "teal": "Turquesa",
+      "slate": "Pizarra",
+      "tangerine": "Mandarina",
+      "indigo": "Índigo",
+      "sage": "Salvia"
+    }
+  },
   "common": {
     "cancel": "Cancelar",
     "save": "Guardar",

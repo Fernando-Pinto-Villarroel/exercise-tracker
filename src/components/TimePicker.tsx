@@ -10,6 +10,9 @@ interface TimePickerProps {
   onConfirm: (hours: number, minutes: number) => void;
   initialHours?: number;
   initialMinutes?: number;
+  minTime?: { hours: number; minutes: number };
+  maxTime?: { hours: number; minutes: number };
+  title?: string;
 }
 
 type ActionType =
@@ -24,18 +27,29 @@ export default function TimePicker({
   onConfirm,
   initialHours = new Date().getHours(),
   initialMinutes = new Date().getMinutes(),
+  minTime,
+  maxTime,
+  title,
 }: TimePickerProps) {
   const { t } = useTranslation();
   const { theme } = useTheme();
   const [hours, setHours] = useState(initialHours);
   const [minutes, setMinutes] = useState(initialMinutes);
 
-  // State for press handling
+  const hoursRef = useRef(initialHours);
+  const minutesRef = useRef(initialMinutes);
+  const minTimeRef = useRef(minTime);
+  const maxTimeRef = useRef(maxTime);
+
+  useEffect(() => { hoursRef.current = hours; }, [hours]);
+  useEffect(() => { minutesRef.current = minutes; }, [minutes]);
+  useEffect(() => { minTimeRef.current = minTime; }, [minTime]);
+  useEffect(() => { maxTimeRef.current = maxTime; }, [maxTime]);
+
   const pressTimer = useRef<NodeJS.Timeout | null>(null);
   const pressInterval = useRef<NodeJS.Timeout | null>(null);
   const repetitionCount = useRef(0);
 
-  // Cleanup timers on unmount
   useEffect(() => {
     return () => {
       if (pressTimer.current) clearTimeout(pressTimer.current);
@@ -43,37 +57,37 @@ export default function TimePicker({
     };
   }, []);
 
-  const incrementHours = () => {
-    setHours((prev) => (prev + 1) % 24);
-  };
-
-  const decrementHours = () => {
-    setHours((prev) => (prev - 1 + 24) % 24);
-  };
-
-  const incrementMinutes = () => {
-    setMinutes((prev) => (prev + 1) % 60);
-  };
-
-  const decrementMinutes = () => {
-    setMinutes((prev) => (prev - 1 + 60) % 60);
-  };
-
   const executeAction = (action: ActionType) => {
+    const h = hoursRef.current;
+    const m = minutesRef.current;
+    let newH = h;
+    let newM = m;
+
     switch (action) {
       case "incrementHours":
-        incrementHours();
+        newH = (h + 1) % 24;
         break;
       case "decrementHours":
-        decrementHours();
+        newH = (h - 1 + 24) % 24;
         break;
       case "incrementMinutes":
-        incrementMinutes();
+        newM = (m + 1) % 60;
         break;
       case "decrementMinutes":
-        decrementMinutes();
+        newM = (m - 1 + 60) % 60;
         break;
     }
+
+    const total = newH * 60 + newM;
+    const min = minTimeRef.current;
+    const max = maxTimeRef.current;
+    if (min && total < min.hours * 60 + min.minutes) return;
+    if (max && total > max.hours * 60 + max.minutes) return;
+
+    hoursRef.current = newH;
+    minutesRef.current = newM;
+    setHours(newH);
+    setMinutes(newM);
   };
 
   const getSpeed = (count: number): number => {
@@ -140,7 +154,7 @@ export default function TimePicker({
         <View style={styles.modalContent}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>
-              {t("timePicker.selectCompletionTime")}
+              {title || t("timePicker.selectCompletionTime")}
             </Text>
           </View>
 
