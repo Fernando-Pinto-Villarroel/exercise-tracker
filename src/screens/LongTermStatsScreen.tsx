@@ -25,15 +25,13 @@ export default function LongTermStatsScreen() {
   const [sortedRecords, setSortedRecords] = useState<BodyRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Wait for the navigation animation to finish, THEN load + sort data.
-  // This prevents the heavy chart rendering from blocking the transition.
   useFocusEffect(
     useCallback(() => {
       setIsLoading(true);
       const task = InteractionManager.runAfterInteractions(async () => {
         const fresh = await loadAllRecords();
         const sorted = [...fresh].sort(
-          (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+          (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
         );
         setSortedRecords(sorted);
         setIsLoading(false);
@@ -65,7 +63,7 @@ export default function LongTermStatsScreen() {
     if (sortedRecords.length === 0) return null;
 
     const validRecords = sortedRecords.filter(
-      (r) => r[field] !== null && r[field] !== undefined
+      (r) => r[field] !== null && r[field] !== undefined,
     );
 
     if (validRecords.length === 0) return null;

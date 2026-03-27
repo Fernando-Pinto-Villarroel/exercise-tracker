@@ -2,7 +2,6 @@ import React from "react";
 import { SvgXml } from "react-native-svg";
 import { lightTheme } from "../contexts/ThemeContext";
 
-// SVG data as strings - actual content from the SVG files with proper color attributes
 const svgData = {
   "boxing-gloves": `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><g id="Boxing_Gloves" data-name="Boxing Gloves"><path fill="#3b82f6" d="M31,4V7H18V4a3,3,0,0,1,3-3h7A3,3,0,0,1,31,4Z"/><rect fill="#3b82f6" x="18" y="19" width="12" height="6" rx="1"/><path fill="#3b82f6" d="M31,7c0,7.58.2,7.8-.59,8.59C28.86,17.14,29,16.94,29,19H19c0-1.29.1-1.9-.59-2.59C15.5,13.5,16,14.79,16,9a2,2,0,0,1,2-2Z"/><rect fill="#3b82f6" x="21" y="21" width="9" height="2"/><path fill="#3b82f6" d="M31,5V8.46c-1.25.72-1.64.54-8,.54V7h6A2,2,0,0,0,31,5Z"/><path fill="#3b82f6" d="M22,13H20V11h2a1,1,0,0,0,1-1V8a1,1,0,0,0-1-1H18V5h4a3,3,0,0,1,3,3v2A3,3,0,0,1,22,13Z"/><path fill="#3b82f6" d="M1,28V25H14v3a3,3,0,0,1-3,3H4A3,3,0,0,1,1,28Z"/><rect fill="#3b82f6" x="2" y="7" width="12" height="6" rx="1" transform="translate(16 20) rotate(180)"/><path fill="#3b82f6" d="M1,25c0-7.58-.2-7.8.59-8.59C3.14,14.86,3,15.06,3,13H13c0,1.29-.1,1.9.59,2.59C16.5,18.5,16,17.21,16,23a2,2,0,0,1-2,2Z"/><rect fill="#3b82f6" x="2" y="9" width="9" height="2" transform="translate(13 20) rotate(180)"/><path fill="#3b82f6" d="M1,27V23.54C2.25,22.82,2.64,23,9,23v2H3A2,2,0,0,0,1,27Z"/><path fill="#3b82f6" d="M10,19h2v2H10a1,1,0,0,0-1,1v2a1,1,0,0,0,1,1h4v2H10a3,3,0,0,1-3-3V22A3,3,0,0,1,10,19Z"/></g></svg>`,
   "gym-rumbell": `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><path fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-miterlimit="10" d="M24,13.5V10c0-4.4-3.6-8-8-8s-8,3.6-8,8v3.5c-1.9,2-3,4.6-3,7.5c0,3.5,1.6,6.7,4.4,8.8C9.6,29.9,9.8,30,10,30h12c0.2,0,0.4-0.1,0.6-0.2c2.8-2.1,4.4-5.3,4.4-8.8C27,18.1,25.9,15.4,24,13.5z M10,11.8V10c0-3.3,2.7-6,6-6s6,2.7,6,6v1.8c-1.7-1.1-3.8-1.8-6-1.8S11.7,10.7,10,11.8z M22,20.1c-0.1,0-0.2,0-0.3,0c-0.4,0-0.8-0.3-1-0.7c-0.3-1.1-1.1-2-2-2.6c-0.5-0.3-0.6-0.9-0.3-1.4c0.3-0.5,0.9-0.6,1.4-0.3c1.3,0.9,2.3,2.2,2.8,3.7C22.8,19.4,22.5,19.9,22,20.1z"/></svg>`,
@@ -33,26 +32,18 @@ export const SvgIcon = ({
     return null;
   }
 
-  // Replace fill colors in the SVG content
-  // First remove all style definitions
   let coloredSvg = svgContent.replace(/<style>.*?<\/style>/g, "");
 
-  // Replace all class attributes with fill attributes
   coloredSvg = coloredSvg.replace(/class="[^"]+"/g, `fill="${color}"`);
 
-  // Replace any existing fill attributes
   coloredSvg = coloredSvg.replace(/fill="[^"]+"/g, `fill="${color}"`);
 
-  // Replace fill attributes without quotes
   coloredSvg = coloredSvg.replace(/fill=[^\s>]+/g, `fill="${color}"`);
 
-  // Replace any existing stroke attributes
   coloredSvg = coloredSvg.replace(/stroke="[^"]+"/g, `stroke="${color}"`);
 
-  // Replace stroke attributes without quotes
   coloredSvg = coloredSvg.replace(/stroke=[^\s>]+/g, `stroke="${color}"`);
 
-  // Add fill attribute to path elements that don't have any fill or stroke
   coloredSvg = coloredSvg.replace(/<path([^>]*)>/g, (match, attrs) => {
     if (!attrs.includes("fill=") && !attrs.includes("stroke=")) {
       return `<path${attrs} fill="${color}">`;
@@ -60,7 +51,6 @@ export const SvgIcon = ({
     return match;
   });
 
-  // Add fill attribute to rect elements that don't have any fill or stroke
   coloredSvg = coloredSvg.replace(/<rect([^>]*)>/g, (match, attrs) => {
     if (!attrs.includes("fill=") && !attrs.includes("stroke=")) {
       return `<rect${attrs} fill="${color}">`;

@@ -55,12 +55,8 @@ export default function IntroScreen() {
       behavior={Platform.OS === "ios" ? "padding" : "padding"}
       style={styles.container}
     >
-      <ScrollView
-        style={styles.scrollView}
-        keyboardShouldPersistTaps="handled"
-      >
+      <ScrollView style={styles.scrollView} keyboardShouldPersistTaps="handled">
         <View style={styles.content}>
-          {/* Language toggle — top right */}
           <View style={styles.languageRow}>
             <TouchableOpacity
               style={[

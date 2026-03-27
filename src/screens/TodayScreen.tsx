@@ -50,12 +50,10 @@ export default function TodayScreen() {
 
   const [progress, setProgress] = useState<ExerciseProgress>({});
 
-  // State for press handling (similar to TimePicker)
   const pressTimer = useRef<NodeJS.Timeout | null>(null);
   const pressInterval = useRef<NodeJS.Timeout | null>(null);
   const repetitionCount = useRef(0);
 
-  // Cleanup timers on unmount
   useEffect(() => {
     return () => {
       if (pressTimer.current) clearTimeout(pressTimer.current);
@@ -64,11 +62,10 @@ export default function TodayScreen() {
   }, []);
 
   const getSpeed = (count: number): number => {
-    // Acceleration tiers based on repetition count
-    if (count >= 15) return 25; // Very fast
-    if (count >= 10) return 50; // Fast
-    if (count >= 5) return 100; // Medium
-    return 180; // Initial speed
+    if (count >= 15) return 25;
+    if (count >= 10) return 50;
+    if (count >= 5) return 100;
+    return 180;
   };
 
   const shouldExecuteAction = (action: ActionType): boolean => {
@@ -92,7 +89,6 @@ export default function TodayScreen() {
 
   const executeAction = (action: ActionType) => {
     if (!shouldExecuteAction(action)) {
-      // Stop the timer if we can't execute the action anymore
       if (pressInterval.current) {
         clearInterval(pressInterval.current);
         pressInterval.current = null;
@@ -122,15 +118,12 @@ export default function TodayScreen() {
   };
 
   const handlePressIn = (action: ActionType) => {
-    // Execute immediately on press
     executeAction(action);
     repetitionCount.current = 0;
 
-    // Start the initial timer (300ms delay before repeating)
     pressTimer.current = setTimeout(() => {
       repetitionCount.current = 1;
 
-      // Start repeating with acceleration
       const startRepeating = () => {
         if (pressInterval.current) clearInterval(pressInterval.current);
 
@@ -139,10 +132,9 @@ export default function TodayScreen() {
           executeAction(action);
           repetitionCount.current++;
 
-          // Check if we need to accelerate
           const newSpeed = getSpeed(repetitionCount.current);
           if (newSpeed !== speed) {
-            startRepeating(); // Restart with new speed
+            startRepeating();
           }
         }, speed);
       };
@@ -152,7 +144,6 @@ export default function TodayScreen() {
   };
 
   const handlePressOut = () => {
-    // Clear all timers
     if (pressTimer.current) {
       clearTimeout(pressTimer.current);
       pressTimer.current = null;

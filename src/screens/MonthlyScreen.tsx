@@ -51,7 +51,6 @@ function MonthlyOverview({ navigation }: any) {
         data[date] = completion;
       }
 
-      // Check if this day is a rest day
       const isRest = await isRestDay(date);
       if (isRest) {
         restDaysSet.add(date);

@@ -63,7 +63,6 @@ function WeeklyOverview({ navigation }: any) {
       );
       data.push(completion || { date, is_completed: false, training_time: 0 });
 
-      // Check if this day is a rest day
       const isRest = await isRestDay(date);
       if (isRest) {
         restDaysSet.add(date);
@@ -197,9 +196,7 @@ function WeeklyOverview({ navigation }: any) {
                       day.is_completed ? "checkmark-circle" : "ellipse-outline"
                     }
                     size={32}
-                    color={
-                      day.is_completed ? theme.successLight : theme.border
-                    }
+                    color={day.is_completed ? theme.successLight : theme.border}
                   />
                 </View>
               </TouchableOpacity>

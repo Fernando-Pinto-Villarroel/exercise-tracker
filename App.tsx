@@ -13,7 +13,6 @@ import IntroScreen from "./src/screens/IntroScreen";
 import { initializeDailyReminders } from "./src/services/dailyReminderService";
 import { useUserStore } from "./src/store/userStore";
 
-// Must be called at module level so notifications show even when app is foregrounded
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowBanner: true,

@@ -3,26 +3,25 @@ import * as SQLite from "expo-sqlite";
 let db: SQLite.SQLiteDatabase;
 
 async function getCurrentSchemaVersion(
-  database: SQLite.SQLiteDatabase
+  database: SQLite.SQLiteDatabase,
 ): Promise<number> {
   try {
     const result = await database.getFirstAsync<{ version: number }>(
-      "SELECT version FROM schema_version ORDER BY version DESC LIMIT 1"
+      "SELECT version FROM schema_version ORDER BY version DESC LIMIT 1",
     );
     return result?.version || 0;
   } catch (error) {
-    // Table doesn't exist yet, return 0
     return 0;
   }
 }
 
 async function setSchemaVersion(
   database: SQLite.SQLiteDatabase,
-  version: number
+  version: number,
 ): Promise<void> {
   await database.runAsync(
     "INSERT INTO schema_version (version, applied_at) VALUES (?, ?)",
-    [version, new Date().toISOString()]
+    [version, new Date().toISOString()],
   );
 }
 
@@ -43,9 +42,8 @@ async function applyMigration1(database: SQLite.SQLiteDatabase): Promise<void> {
     );
   `);
 
-  // Check if is_rest_day column already exists
   const tableInfo = await database.getAllAsync<{ name: string }>(
-    "PRAGMA table_info(daily_completion)"
+    "PRAGMA table_info(daily_completion)",
   );
   const hasRestDayColumn = tableInfo.some((col) => col.name === "is_rest_day");
 
@@ -63,12 +61,11 @@ async function applyMigration1(database: SQLite.SQLiteDatabase): Promise<void> {
 async function applyMigration2(database: SQLite.SQLiteDatabase): Promise<void> {
   console.log("Applying migration 2: Adding training reference URL support");
 
-  // Check if training_reference_url column already exists in weekly_plan
   const weeklyPlanInfo = await database.getAllAsync<{ name: string }>(
-    "PRAGMA table_info(weekly_plan)"
+    "PRAGMA table_info(weekly_plan)",
   );
   const hasWeeklyPlanUrl = weeklyPlanInfo.some(
-    (col) => col.name === "training_reference_url"
+    (col) => col.name === "training_reference_url",
   );
 
   if (!hasWeeklyPlanUrl) {
@@ -78,12 +75,11 @@ async function applyMigration2(database: SQLite.SQLiteDatabase): Promise<void> {
     `);
   }
 
-  // Check if training_reference_url column already exists in daily_snapshot
   const dailySnapshotInfo = await database.getAllAsync<{ name: string }>(
-    "PRAGMA table_info(daily_snapshot)"
+    "PRAGMA table_info(daily_snapshot)",
   );
   const hasDailySnapshotUrl = dailySnapshotInfo.some(
-    (col) => col.name === "training_reference_url"
+    (col) => col.name === "training_reference_url",
   );
 
   if (!hasDailySnapshotUrl) {
@@ -98,10 +94,12 @@ async function applyMigration2(database: SQLite.SQLiteDatabase): Promise<void> {
 }
 
 async function applyMigration3(database: SQLite.SQLiteDatabase): Promise<void> {
-  console.log("Applying migration 3: Adding color palette and notification settings");
+  console.log(
+    "Applying migration 3: Adding color palette and notification settings",
+  );
 
   const tableInfo = await database.getAllAsync<{ name: string }>(
-    "PRAGMA table_info(user_info)"
+    "PRAGMA table_info(user_info)",
   );
   const hasColorPalette = tableInfo.some((col) => col.name === "color_palette");
 
@@ -125,11 +123,11 @@ async function applyMigration3(database: SQLite.SQLiteDatabase): Promise<void> {
   `);
 
   const existing = await database.getFirstAsync<{ id: number }>(
-    "SELECT id FROM notification_settings LIMIT 1"
+    "SELECT id FROM notification_settings LIMIT 1",
   );
   if (!existing) {
     await database.runAsync(
-      "INSERT INTO notification_settings (notifications_per_day, start_hour, start_minute, end_hour, end_minute, enabled_days) VALUES (2, 7, 0, 21, 0, '[0,1,2,3,4,5,6]')"
+      "INSERT INTO notification_settings (notifications_per_day, start_hour, start_minute, end_hour, end_minute, enabled_days) VALUES (2, 7, 0, 21, 0, '[0,1,2,3,4,5,6]')",
     );
   }
 
@@ -159,7 +157,6 @@ async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
 export async function initDatabase() {
   db = await SQLite.openDatabaseAsync("exercise_tracker.db");
 
-  // Create base tables if they don't exist
   await db.execAsync(`
     CREATE TABLE IF NOT EXISTS user_info (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -222,7 +219,6 @@ export async function initDatabase() {
     );
   `);
 
-  // Run migrations
   await runMigrations(db);
 
   return db;

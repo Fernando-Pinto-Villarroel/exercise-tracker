@@ -32,25 +32,24 @@ export default function DatePicker({
   const { t } = useTranslation();
   const [showPicker, setShowPicker] = useState(false);
 
-  // Parse date string correctly to avoid timezone issues
   const parseDateString = (dateStr: string) => {
     const [year, month, day] = dateStr.split("-").map(Number);
     return { year, month: month - 1, day };
   };
 
   const [selectedYear, setSelectedYear] = useState<number>(
-    value ? parseDateString(value).year : maxYear
+    value ? parseDateString(value).year : maxYear,
   );
   const [selectedMonth, setSelectedMonth] = useState<number>(
-    value ? parseDateString(value).month : 0
+    value ? parseDateString(value).month : 0,
   );
   const [selectedDay, setSelectedDay] = useState<number>(
-    value ? parseDateString(value).day : 1
+    value ? parseDateString(value).day : 1,
   );
 
   const years = Array.from(
     { length: maxYear - minYear + 1 },
-    (_, i) => maxYear - i
+    (_, i) => maxYear - i,
   );
 
   const months: string[] = t("datePicker.months", {
@@ -86,7 +85,6 @@ export default function DatePicker({
     setShowPicker(true);
   };
 
-  // Format display value without timezone issues
   const displayValue = value
     ? (() => {
         const { year, month, day } = parseDateString(value);

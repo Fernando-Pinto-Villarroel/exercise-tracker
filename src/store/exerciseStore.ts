@@ -16,11 +16,11 @@ interface ExerciseStore {
   loadWeeklyPlan: () => Promise<void>;
   saveExerciseToDay: (
     dayOfWeek: number,
-    exercise: Omit<WeeklyPlanExercise, "id" | "day_of_week">
+    exercise: Omit<WeeklyPlanExercise, "id" | "day_of_week">,
   ) => Promise<void>;
   updateExercise: (
     id: number,
-    exercise: Omit<WeeklyPlanExercise, "id" | "day_of_week">
+    exercise: Omit<WeeklyPlanExercise, "id" | "day_of_week">,
   ) => Promise<void>;
   deleteExercise: (id: number, dayOfWeek: number) => Promise<void>;
   copyDayPlan: (fromDay: number, toDay: number) => Promise<void>;
@@ -37,16 +37,15 @@ interface ExerciseStore {
   toggleDayCompletion: (date: string, customTime?: string) => Promise<void>;
   updateDailyExercise: (
     id: number,
-    exercise: Omit<DailySnapshot, "id" | "date">
+    exercise: Omit<DailySnapshot, "id" | "date">,
   ) => Promise<void>;
   saveDailyExercise: (
     date: string,
-    exercise: Omit<DailySnapshot, "id" | "date">
+    exercise: Omit<DailySnapshot, "id" | "date">,
   ) => Promise<void>;
   deleteDailyExercise: (id: number) => Promise<void>;
   incrementRefreshCounter: () => void;
 
-  // Rest day methods
   toggleWeeklyRestDay: (dayOfWeek: number) => Promise<void>;
   toggleRestDay: (date: string) => Promise<void>;
   isRestDay: (date: string) => Promise<boolean>;
@@ -54,13 +53,16 @@ interface ExerciseStore {
 
   mergeExercisesToDay: (
     exercises: Omit<WeeklyPlanExercise, "id" | "day_of_week">[],
-    toDay: number
+    toDay: number,
   ) => Promise<void>;
   mergeToDailySnapshot: (
     date: string,
-    exercises: Omit<DailySnapshot, "id" | "date">[]
+    exercises: Omit<DailySnapshot, "id" | "date">[],
   ) => Promise<void>;
-  bulkDeleteWeeklyExercises: (ids: number[], dayOfWeek: number) => Promise<void>;
+  bulkDeleteWeeklyExercises: (
+    ids: number[],
+    dayOfWeek: number,
+  ) => Promise<void>;
   bulkDeleteDailyExercises: (ids: number[]) => Promise<void>;
 }
 
@@ -83,7 +85,7 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
   loadWeeklyPlan: async () => {
     const db = getDatabase();
     const exercises = await db.getAllAsync<WeeklyPlanExercise>(
-      "SELECT * FROM weekly_plan ORDER BY day_of_week, sort_order"
+      "SELECT * FROM weekly_plan ORDER BY day_of_week, sort_order",
     );
 
     const grouped: Record<number, WeeklyPlanExercise[]> = {};
@@ -103,7 +105,7 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
       const db = getDatabase();
       const maxOrder = await db.getFirstAsync<{ max_order: number }>(
         "SELECT COALESCE(MAX(sort_order), -1) as max_order FROM weekly_plan WHERE day_of_week = ?",
-        [dayOfWeek]
+        [dayOfWeek],
       );
 
       const newOrder = (maxOrder?.max_order ?? -1) + 1;
@@ -120,7 +122,7 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
           exercise.estimated_time ?? null,
           exercise.training_reference_url ?? null,
           newOrder,
-        ]
+        ],
       );
 
       await get().loadWeeklyPlan();
@@ -152,7 +154,7 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
           exercise.estimated_time ?? null,
           exercise.training_reference_url ?? null,
           id,
-        ]
+        ],
       );
 
       await get().loadWeeklyPlan();
@@ -162,7 +164,7 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
 
       const exerciseDay = await db.getFirstAsync<{ day_of_week: number }>(
         "SELECT day_of_week FROM weekly_plan WHERE id = ?",
-        [id]
+        [id],
       );
 
       if (exerciseDay?.day_of_week === adjustedTodayDay) {
@@ -182,7 +184,7 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
 
       const remaining = await db.getAllAsync<WeeklyPlanExercise>(
         "SELECT * FROM weekly_plan WHERE day_of_week = ? ORDER BY sort_order",
-        [dayOfWeek]
+        [dayOfWeek],
       );
 
       for (let i = 0; i < remaining.length; i++) {
@@ -190,7 +192,7 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
         if (id !== undefined) {
           await db.runAsync(
             "UPDATE weekly_plan SET sort_order = ? WHERE id = ?",
-            [i, id]
+            [i, id],
           );
         }
       }
@@ -217,7 +219,7 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
 
     const source = await db.getAllAsync<WeeklyPlanExercise>(
       "SELECT * FROM weekly_plan WHERE day_of_week = ? ORDER BY sort_order",
-      [fromDay]
+      [fromDay],
     );
 
     for (const ex of source) {
@@ -233,7 +235,7 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
           ex.estimated_time ?? null,
           ex.training_reference_url ?? null,
           ex.sort_order,
-        ]
+        ],
       );
     }
 
@@ -246,12 +248,12 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
 
     const snapshot = await db.getAllAsync<DailySnapshot>(
       "SELECT * FROM daily_snapshot WHERE date = ? ORDER BY sort_order",
-      [today]
+      [today],
     );
 
     const completion = await db.getFirstAsync<DailyCompletion>(
       "SELECT * FROM daily_completion WHERE date = ?",
-      [today]
+      [today],
     );
 
     set({
@@ -272,11 +274,11 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
 
       const plan = await db.getAllAsync<WeeklyPlanExercise>(
         "SELECT * FROM weekly_plan WHERE day_of_week = ? ORDER BY sort_order",
-        [adjustedDay]
+        [adjustedDay],
       );
 
       console.log(
-        `Creating snapshot for day ${adjustedDay}, found ${plan.length} exercises`
+        `Creating snapshot for day ${adjustedDay}, found ${plan.length} exercises`,
       );
 
       for (const ex of plan) {
@@ -292,19 +294,19 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
             ex.estimated_time ?? null,
             ex.training_reference_url ?? null,
             ex.sort_order,
-          ]
+          ],
         );
       }
 
       const completionExists = await db.getFirstAsync(
         "SELECT id FROM daily_completion WHERE date = ?",
-        [today]
+        [today],
       );
 
       if (!completionExists) {
         await db.runAsync(
           "INSERT INTO daily_completion (date, is_completed, training_time) VALUES (?, 0, 0)",
-          [today]
+          [today],
         );
       }
 
@@ -312,7 +314,7 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
     } catch (error) {
       console.error("Error creating today snapshot:", error);
       throw new Error(
-        "Failed to create today's workout plan. Please try again."
+        "Failed to create today's workout plan. Please try again.",
       );
     }
   },
@@ -326,7 +328,7 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
       const completedAt = customTime || new Date().toISOString();
       await db.runAsync(
         "INSERT INTO daily_completion (date, is_completed, completed_at, training_time) VALUES (?, 1, ?, 0)",
-        [today, completedAt]
+        [today, completedAt],
       );
     } else {
       const newStatus = current.is_completed ? 0 : 1;
@@ -336,7 +338,7 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
 
       await db.runAsync(
         "UPDATE daily_completion SET is_completed = ?, completed_at = ? WHERE date = ?",
-        [newStatus, completedAt, today]
+        [newStatus, completedAt, today],
       );
     }
 
@@ -349,7 +351,7 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
 
     await db.runAsync(
       "UPDATE daily_completion SET training_time = ? WHERE date = ?",
-      [seconds, date]
+      [seconds, date],
     );
 
     if (date === getTodayDate()) {
@@ -363,12 +365,12 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
 
     const snapshot = await db.getAllAsync<DailySnapshot>(
       "SELECT * FROM daily_snapshot WHERE date = ? ORDER BY sort_order",
-      [date]
+      [date],
     );
 
     const completion = await db.getFirstAsync<DailyCompletion>(
       "SELECT * FROM daily_completion WHERE date = ?",
-      [date]
+      [date],
     );
 
     return {
@@ -381,14 +383,14 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
     const db = getDatabase();
     const current = await db.getFirstAsync<DailyCompletion>(
       "SELECT * FROM daily_completion WHERE date = ?",
-      [date]
+      [date],
     );
 
     if (!current) {
       const completedAt = customTime || new Date().toISOString();
       await db.runAsync(
         "INSERT INTO daily_completion (date, is_completed, completed_at, training_time) VALUES (?, 1, ?, 0)",
-        [date, completedAt]
+        [date, completedAt],
       );
     } else {
       const newStatus = current.is_completed ? 0 : 1;
@@ -398,7 +400,7 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
 
       await db.runAsync(
         "UPDATE daily_completion SET is_completed = ?, completed_at = ? WHERE date = ?",
-        [newStatus, completedAt, date]
+        [newStatus, completedAt, date],
       );
     }
 
@@ -419,7 +421,7 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
           exercise.estimated_time ?? null,
           exercise.training_reference_url ?? null,
           id,
-        ]
+        ],
       );
 
       get().incrementCompletionCounter();
@@ -434,7 +436,7 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
       const db = getDatabase();
       const maxOrder = await db.getFirstAsync<{ max_order: number }>(
         "SELECT COALESCE(MAX(sort_order), -1) as max_order FROM daily_snapshot WHERE date = ?",
-        [date]
+        [date],
       );
 
       const newOrder = (maxOrder?.max_order ?? -1) + 1;
@@ -451,7 +453,7 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
           exercise.estimated_time ?? null,
           exercise.training_reference_url ?? null,
           newOrder,
-        ]
+        ],
       );
 
       get().incrementCompletionCounter();
@@ -489,32 +491,26 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
     try {
       const db = getDatabase();
 
-      // Check if this day_of_week is already a rest day
       const existing = await db.getFirstAsync<{ day_of_week: number }>(
         "SELECT day_of_week FROM weekly_rest_days WHERE day_of_week = ?",
-        [dayOfWeek]
+        [dayOfWeek],
       );
 
       if (existing) {
-        // Remove rest day pattern
         await db.runAsync(
           "DELETE FROM weekly_rest_days WHERE day_of_week = ?",
-          [dayOfWeek]
+          [dayOfWeek],
         );
       } else {
-        // Add rest day pattern
         await db.runAsync(
           "INSERT INTO weekly_rest_days (day_of_week, created_at) VALUES (?, ?)",
-          [dayOfWeek, new Date().toISOString()]
+          [dayOfWeek, new Date().toISOString()],
         );
 
-        // Clear exercises for this day from weekly_plan
-        await db.runAsync(
-          "DELETE FROM weekly_plan WHERE day_of_week = ?",
-          [dayOfWeek]
-        );
+        await db.runAsync("DELETE FROM weekly_plan WHERE day_of_week = ?", [
+          dayOfWeek,
+        ]);
 
-        // If today matches this day_of_week, clear today's snapshot
         const today = getTodayDate();
         const todayDayOfWeek = new Date().getDay();
         const adjustedDay = todayDayOfWeek === 0 ? 6 : todayDayOfWeek - 1;
@@ -539,37 +535,32 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
     try {
       const db = getDatabase();
 
-      // Check if date already has a completion record
       const current = await db.getFirstAsync<DailyCompletion>(
         "SELECT * FROM daily_completion WHERE date = ?",
-        [date]
+        [date],
       );
 
       if (!current) {
-        // Create new entry with rest day flag and clear any existing exercises
         await db.runAsync(
           "INSERT INTO daily_completion (date, is_completed, training_time, is_rest_day) VALUES (?, 0, 0, 1)",
-          [date]
+          [date],
         );
         await db.runAsync("DELETE FROM daily_snapshot WHERE date = ?", [date]);
       } else {
-        // Toggle rest day status
         const newRestDay = current.is_rest_day ? 0 : 1;
 
         if (newRestDay === 1) {
-          // Setting as rest day: clear completion and exercises
           await db.runAsync(
             "UPDATE daily_completion SET is_rest_day = 1, is_completed = 0, completed_at = NULL, training_time = 0 WHERE date = ?",
-            [date]
+            [date],
           );
           await db.runAsync("DELETE FROM daily_snapshot WHERE date = ?", [
             date,
           ]);
         } else {
-          // Removing rest day status
           await db.runAsync(
             "UPDATE daily_completion SET is_rest_day = 0 WHERE date = ?",
-            [date]
+            [date],
           );
         }
       }
@@ -585,26 +576,20 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
     try {
       const db = getDatabase();
 
-      // Check explicit individual marking first (works for all dates)
       const dailyCompletion = await db.getFirstAsync<DailyCompletion>(
         "SELECT * FROM daily_completion WHERE date = ?",
-        [date]
+        [date],
       );
       if (dailyCompletion?.is_rest_day) return true;
 
-      // Check weekly pattern
       const dateObj = new Date(date + "T00:00:00");
       const dayOfWeek = dateObj.getDay();
       const adjustedDay = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
 
-      // For past dates: only apply weekly pattern if the rest day was created
-      // on or before that date (don't retroactively affect past weeks)
       const today = getTodayDate();
       const isPastDate = date < today;
 
       if (isPastDate) {
-        // The date string is end-of-day, so the weekly rest day must have been
-        // created on or before the next day to apply to this date
         const nextDay = new Date(dateObj);
         nextDay.setDate(nextDay.getDate() + 1);
         const nextDayStr =
@@ -616,14 +601,13 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
 
         const weeklyRest = await db.getFirstAsync<{ day_of_week: number }>(
           "SELECT day_of_week FROM weekly_rest_days WHERE day_of_week = ? AND created_at < ?",
-          [adjustedDay, nextDayStr]
+          [adjustedDay, nextDayStr],
         );
         if (weeklyRest) return true;
       } else {
-        // For today and future: apply weekly pattern unconditionally
         const weeklyRest = await db.getFirstAsync<{ day_of_week: number }>(
           "SELECT day_of_week FROM weekly_rest_days WHERE day_of_week = ?",
-          [adjustedDay]
+          [adjustedDay],
         );
         if (weeklyRest) return true;
       }
@@ -639,7 +623,7 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
     try {
       const db = getDatabase();
       const restDays = await db.getAllAsync<{ day_of_week: number }>(
-        "SELECT day_of_week FROM weekly_rest_days ORDER BY day_of_week"
+        "SELECT day_of_week FROM weekly_rest_days ORDER BY day_of_week",
       );
       return restDays.map((rd) => rd.day_of_week);
     } catch (error) {
@@ -653,12 +637,10 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
       const db = getDatabase();
       const existing = await db.getAllAsync<WeeklyPlanExercise>(
         "SELECT * FROM weekly_plan WHERE day_of_week = ? ORDER BY sort_order",
-        [toDay]
+        [toDay],
       );
 
-      const existingByName = new Map(
-        existing.map((e) => [e.exercise_name, e])
-      );
+      const existingByName = new Map(existing.map((e) => [e.exercise_name, e]));
       let maxOrder =
         existing.length > 0
           ? Math.max(...existing.map((e) => e.sort_order))
@@ -678,7 +660,7 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
               ex.estimated_time ?? null,
               ex.training_reference_url ?? null,
               existingEx.id!,
-            ]
+            ],
           );
         } else {
           maxOrder++;
@@ -694,7 +676,7 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
               ex.estimated_time ?? null,
               ex.training_reference_url ?? null,
               maxOrder,
-            ]
+            ],
           );
         }
       }
@@ -718,12 +700,10 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
       const db = getDatabase();
       const existing = await db.getAllAsync<DailySnapshot>(
         "SELECT * FROM daily_snapshot WHERE date = ? ORDER BY sort_order",
-        [date]
+        [date],
       );
 
-      const existingByName = new Map(
-        existing.map((e) => [e.exercise_name, e])
-      );
+      const existingByName = new Map(existing.map((e) => [e.exercise_name, e]));
       let maxOrder =
         existing.length > 0
           ? Math.max(...existing.map((e) => e.sort_order))
@@ -743,7 +723,7 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
               ex.estimated_time ?? null,
               ex.training_reference_url ?? null,
               existingEx.id!,
-            ]
+            ],
           );
         } else {
           maxOrder++;
@@ -759,7 +739,7 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
               ex.estimated_time ?? null,
               ex.training_reference_url ?? null,
               maxOrder,
-            ]
+            ],
           );
         }
       }
@@ -781,14 +761,14 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
 
       const remaining = await db.getAllAsync<WeeklyPlanExercise>(
         "SELECT * FROM weekly_plan WHERE day_of_week = ? ORDER BY sort_order",
-        [dayOfWeek]
+        [dayOfWeek],
       );
 
       for (let i = 0; i < remaining.length; i++) {
         if (remaining[i].id !== undefined) {
           await db.runAsync(
             "UPDATE weekly_plan SET sort_order = ? WHERE id = ?",
-            [i, remaining[i].id!]
+            [i, remaining[i].id!],
           );
         }
       }

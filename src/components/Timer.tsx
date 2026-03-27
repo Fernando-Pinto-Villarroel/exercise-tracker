@@ -32,7 +32,6 @@ export default function Timer({ resetTrigger }: { resetTrigger?: number }) {
     loadTimer();
     checkMidnightReset();
 
-    // Handle app state changes
     const subscription = AppState.addEventListener(
       "change",
       handleAppStateChange,
@@ -42,7 +41,6 @@ export default function Timer({ resetTrigger }: { resetTrigger?: number }) {
 
   const handleAppStateChange = async (nextAppState: string) => {
     if (nextAppState === "active") {
-      // App came to foreground - recalculate timer
       await recalculateTimer();
     }
   };
@@ -204,7 +202,6 @@ export default function Timer({ resetTrigger }: { resetTrigger?: number }) {
       await saveTimer(totalSeconds);
 
       if (wasRunning && totalSeconds > 0) {
-        // Restart timer with new time
         const startTime = Date.now();
         await AsyncStorage.setItem(TIMER_START_KEY, startTime.toString());
         await AsyncStorage.setItem(TIMER_RUNNING_KEY, "true");

@@ -55,7 +55,6 @@ function SettingsMain({ navigation }: any) {
     try {
       await updateLanguage(language);
       setCurrentLanguage(language);
-      // Reschedule so notification messages use the new language
       await rescheduleDailyReminders();
     } catch (error) {
       console.error("Error changing language:", error);
@@ -128,7 +127,6 @@ function SettingsMain({ navigation }: any) {
   };
 
   const validateImportData = (data: any): string | null => {
-    // Check required fields
     const requiredFields = [
       "version",
       "schema_version",
@@ -147,22 +145,18 @@ function SettingsMain({ navigation }: any) {
       }
     }
 
-    // Validate version format
     if (!/^\d+\.\d+\.\d+$/.test(data.version)) {
       return t("settings.invalidVersion");
     }
 
-    // Validate schema version
     if (!Number.isInteger(data.schema_version) || data.schema_version < 0) {
       return t("settings.invalidSchemaVersion");
     }
 
-    // Validate exported_at is a valid date
     if (isNaN(new Date(data.exported_at).getTime())) {
       return t("settings.invalidDate");
     }
 
-    // Validate user_info
     if (!Array.isArray(data.user_info)) {
       return t("settings.invalidUserInfo");
     }
@@ -178,7 +172,6 @@ function SettingsMain({ navigation }: any) {
       }
     }
 
-    // Validate body_records
     if (!Array.isArray(data.body_records)) {
       return t("settings.invalidBodyRecords");
     }
@@ -202,7 +195,6 @@ function SettingsMain({ navigation }: any) {
       }
     }
 
-    // Validate weekly_plan
     if (!Array.isArray(data.weekly_plan)) {
       return t("settings.invalidWeeklyPlan");
     }
@@ -220,7 +212,6 @@ function SettingsMain({ navigation }: any) {
       }
     }
 
-    // Validate weekly_rest_days
     if (!Array.isArray(data.weekly_rest_days)) {
       return t("settings.invalidWeeklyRestDays");
     }
@@ -236,7 +227,6 @@ function SettingsMain({ navigation }: any) {
       }
     }
 
-    // Validate daily_snapshots
     if (!Array.isArray(data.daily_snapshots)) {
       return t("settings.invalidDailySnapshots");
     }
@@ -254,7 +244,6 @@ function SettingsMain({ navigation }: any) {
       }
     }
 
-    // Validate daily_completions
     if (!Array.isArray(data.daily_completions)) {
       return t("settings.invalidDailyCompletions");
     }
@@ -289,7 +278,6 @@ function SettingsMain({ navigation }: any) {
       );
       const importData: ExportData = JSON.parse(fileContent);
 
-      // Validate the imported data
       const validationError = validateImportData(importData);
       if (validationError) {
         Alert.alert(t("common.error"), validationError);
@@ -322,16 +310,14 @@ function SettingsMain({ navigation }: any) {
   const performImport = async (data: ExportData) => {
     const db = getDatabase();
 
-    // Handle migration for old format exports
     const schemaVersion = data.schema_version || 0;
     if (schemaVersion < 1) {
-      // Old format - add is_rest_day = false to all daily_completions
       data.daily_completions.forEach((dc) => {
         if (!("is_rest_day" in dc)) {
           dc.is_rest_day = false;
         }
       });
-      // Initialize empty weekly_rest_days for old exports
+
       if (!data.weekly_rest_days) {
         data.weekly_rest_days = [];
       }
@@ -400,7 +386,6 @@ function SettingsMain({ navigation }: any) {
       );
     }
 
-    // Import weekly rest days
     if (data.weekly_rest_days) {
       for (const restDay of data.weekly_rest_days) {
         await db.runAsync(

@@ -68,8 +68,10 @@ export default function AddRecordModal({
       return;
     }
 
-    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
-    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const showEvent =
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent =
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
 
     const showSub = Keyboard.addListener(showEvent, (e) => {
       setKeyboardHeight(e.endCoordinates.height);
@@ -84,17 +86,14 @@ export default function AddRecordModal({
     };
   }, [visible]);
 
-  /**
-   * When a TextInput is focused, scroll the ScrollView so the input is
-   * comfortably visible above the keyboard.
-   * We delay slightly so the keyboard has time to appear and layout settles.
-   */
   const scrollToField = (key: string) => {
     setTimeout(() => {
       const y = inputYOffsets.current[key];
       if (y != null && scrollViewRef.current) {
-        // Scroll so the field sits ~80px from the top of the visible area
-        scrollViewRef.current.scrollTo({ y: Math.max(0, y - 80), animated: true });
+        scrollViewRef.current.scrollTo({
+          y: Math.max(0, y - 80),
+          animated: true,
+        });
       }
     }, 350);
   };
@@ -190,233 +189,238 @@ export default function AddRecordModal({
       statusBarTranslucent
     >
       <View style={styles.modalOverlay}>
-        {/* Backdrop: absolute-fill behind content, tapping it closes the modal */}
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
 
-        {/* Sheet content: a sibling, not a child of the backdrop pressable */}
         <View style={styles.modalContent}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>
-                  {t("bodyStats.addRecord")}
-                </Text>
-                <TouchableOpacity
-                  onPress={onClose}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <Ionicons
-                    name="close"
-                    size={28}
-                    color={theme.textSecondary}
-                  />
-                </TouchableOpacity>
-              </View>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>{t("bodyStats.addRecord")}</Text>
+            <TouchableOpacity
+              onPress={onClose}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="close" size={28} color={theme.textSecondary} />
+            </TouchableOpacity>
+          </View>
 
-              <ScrollView
-                ref={scrollViewRef}
-                showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
-                keyboardDismissMode="on-drag"
-                contentContainerStyle={[
-                  styles.scrollContent,
-                  keyboardHeight > 0 && { paddingBottom: keyboardHeight },
-                ]}
+          <ScrollView
+            ref={scrollViewRef}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            contentContainerStyle={[
+              styles.scrollContent,
+              keyboardHeight > 0 && { paddingBottom: keyboardHeight },
+            ]}
+          >
+            <View
+              style={styles.inputGroup}
+              onLayout={(e) => {
+                inputYOffsets.current.date = e.nativeEvent.layout.y;
+              }}
+            >
+              <DatePicker
+                label={t("bodyStats.date")}
+                value={date}
+                onChange={setDate}
+                minYear={2000}
+                maxYear={new Date().getFullYear()}
+              />
+            </View>
+
+            <View
+              style={styles.inputGroup}
+              onLayout={(e) => {
+                inputYOffsets.current.weight = e.nativeEvent.layout.y;
+              }}
+            >
+              <Text style={styles.label}>{t("bodyStats.weight")} (kg) *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="70"
+                placeholderTextColor={theme.textTertiary}
+                value={weight}
+                onChangeText={setWeight}
+                keyboardType="decimal-pad"
+                onFocus={() => scrollToField("weight")}
+              />
+            </View>
+
+            <View
+              style={styles.inputGroup}
+              onLayout={(e) => {
+                inputYOffsets.current.height = e.nativeEvent.layout.y;
+              }}
+            >
+              <Text style={styles.label}>{t("bodyStats.height")} (cm) *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="170"
+                placeholderTextColor={theme.textTertiary}
+                value={height}
+                onChangeText={setHeight}
+                keyboardType="decimal-pad"
+                onFocus={() => scrollToField("height")}
+              />
+            </View>
+
+            <Text style={styles.sectionTitle}>
+              {t("bodyStats.optionalDataBFP")}
+            </Text>
+
+            <View
+              style={styles.inputGroup}
+              onLayout={(e) => {
+                inputYOffsets.current.neck = e.nativeEvent.layout.y;
+              }}
+            >
+              <Text style={styles.label}>
+                {t("bodyStats.neckPerimeter")} (cm)
+              </Text>
+              <TextInput
+                style={styles.input}
+                placeholder="35"
+                placeholderTextColor={theme.textTertiary}
+                value={neckPerimeter}
+                onChangeText={setNeckPerimeter}
+                keyboardType="decimal-pad"
+                onFocus={() => scrollToField("neck")}
+              />
+            </View>
+
+            <View
+              style={styles.inputGroup}
+              onLayout={(e) => {
+                inputYOffsets.current.waist = e.nativeEvent.layout.y;
+              }}
+            >
+              <Text style={styles.label}>
+                {t("bodyStats.waistPerimeter")} (cm)
+              </Text>
+              <TextInput
+                style={styles.input}
+                placeholder="80"
+                placeholderTextColor={theme.textTertiary}
+                value={waistPerimeter}
+                onChangeText={setWaistPerimeter}
+                keyboardType="decimal-pad"
+                onFocus={() => scrollToField("waist")}
+              />
+            </View>
+
+            {isFemale && (
+              <View
+                style={styles.inputGroup}
+                onLayout={(e) => {
+                  inputYOffsets.current.hip = e.nativeEvent.layout.y;
+                }}
               >
-                <View
-                  style={styles.inputGroup}
-                  onLayout={(e) => { inputYOffsets.current.date = e.nativeEvent.layout.y; }}
-                >
-                  <DatePicker
-                    label={t("bodyStats.date")}
-                    value={date}
-                    onChange={setDate}
-                    minYear={2000}
-                    maxYear={new Date().getFullYear()}
-                  />
-                </View>
-
-                <View
-                  style={styles.inputGroup}
-                  onLayout={(e) => { inputYOffsets.current.weight = e.nativeEvent.layout.y; }}
-                >
-                  <Text style={styles.label}>
-                    {t("bodyStats.weight")} (kg) *
-                  </Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="70"
-                    placeholderTextColor={theme.textTertiary}
-                    value={weight}
-                    onChangeText={setWeight}
-                    keyboardType="decimal-pad"
-                    onFocus={() => scrollToField("weight")}
-                  />
-                </View>
-
-                <View
-                  style={styles.inputGroup}
-                  onLayout={(e) => { inputYOffsets.current.height = e.nativeEvent.layout.y; }}
-                >
-                  <Text style={styles.label}>
-                    {t("bodyStats.height")} (cm) *
-                  </Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="170"
-                    placeholderTextColor={theme.textTertiary}
-                    value={height}
-                    onChangeText={setHeight}
-                    keyboardType="decimal-pad"
-                    onFocus={() => scrollToField("height")}
-                  />
-                </View>
-
-                <Text style={styles.sectionTitle}>
-                  {t("bodyStats.optionalDataBFP")}
+                <Text style={styles.label}>
+                  {t("bodyStats.hipPerimeter")} (cm)
                 </Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="95"
+                  placeholderTextColor={theme.textTertiary}
+                  value={hipPerimeter}
+                  onChangeText={setHipPerimeter}
+                  keyboardType="decimal-pad"
+                  onFocus={() => scrollToField("hip")}
+                />
+              </View>
+            )}
 
-                <View
-                  style={styles.inputGroup}
-                  onLayout={(e) => { inputYOffsets.current.neck = e.nativeEvent.layout.y; }}
-                >
-                  <Text style={styles.label}>
-                    {t("bodyStats.neckPerimeter")} (cm)
-                  </Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="35"
-                    placeholderTextColor={theme.textTertiary}
-                    value={neckPerimeter}
-                    onChangeText={setNeckPerimeter}
-                    keyboardType="decimal-pad"
-                    onFocus={() => scrollToField("neck")}
-                  />
-                </View>
+            <Text style={styles.sectionTitle}>
+              {t("bodyStats.optionalDataMuscle")}
+            </Text>
 
-                <View
-                  style={styles.inputGroup}
-                  onLayout={(e) => { inputYOffsets.current.waist = e.nativeEvent.layout.y; }}
-                >
-                  <Text style={styles.label}>
-                    {t("bodyStats.waistPerimeter")} (cm)
-                  </Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="80"
-                    placeholderTextColor={theme.textTertiary}
-                    value={waistPerimeter}
-                    onChangeText={setWaistPerimeter}
-                    keyboardType="decimal-pad"
-                    onFocus={() => scrollToField("waist")}
-                  />
-                </View>
+            <View
+              style={styles.inputGroup}
+              onLayout={(e) => {
+                inputYOffsets.current.bicep = e.nativeEvent.layout.y;
+              }}
+            >
+              <Text style={styles.label}>
+                {t("bodyStats.bicepPerimeter")} (cm)
+              </Text>
+              <TextInput
+                style={styles.input}
+                placeholder="30"
+                placeholderTextColor={theme.textTertiary}
+                value={bicepPerimeter}
+                onChangeText={setBicepPerimeter}
+                keyboardType="decimal-pad"
+                onFocus={() => scrollToField("bicep")}
+              />
+            </View>
 
-                {isFemale && (
-                  <View
-                    style={styles.inputGroup}
-                    onLayout={(e) => { inputYOffsets.current.hip = e.nativeEvent.layout.y; }}
-                  >
-                    <Text style={styles.label}>
-                      {t("bodyStats.hipPerimeter")} (cm)
-                    </Text>
-                    <TextInput
-                      style={styles.input}
-                      placeholder="95"
-                      placeholderTextColor={theme.textTertiary}
-                      value={hipPerimeter}
-                      onChangeText={setHipPerimeter}
-                      keyboardType="decimal-pad"
-                      onFocus={() => scrollToField("hip")}
-                    />
-                  </View>
-                )}
+            <View
+              style={styles.inputGroup}
+              onLayout={(e) => {
+                inputYOffsets.current.thigh = e.nativeEvent.layout.y;
+              }}
+            >
+              <Text style={styles.label}>
+                {t("bodyStats.thighPerimeter")} (cm)
+              </Text>
+              <TextInput
+                style={styles.input}
+                placeholder="55"
+                placeholderTextColor={theme.textTertiary}
+                value={thighPerimeter}
+                onChangeText={setThighPerimeter}
+                keyboardType="decimal-pad"
+                onFocus={() => scrollToField("thigh")}
+              />
+            </View>
 
-                <Text style={styles.sectionTitle}>
-                  {t("bodyStats.optionalDataMuscle")}
-                </Text>
+            <View
+              style={styles.inputGroup}
+              onLayout={(e) => {
+                inputYOffsets.current.calf = e.nativeEvent.layout.y;
+              }}
+            >
+              <Text style={styles.label}>
+                {t("bodyStats.calfPerimeter")} (cm)
+              </Text>
+              <TextInput
+                style={styles.input}
+                placeholder="38"
+                placeholderTextColor={theme.textTertiary}
+                value={calfPerimeter}
+                onChangeText={setCalfPerimeter}
+                keyboardType="decimal-pad"
+                onFocus={() => scrollToField("calf")}
+              />
+            </View>
 
-                <View
-                  style={styles.inputGroup}
-                  onLayout={(e) => { inputYOffsets.current.bicep = e.nativeEvent.layout.y; }}
-                >
-                  <Text style={styles.label}>
-                    {t("bodyStats.bicepPerimeter")} (cm)
-                  </Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="30"
-                    placeholderTextColor={theme.textTertiary}
-                    value={bicepPerimeter}
-                    onChangeText={setBicepPerimeter}
-                    keyboardType="decimal-pad"
-                    onFocus={() => scrollToField("bicep")}
-                  />
-                </View>
+            <View
+              style={styles.inputGroup}
+              onLayout={(e) => {
+                inputYOffsets.current.shoulder = e.nativeEvent.layout.y;
+              }}
+            >
+              <Text style={styles.label}>
+                {t("bodyStats.shoulderPerimeter")} (cm)
+              </Text>
+              <TextInput
+                style={styles.input}
+                placeholder="110"
+                placeholderTextColor={theme.textTertiary}
+                value={shoulderPerimeter}
+                onChangeText={setShoulderPerimeter}
+                keyboardType="decimal-pad"
+                onFocus={() => scrollToField("shoulder")}
+              />
+            </View>
 
-                <View
-                  style={styles.inputGroup}
-                  onLayout={(e) => { inputYOffsets.current.thigh = e.nativeEvent.layout.y; }}
-                >
-                  <Text style={styles.label}>
-                    {t("bodyStats.thighPerimeter")} (cm)
-                  </Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="55"
-                    placeholderTextColor={theme.textTertiary}
-                    value={thighPerimeter}
-                    onChangeText={setThighPerimeter}
-                    keyboardType="decimal-pad"
-                    onFocus={() => scrollToField("thigh")}
-                  />
-                </View>
-
-                <View
-                  style={styles.inputGroup}
-                  onLayout={(e) => { inputYOffsets.current.calf = e.nativeEvent.layout.y; }}
-                >
-                  <Text style={styles.label}>
-                    {t("bodyStats.calfPerimeter")} (cm)
-                  </Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="38"
-                    placeholderTextColor={theme.textTertiary}
-                    value={calfPerimeter}
-                    onChangeText={setCalfPerimeter}
-                    keyboardType="decimal-pad"
-                    onFocus={() => scrollToField("calf")}
-                  />
-                </View>
-
-                <View
-                  style={styles.inputGroup}
-                  onLayout={(e) => { inputYOffsets.current.shoulder = e.nativeEvent.layout.y; }}
-                >
-                  <Text style={styles.label}>
-                    {t("bodyStats.shoulderPerimeter")} (cm)
-                  </Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="110"
-                    placeholderTextColor={theme.textTertiary}
-                    value={shoulderPerimeter}
-                    onChangeText={setShoulderPerimeter}
-                    keyboardType="decimal-pad"
-                    onFocus={() => scrollToField("shoulder")}
-                  />
-                </View>
-
-                <TouchableOpacity
-                  style={[
-                    styles.saveButton,
-                    !isValid && styles.saveButtonDisabled,
-                  ]}
-                  onPress={handleSave}
-                  disabled={!isValid}
-                >
-                  <Text style={styles.saveButtonText}>{t("common.save")}</Text>
-                </TouchableOpacity>
-              </ScrollView>
+            <TouchableOpacity
+              style={[styles.saveButton, !isValid && styles.saveButtonDisabled]}
+              onPress={handleSave}
+              disabled={!isValid}
+            >
+              <Text style={styles.saveButtonText}>{t("common.save")}</Text>
+            </TouchableOpacity>
+          </ScrollView>
         </View>
       </View>
     </Modal>
