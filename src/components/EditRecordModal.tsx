@@ -1,5 +1,4 @@
 import { Ionicons } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -18,9 +17,8 @@ import {
 import { useTheme } from "../contexts/ThemeContext";
 import { useBodyRecordsStore } from "../store/bodyRecordsStore";
 import { useUserStore } from "../store/userStore";
+import { BodyRecord } from "../types";
 import DatePicker from "./DatePicker";
-
-const BODY_RECORD_DRAFT_KEY = "body_record_draft";
 
 const sanitizeDecimal = (value: string) => {
   let v = value.replace(/,/g, ".").replace(/[^0-9.]/g, "");
@@ -31,35 +29,25 @@ const sanitizeDecimal = (value: string) => {
   return v;
 };
 
-interface AddRecordModalProps {
+interface EditRecordModalProps {
   visible: boolean;
+  record: BodyRecord | null;
   onClose: () => void;
+  onSaved: () => Promise<void> | void;
 }
 
-/**
- * Bottom-sheet record form.
- *
- * Android keyboard fix: We do NOT use KeyboardAvoidingView at all.
- * The activity already has `android:windowSoftInputMode="adjustResize"`, and
- * React Native's ScrollView on Android automatically scrolls to keep the
- * focused TextInput visible when the keyboard opens. When the keyboard closes,
- * the ScrollView stays in its natural position — no stranded-modal bug.
- *
- * The key insight: the "modal stuck at top" bug was caused by
- * KeyboardAvoidingView / Keyboard listeners fighting against the Modal
- * window's own resize behaviour and never resetting. By simply not adding
- * any keyboard offset logic and letting ScrollView + adjustResize handle it
- * natively, the problem disappears.
- */
-export default function AddRecordModal({
+export default function EditRecordModal({
   visible,
+  record,
   onClose,
-}: AddRecordModalProps) {
+  onSaved,
+}: EditRecordModalProps) {
   const { t } = useTranslation();
   const { theme } = useTheme();
   const { userInfo } = useUserStore();
-  const { addRecord } = useBodyRecordsStore();
-  const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+  const { updateRecord } = useBodyRecordsStore();
+
+  const [date, setDate] = useState("");
   const [weight, setWeight] = useState("");
   const [height, setHeight] = useState("");
   const [neckPerimeter, setNeckPerimeter] = useState("");
@@ -69,11 +57,36 @@ export default function AddRecordModal({
   const [thighPerimeter, setThighPerimeter] = useState("");
   const [calfPerimeter, setCalfPerimeter] = useState("");
   const [shoulderPerimeter, setShoulderPerimeter] = useState("");
-  const [draftLoaded, setDraftLoaded] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   const scrollViewRef = useRef<ScrollView>(null);
   const inputYOffsets = useRef<Record<string, number>>({});
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    if (!visible || !record) return;
+    setDate(record.date);
+    setWeight(String(record.weight));
+    setHeight(String(record.height));
+    setNeckPerimeter(
+      record.neck_perimeter ? String(record.neck_perimeter) : "",
+    );
+    setWaistPerimeter(
+      record.waist_perimeter ? String(record.waist_perimeter) : "",
+    );
+    setHipPerimeter(record.hip_perimeter ? String(record.hip_perimeter) : "");
+    setBicepPerimeter(
+      record.bicep_perimeter ? String(record.bicep_perimeter) : "",
+    );
+    setThighPerimeter(
+      record.thigh_perimeter ? String(record.thigh_perimeter) : "",
+    );
+    setCalfPerimeter(
+      record.calf_perimeter ? String(record.calf_perimeter) : "",
+    );
+    setShoulderPerimeter(
+      record.shoulder_perimeter ? String(record.shoulder_perimeter) : "",
+    );
+  }, [visible, record]);
 
   useEffect(() => {
     if (!visible) {
@@ -99,62 +112,6 @@ export default function AddRecordModal({
     };
   }, [visible]);
 
-  useEffect(() => {
-    if (!visible) {
-      setDraftLoaded(false);
-      return;
-    }
-    AsyncStorage.getItem(BODY_RECORD_DRAFT_KEY)
-      .then((stored) => {
-        if (stored) {
-          const draft = JSON.parse(stored);
-          setDate(draft.date ?? new Date().toISOString().split("T")[0]);
-          setWeight(draft.weight ?? "");
-          setHeight(draft.height ?? "");
-          setNeckPerimeter(draft.neckPerimeter ?? "");
-          setWaistPerimeter(draft.waistPerimeter ?? "");
-          setHipPerimeter(draft.hipPerimeter ?? "");
-          setBicepPerimeter(draft.bicepPerimeter ?? "");
-          setThighPerimeter(draft.thighPerimeter ?? "");
-          setCalfPerimeter(draft.calfPerimeter ?? "");
-          setShoulderPerimeter(draft.shoulderPerimeter ?? "");
-        }
-        setDraftLoaded(true);
-      })
-      .catch(() => setDraftLoaded(true));
-  }, [visible]);
-
-  useEffect(() => {
-    if (!draftLoaded) return;
-    AsyncStorage.setItem(
-      BODY_RECORD_DRAFT_KEY,
-      JSON.stringify({
-        date,
-        weight,
-        height,
-        neckPerimeter,
-        waistPerimeter,
-        hipPerimeter,
-        bicepPerimeter,
-        thighPerimeter,
-        calfPerimeter,
-        shoulderPerimeter,
-      }),
-    ).catch((error) => console.error("Error saving body record draft:", error));
-  }, [
-    draftLoaded,
-    date,
-    weight,
-    height,
-    neckPerimeter,
-    waistPerimeter,
-    hipPerimeter,
-    bicepPerimeter,
-    thighPerimeter,
-    calfPerimeter,
-    shoulderPerimeter,
-  ]);
-
   const scrollToField = (key: string) => {
     setTimeout(() => {
       const y = inputYOffsets.current[key];
@@ -168,6 +125,8 @@ export default function AddRecordModal({
   };
 
   const handleSave = async () => {
+    if (!record?.id) return;
+
     if (!date || !weight || !height) {
       Alert.alert(t("common.error"), t("bodyStats.fillRequired"));
       return;
@@ -189,9 +148,7 @@ export default function AddRecordModal({
     const validatePerimeter = (value: string) => {
       if (!value) return undefined;
       const num = parseFloat(value);
-      if (isNaN(num) || num < 10 || num > 200) {
-        return null;
-      }
+      if (isNaN(num) || num < 10 || num > 200) return null;
       return num;
     };
 
@@ -217,8 +174,8 @@ export default function AddRecordModal({
     }
 
     try {
-      await addRecord({
-        user_id: userInfo!.id!,
+      await updateRecord(record.id, {
+        user_id: record.user_id,
         date,
         weight: weightNum,
         height: heightNum,
@@ -230,19 +187,10 @@ export default function AddRecordModal({
         calf_perimeter: calfNum,
         shoulder_perimeter: shoulderNum,
       });
-      await AsyncStorage.removeItem(BODY_RECORD_DRAFT_KEY);
-      setWeight("");
-      setHeight("");
-      setNeckPerimeter("");
-      setWaistPerimeter("");
-      setHipPerimeter("");
-      setBicepPerimeter("");
-      setThighPerimeter("");
-      setCalfPerimeter("");
-      setShoulderPerimeter("");
+      await onSaved();
       onClose();
-    } catch (error) {
-      Alert.alert(t("common.error"), t("bodyStats.errorSaving"));
+    } catch {
+      Alert.alert(t("common.error"), t("bodyStats.errorUpdating"));
     }
   };
 
@@ -263,7 +211,7 @@ export default function AddRecordModal({
 
         <View style={styles.modalContent}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>{t("bodyStats.addRecord")}</Text>
+            <Text style={styles.modalTitle}>{t("bodyStats.editRecord")}</Text>
             <TouchableOpacity
               onPress={onClose}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}

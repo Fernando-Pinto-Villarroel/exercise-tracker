@@ -1,4 +1,3 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Notifications from "expo-notifications";
 import { Alert, Linking, Platform } from "react-native";
 import { getDatabase } from "../database/init";
@@ -16,9 +15,6 @@ const DEFAULT_CONFIG = {
   DAYS_AHEAD: 7,
   CHANNEL_ID: "daily-reminder",
 };
-
-const LAST_SCHEDULED_DATE_KEY = "last_scheduled_reminder_date";
-const LAST_SCHEDULED_LANGUAGE_KEY = "last_scheduled_reminder_language";
 
 const formatDate = (date: Date): string => {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -152,41 +148,28 @@ export const saveNotificationSettings = async (settings: {
   );
 };
 
-export const scheduleDailyReminders = async (): Promise<void> => {
+export const scheduleDailyReminders = async (
+  skipToday: boolean = false,
+): Promise<void> => {
   try {
     const { isRestDay } = useExerciseStore.getState();
     const config = await loadNotificationSettings();
     const now = new Date();
-    const today = formatDate(now);
 
     if (config.notificationsPerDay <= 0) {
       console.log("Notifications disabled (0 per day)");
       return;
     }
 
-    const lastScheduledDate = await AsyncStorage.getItem(
-      LAST_SCHEDULED_DATE_KEY,
-    );
-
-    let startDate: Date;
-    if (lastScheduledDate && lastScheduledDate >= today) {
-      startDate = new Date(lastScheduledDate + "T00:00:00");
+    const startDate = new Date(now);
+    startDate.setHours(0, 0, 0, 0);
+    if (skipToday) {
       startDate.setDate(startDate.getDate() + 1);
-    } else {
-      startDate = new Date(now);
-      startDate.setHours(0, 0, 0, 0);
     }
 
     const endDate = new Date(now);
     endDate.setDate(endDate.getDate() + DEFAULT_CONFIG.DAYS_AHEAD - 1);
     endDate.setHours(23, 59, 59, 999);
-
-    if (startDate > endDate) {
-      console.log("Reminders already scheduled for the full week");
-      return;
-    }
-
-    let lastScheduled = lastScheduledDate || "";
 
     const currentDate = new Date(startDate);
     while (currentDate <= endDate) {
@@ -194,7 +177,6 @@ export const scheduleDailyReminders = async (): Promise<void> => {
       const dayOfWeek = currentDate.getDay();
 
       const isDayEnabled = config.enabledDays.includes(dayOfWeek);
-
       const isRest = await isRestDay(dateStr);
 
       if (!isRest && isDayEnabled) {
@@ -231,16 +213,12 @@ export const scheduleDailyReminders = async (): Promise<void> => {
         }
       }
 
-      lastScheduled = dateStr;
       currentDate.setDate(currentDate.getDate() + 1);
     }
 
-    if (lastScheduled) {
-      await AsyncStorage.setItem(LAST_SCHEDULED_DATE_KEY, lastScheduled);
-      await AsyncStorage.setItem(LAST_SCHEDULED_LANGUAGE_KEY, i18n.language);
-    }
-
-    console.log(`Reminders scheduled up to ${lastScheduled}`);
+    console.log(
+      `Reminders scheduled for next ${DEFAULT_CONFIG.DAYS_AHEAD} days`,
+    );
   } catch (error) {
     console.error("Error scheduling daily reminders:", error);
   }
@@ -249,9 +227,7 @@ export const scheduleDailyReminders = async (): Promise<void> => {
 export const rescheduleDailyReminders = async (): Promise<void> => {
   try {
     await Notifications.cancelAllScheduledNotificationsAsync();
-    await AsyncStorage.removeItem(LAST_SCHEDULED_DATE_KEY);
-    await AsyncStorage.removeItem(LAST_SCHEDULED_LANGUAGE_KEY);
-    await scheduleDailyReminders();
+    await scheduleDailyReminders(false);
     console.log("Daily reminders rescheduled");
   } catch (error) {
     console.error("Error rescheduling daily reminders:", error);
@@ -296,20 +272,44 @@ export const initializeDailyReminders = async (): Promise<void> => {
       enableVibrate: true,
     });
 
-    const scheduledLang = await AsyncStorage.getItem(
-      LAST_SCHEDULED_LANGUAGE_KEY,
-    );
-    if (scheduledLang && scheduledLang !== i18n.language) {
-      console.log(
-        `Language changed (${scheduledLang} → ${i18n.language}), rescheduling reminders`,
-      );
-      await rescheduleDailyReminders();
-      return;
+    const todayStr = formatDate(new Date());
+    const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+
+    const hasTodayPending = scheduled.some((n) => {
+      const trigger = n.trigger as {
+        dateComponents?: { year?: number; month?: number; day?: number };
+        value?: number;
+        date?: number;
+      } | null;
+      if (!trigger) return false;
+
+      const ts =
+        (trigger as { value?: number }).value ??
+        (trigger as { date?: number }).date;
+      if (ts != null) {
+        return formatDate(new Date(ts)) === todayStr;
+      }
+      return false;
+    });
+
+    const futureCancels = scheduled.filter((n) => {
+      const trigger = n.trigger as { value?: number; date?: number } | null;
+      if (!trigger) return true;
+      const ts = trigger.value ?? trigger.date;
+      if (ts != null) {
+        return formatDate(new Date(ts)) !== todayStr;
+      }
+      return true;
+    });
+    for (const n of futureCancels) {
+      await Notifications.cancelScheduledNotificationAsync(n.identifier);
     }
 
-    await scheduleDailyReminders();
+    await scheduleDailyReminders(hasTodayPending);
 
-    console.log("Daily reminders initialized");
+    console.log(
+      `Daily reminders initialized (skipToday=${hasTodayPending}, todayPending=${scheduled.length - futureCancels.length})`,
+    );
   } catch (error) {
     console.error("Error initializing daily reminders:", error);
   }
@@ -318,8 +318,6 @@ export const initializeDailyReminders = async (): Promise<void> => {
 export const cancelDailyReminders = async (): Promise<void> => {
   try {
     await Notifications.cancelAllScheduledNotificationsAsync();
-    await AsyncStorage.removeItem(LAST_SCHEDULED_DATE_KEY);
-    await AsyncStorage.removeItem(LAST_SCHEDULED_LANGUAGE_KEY);
     console.log("Daily reminders canceled");
   } catch (error) {
     console.error("Error canceling daily reminders:", error);

@@ -135,6 +135,47 @@ async function applyMigration3(database: SQLite.SQLiteDatabase): Promise<void> {
   console.log("Migration 3 applied successfully");
 }
 
+async function applyMigration4(database: SQLite.SQLiteDatabase): Promise<void> {
+  console.log("Applying migration 4: Adding removed_at to weekly_rest_days");
+
+  const tableInfo = await database.getAllAsync<{ name: string }>(
+    "PRAGMA table_info(weekly_rest_days)",
+  );
+  const hasRemovedAt = tableInfo.some((col) => col.name === "removed_at");
+
+  if (!hasRemovedAt) {
+    await database.execAsync(`
+      ALTER TABLE weekly_rest_days
+      ADD COLUMN removed_at TEXT;
+    `);
+  }
+
+  await setSchemaVersion(database, 4);
+  console.log("Migration 4 applied successfully");
+}
+
+async function applyMigration5(database: SQLite.SQLiteDatabase): Promise<void> {
+  console.log("Applying migration 5: Adding rest_day_override to daily_completion");
+
+  const tableInfo = await database.getAllAsync<{ name: string }>(
+    "PRAGMA table_info(daily_completion)",
+  );
+  const hasOverride = tableInfo.some((col) => col.name === "rest_day_override");
+
+  if (!hasOverride) {
+    await database.execAsync(`
+      ALTER TABLE daily_completion
+      ADD COLUMN rest_day_override INTEGER NOT NULL DEFAULT 0;
+    `);
+    await database.runAsync(
+      "UPDATE daily_completion SET rest_day_override = 1 WHERE is_rest_day = 1",
+    );
+  }
+
+  await setSchemaVersion(database, 5);
+  console.log("Migration 5 applied successfully");
+}
+
 async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
   const currentVersion = await getCurrentSchemaVersion(database);
   console.log(`Current schema version: ${currentVersion}`);
@@ -149,6 +190,14 @@ async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
 
   if (currentVersion < 3) {
     await applyMigration3(database);
+  }
+
+  if (currentVersion < 4) {
+    await applyMigration4(database);
+  }
+
+  if (currentVersion < 5) {
+    await applyMigration5(database);
   }
 
   console.log("All migrations completed");

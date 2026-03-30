@@ -52,11 +52,13 @@ export interface DailyCompletion {
   completed_at?: string;
   training_time: number;
   is_rest_day?: boolean;
+  rest_day_override?: number;
 }
 
 export interface WeeklyRestDay {
   day_of_week: number;
   created_at: string;
+  removed_at?: string | null;
 }
 
 export interface NotificationSettings {

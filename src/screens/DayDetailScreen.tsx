@@ -1,5 +1,5 @@
 import { FontAwesome5, Ionicons, MaterialIcons } from "@expo/vector-icons";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Alert,
@@ -119,6 +119,7 @@ export default function DayDetailScreen({ route }: any) {
   );
   const [isRestDayState, setIsRestDayState] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const prevDateRef = useRef<string>("");
 
   const [deleteMode, setDeleteMode] = useState(false);
   const [deleteSelectedIds, setDeleteSelectedIds] = useState<Set<number>>(
@@ -143,11 +144,13 @@ export default function DayDetailScreen({ route }: any) {
 
   useEffect(() => {
     setIsFuture(isFutureDate(date));
-    loadData();
+    const isDateChange = prevDateRef.current !== date;
+    prevDateRef.current = date;
+    loadData(isDateChange);
   }, [date, weeklyPlanCounter, completionCounter]);
 
-  const loadData = async () => {
-    setIsLoading(true);
+  const loadData = async (showSpinner = true) => {
+    if (showSpinner) setIsLoading(true);
     try {
       const data = await loadDayData(date);
       let exercises = data.snapshot;
@@ -186,7 +189,7 @@ export default function DayDetailScreen({ route }: any) {
             text: t("common.confirm"),
             onPress: async () => {
               try {
-                await toggleRestDay(date);
+                await toggleRestDay(date, isRestDayState);
                 await loadData();
               } catch (error) {
                 console.error("Error toggling rest day:", error);
@@ -198,7 +201,7 @@ export default function DayDetailScreen({ route }: any) {
       );
     } else {
       try {
-        await toggleRestDay(date);
+        await toggleRestDay(date, isRestDayState);
         await loadData();
       } catch (error) {
         console.error("Error toggling rest day:", error);
@@ -241,7 +244,12 @@ export default function DayDetailScreen({ route }: any) {
 
     await toggleDayCompletion(date, dateObj.toISOString());
     await updateTrainingTime(date, totalSeconds);
-    await loadData();
+    setCompletion((prev) => ({
+      ...(prev ?? { date, is_completed: false, training_time: 0 }),
+      is_completed: true,
+      training_time: totalSeconds,
+      completed_at: dateObj.toISOString(),
+    }));
     setShowCompletionTimeModal(false);
   };
 

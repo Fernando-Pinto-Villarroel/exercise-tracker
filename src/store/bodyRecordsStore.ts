@@ -12,6 +12,7 @@ interface BodyRecordsStore {
   loadAllRecords: () => Promise<BodyRecord[]>;
   resetRecords: () => void;
   addRecord: (record: Omit<BodyRecord, "id" | "created_at">) => Promise<void>;
+  updateRecord: (id: number, record: Omit<BodyRecord, "id" | "created_at">) => Promise<void>;
   deleteRecord: (id: number) => Promise<void>;
   getRecordById: (id: number) => Promise<BodyRecord | null>;
 }
@@ -78,6 +79,27 @@ export const useBodyRecordsStore = create<BodyRecordsStore>((set, get) => ({
       ]
     );
 
+    await useBodyRecordsStore.getState().loadRecords();
+  },
+
+  updateRecord: async (id, record) => {
+    const db = getDatabase();
+    await db.runAsync(
+      `UPDATE body_records SET date = ?, weight = ?, height = ?, neck_perimeter = ?, waist_perimeter = ?, hip_perimeter = ?, bicep_perimeter = ?, thigh_perimeter = ?, calf_perimeter = ?, shoulder_perimeter = ? WHERE id = ?`,
+      [
+        record.date,
+        record.weight,
+        record.height,
+        record.neck_perimeter ?? null,
+        record.waist_perimeter ?? null,
+        record.hip_perimeter ?? null,
+        record.bicep_perimeter ?? null,
+        record.thigh_perimeter ?? null,
+        record.calf_perimeter ?? null,
+        record.shoulder_perimeter ?? null,
+        id,
+      ]
+    );
     await useBodyRecordsStore.getState().loadRecords();
   },
 

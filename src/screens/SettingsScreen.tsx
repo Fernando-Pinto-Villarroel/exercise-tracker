@@ -79,7 +79,9 @@ function SettingsMain({ navigation }: any) {
       const weeklyRestDays = await db.getAllAsync<{
         day_of_week: number;
         created_at: string;
-      }>("SELECT day_of_week, created_at FROM weekly_rest_days");
+      }>(
+        "SELECT day_of_week, created_at FROM weekly_rest_days WHERE removed_at IS NULL",
+      );
       const dailySnapshots = await db.getAllAsync<DailySnapshot>(
         "SELECT * FROM daily_snapshot",
       );
@@ -91,8 +93,8 @@ function SettingsMain({ navigation }: any) {
       );
 
       const exportData: ExportData = {
-        version: "1.3.0",
-        schema_version: 3,
+        version: "1.4.0",
+        schema_version: 5,
         exported_at: new Date().toISOString(),
         user_info: userInfo,
         body_records: bodyRecords,
@@ -414,13 +416,14 @@ function SettingsMain({ navigation }: any) {
 
     for (const completion of data.daily_completions) {
       await db.runAsync(
-        "INSERT INTO daily_completion (date, is_completed, completed_at, training_time, is_rest_day) VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO daily_completion (date, is_completed, completed_at, training_time, is_rest_day, rest_day_override) VALUES (?, ?, ?, ?, ?, ?)",
         [
           completion.date,
           completion.is_completed ? 1 : 0,
           completion.completed_at ?? null,
           completion.training_time || 0,
           completion.is_rest_day ? 1 : 0,
+          completion.rest_day_override ?? (completion.is_rest_day ? 1 : 0),
         ],
       );
     }
@@ -675,7 +678,7 @@ function SettingsMain({ navigation }: any) {
           </TouchableOpacity>
         </View>
         <Text style={styles.copyrightText}>
-          {t("settings.version", { version: "1.3.0" })}
+          {t("settings.version", { version: "1.4.0" })}
         </Text>
       </View>
     </ScrollView>

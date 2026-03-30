@@ -47,7 +47,7 @@ interface ExerciseStore {
   incrementRefreshCounter: () => void;
 
   toggleWeeklyRestDay: (dayOfWeek: number) => Promise<void>;
-  toggleRestDay: (date: string) => Promise<void>;
+  toggleRestDay: (date: string, isCurrentlyRestDay: boolean) => Promise<void>;
   isRestDay: (date: string) => Promise<boolean>;
   loadWeeklyRestDays: () => Promise<number[]>;
 
@@ -491,21 +491,33 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
     try {
       const db = getDatabase();
 
-      const existing = await db.getFirstAsync<{ day_of_week: number }>(
-        "SELECT day_of_week FROM weekly_rest_days WHERE day_of_week = ?",
+      const existing = await db.getFirstAsync<{
+        day_of_week: number;
+        removed_at: string | null;
+      }>(
+        "SELECT day_of_week, removed_at FROM weekly_rest_days WHERE day_of_week = ?",
         [dayOfWeek],
       );
 
-      if (existing) {
+      const isCurrentlyActive = existing && !existing.removed_at;
+
+      if (isCurrentlyActive) {
         await db.runAsync(
-          "DELETE FROM weekly_rest_days WHERE day_of_week = ?",
-          [dayOfWeek],
+          "UPDATE weekly_rest_days SET removed_at = ? WHERE day_of_week = ?",
+          [new Date().toISOString(), dayOfWeek],
         );
       } else {
-        await db.runAsync(
-          "INSERT INTO weekly_rest_days (day_of_week, created_at) VALUES (?, ?)",
-          [dayOfWeek, new Date().toISOString()],
-        );
+        if (existing) {
+          await db.runAsync(
+            "UPDATE weekly_rest_days SET removed_at = NULL WHERE day_of_week = ?",
+            [dayOfWeek],
+          );
+        } else {
+          await db.runAsync(
+            "INSERT INTO weekly_rest_days (day_of_week, created_at) VALUES (?, ?)",
+            [dayOfWeek, new Date().toISOString()],
+          );
+        }
 
         await db.runAsync("DELETE FROM weekly_plan WHERE day_of_week = ?", [
           dayOfWeek,
@@ -531,9 +543,10 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
     }
   },
 
-  toggleRestDay: async (date: string) => {
+  toggleRestDay: async (date: string, isCurrentlyRestDay: boolean) => {
     try {
       const db = getDatabase();
+      const newIsRestDay = !isCurrentlyRestDay;
 
       const current = await db.getFirstAsync<DailyCompletion>(
         "SELECT * FROM daily_completion WHERE date = ?",
@@ -541,25 +554,28 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
       );
 
       if (!current) {
-        await db.runAsync(
-          "INSERT INTO daily_completion (date, is_completed, training_time, is_rest_day) VALUES (?, 0, 0, 1)",
-          [date],
-        );
-        await db.runAsync("DELETE FROM daily_snapshot WHERE date = ?", [date]);
-      } else {
-        const newRestDay = current.is_rest_day ? 0 : 1;
-
-        if (newRestDay === 1) {
+        if (newIsRestDay) {
           await db.runAsync(
-            "UPDATE daily_completion SET is_rest_day = 1, is_completed = 0, completed_at = NULL, training_time = 0 WHERE date = ?",
+            "INSERT INTO daily_completion (date, is_completed, training_time, is_rest_day, rest_day_override) VALUES (?, 0, 0, 1, 1)",
             [date],
           );
-          await db.runAsync("DELETE FROM daily_snapshot WHERE date = ?", [
-            date,
-          ]);
+          await db.runAsync("DELETE FROM daily_snapshot WHERE date = ?", [date]);
         } else {
           await db.runAsync(
-            "UPDATE daily_completion SET is_rest_day = 0 WHERE date = ?",
+            "INSERT INTO daily_completion (date, is_completed, training_time, is_rest_day, rest_day_override) VALUES (?, 0, 0, 0, 1)",
+            [date],
+          );
+        }
+      } else {
+        if (newIsRestDay) {
+          await db.runAsync(
+            "UPDATE daily_completion SET is_rest_day = 1, rest_day_override = 1, is_completed = 0, completed_at = NULL, training_time = 0 WHERE date = ?",
+            [date],
+          );
+          await db.runAsync("DELETE FROM daily_snapshot WHERE date = ?", [date]);
+        } else {
+          await db.runAsync(
+            "UPDATE daily_completion SET is_rest_day = 0, rest_day_override = 1 WHERE date = ?",
             [date],
           );
         }
@@ -580,7 +596,7 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
         "SELECT * FROM daily_completion WHERE date = ?",
         [date],
       );
-      if (dailyCompletion?.is_rest_day) return true;
+      if (dailyCompletion?.rest_day_override) return !!dailyCompletion.is_rest_day;
 
       const dateObj = new Date(date + "T00:00:00");
       const dayOfWeek = dateObj.getDay();
@@ -600,13 +616,13 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
           String(nextDay.getDate()).padStart(2, "0");
 
         const weeklyRest = await db.getFirstAsync<{ day_of_week: number }>(
-          "SELECT day_of_week FROM weekly_rest_days WHERE day_of_week = ? AND created_at < ?",
-          [adjustedDay, nextDayStr],
+          "SELECT day_of_week FROM weekly_rest_days WHERE day_of_week = ? AND created_at < ? AND (removed_at IS NULL OR removed_at > ?)",
+          [adjustedDay, nextDayStr, date],
         );
         if (weeklyRest) return true;
       } else {
         const weeklyRest = await db.getFirstAsync<{ day_of_week: number }>(
-          "SELECT day_of_week FROM weekly_rest_days WHERE day_of_week = ?",
+          "SELECT day_of_week FROM weekly_rest_days WHERE day_of_week = ? AND removed_at IS NULL",
           [adjustedDay],
         );
         if (weeklyRest) return true;
@@ -623,7 +639,7 @@ export const useExerciseStore = create<ExerciseStore>((set, get) => ({
     try {
       const db = getDatabase();
       const restDays = await db.getAllAsync<{ day_of_week: number }>(
-        "SELECT day_of_week FROM weekly_rest_days ORDER BY day_of_week",
+        "SELECT day_of_week FROM weekly_rest_days WHERE removed_at IS NULL ORDER BY day_of_week",
       );
       return restDays.map((rd) => rd.day_of_week);
     } catch (error) {

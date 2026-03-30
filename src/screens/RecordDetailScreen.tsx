@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -8,6 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import EditRecordModal from "../components/EditRecordModal";
 import { useTheme } from "../contexts/ThemeContext";
 import { useBodyRecordsStore } from "../store/bodyRecordsStore";
 import { useUserStore } from "../store/userStore";
@@ -20,6 +22,7 @@ export default function RecordDetailScreen({ route, navigation }: any) {
   const { getRecordById, deleteRecord } = useBodyRecordsStore();
   const { userInfo } = useUserStore();
   const [record, setRecord] = useState<BodyRecord | null>(null);
+  const [editModalVisible, setEditModalVisible] = useState(false);
 
   useEffect(() => {
     loadRecord();
@@ -53,6 +56,8 @@ export default function RecordDetailScreen({ route, navigation }: any) {
     const heightCm = record.height;
     const isFemale = userInfo?.gender === "female";
 
+    if (isFemale && !record.hip_perimeter) return null;
+
     let bodyFat: number;
 
     if (isFemale && record.hip_perimeter) {
@@ -63,7 +68,7 @@ export default function RecordDetailScreen({ route, navigation }: any) {
               Math.log10(
                 record.waist_perimeter +
                   record.hip_perimeter -
-                  record.neck_perimeter
+                  record.neck_perimeter,
               ) +
             0.221 * Math.log10(heightCm)) -
         450;
@@ -292,10 +297,22 @@ export default function RecordDetailScreen({ route, navigation }: any) {
     );
   }
 
+  const isFemale = userInfo?.gender === "female";
   const bmi = calculateBMI();
   const bmiInfo = getBMICategory(bmi);
+
+  const canCalculateBodyFat = isFemale
+    ? !!(
+        record.neck_perimeter &&
+        record.waist_perimeter &&
+        record.hip_perimeter
+      )
+    : !!(record.neck_perimeter && record.waist_perimeter);
+
   const bodyFat = calculateBodyFat();
-  const bodyFatInfo = bodyFat ? getBodyFatCategory(bodyFat) : null;
+  const bodyFatValid =
+    canCalculateBodyFat && bodyFat !== null && !isNaN(bodyFat);
+  const bodyFatInfo = bodyFatValid ? getBodyFatCategory(bodyFat!) : null;
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -396,33 +413,63 @@ export default function RecordDetailScreen({ route, navigation }: any) {
           <Text style={styles.infoText}>{t("bodyStats.bmiInfo")}</Text>
         </View>
 
-        {bodyFat && bodyFatInfo && (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>{t("bodyStats.bodyFat")}</Text>
-            <View style={styles.statisticHeader}>
-              <Text style={styles.statisticValue}>{bodyFat.toFixed(1)}%</Text>
-              <View
-                style={[
-                  styles.categoryBadge,
-                  { backgroundColor: bodyFatInfo.color + "20" },
-                ]}
-              >
-                <Text
-                  style={[styles.categoryText, { color: bodyFatInfo.color }]}
-                >
-                  {bodyFatInfo.category}
-                </Text>
-              </View>
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>{t("bodyStats.bodyFat")}</Text>
+          {!canCalculateBodyFat ? (
+            <View style={styles.missingInfoRow}>
+              <Ionicons
+                name="information-circle-outline"
+                size={18}
+                color={theme.textSecondary}
+                style={styles.missingInfoIcon}
+              />
+              <Text style={styles.missingInfoText}>
+                {isFemale
+                  ? t("bodyStats.bodyFatMissingFemale")
+                  : t("bodyStats.bodyFatMissingMale")}
+              </Text>
             </View>
-            <BodyFatRangeIndicator bodyFat={bodyFat} />
-            <Text style={styles.infoText}>{t("bodyStats.bodyFatInfo")}</Text>
-          </View>
-        )}
+          ) : bodyFatValid && bodyFatInfo ? (
+            <>
+              <View style={styles.statisticHeader}>
+                <Text style={styles.statisticValue}>{bodyFat!.toFixed(1)}%</Text>
+                <View
+                  style={[
+                    styles.categoryBadge,
+                    { backgroundColor: bodyFatInfo.color + "20" },
+                  ]}
+                >
+                  <Text
+                    style={[styles.categoryText, { color: bodyFatInfo.color }]}
+                  >
+                    {bodyFatInfo.category}
+                  </Text>
+                </View>
+              </View>
+              <BodyFatRangeIndicator bodyFat={bodyFat!} />
+              <Text style={styles.infoText}>{t("bodyStats.bodyFatInfo")}</Text>
+            </>
+          ) : (
+            <View style={styles.missingInfoRow}>
+              <Ionicons
+                name="warning-outline"
+                size={18}
+                color={theme.textSecondary}
+                style={styles.missingInfoIcon}
+              />
+              <Text style={styles.missingInfoText}>
+                {t("bodyStats.bodyFatInvalidMeasurements")}
+              </Text>
+            </View>
+          )}
+        </View>
 
-        {(record.bicep_perimeter ||
+        {!!(
+          record.bicep_perimeter ||
           record.thigh_perimeter ||
           record.calf_perimeter ||
-          record.shoulder_perimeter) && (
+          record.shoulder_perimeter
+        ) && (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>{t("bodyStats.muscleMass")}</Text>
             <Text style={styles.infoText}>{t("bodyStats.muscleMassInfo")}</Text>
@@ -446,12 +493,26 @@ export default function RecordDetailScreen({ route, navigation }: any) {
           </Text>
         </View>
 
+        <TouchableOpacity
+          style={styles.editButton}
+          onPress={() => setEditModalVisible(true)}
+        >
+          <Text style={styles.editButtonText}>{t("bodyStats.editRecord")}</Text>
+        </TouchableOpacity>
+
         <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
           <Text style={styles.deleteButtonText}>
             {t("bodyStats.deleteRecord")}
           </Text>
         </TouchableOpacity>
       </ScrollView>
+
+      <EditRecordModal
+        visible={editModalVisible}
+        record={record}
+        onClose={() => setEditModalVisible(false)}
+        onSaved={loadRecord}
+      />
     </View>
   );
 }
@@ -589,6 +650,39 @@ const createStyles = (theme: any) =>
       fontSize: 14,
       color: theme.text,
       lineHeight: 22,
+    },
+    missingInfoRow: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: 8,
+      marginTop: 4,
+    },
+    missingInfoIcon: {
+      marginTop: 1,
+    },
+    missingInfoText: {
+      flex: 1,
+      fontSize: 14,
+      color: theme.textSecondary,
+      lineHeight: 20,
+    },
+    editButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.primary,
+      paddingVertical: 16,
+      borderRadius: 8,
+      marginBottom: 12,
+      gap: 8,
+    },
+    editButtonIcon: {
+      marginRight: 2,
+    },
+    editButtonText: {
+      color: "#ffffff",
+      fontSize: 16,
+      fontWeight: "600",
     },
     deleteButton: {
       backgroundColor: theme.errorDark,
