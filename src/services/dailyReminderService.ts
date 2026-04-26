@@ -275,32 +275,42 @@ export const initializeDailyReminders = async (): Promise<void> => {
     const todayStr = formatDate(new Date());
     const scheduled = await Notifications.getAllScheduledNotificationsAsync();
 
-    const hasTodayPending = scheduled.some((n) => {
-      const trigger = n.trigger as {
-        dateComponents?: { year?: number; month?: number; day?: number };
-        value?: number;
-        date?: number;
-      } | null;
-      if (!trigger) return false;
+    const getTriggerDateStr = (trigger: unknown): string | null => {
+      if (!trigger || typeof trigger !== "object") return null;
+      const t = trigger as Record<string, unknown>;
 
+      // Android DATE trigger: { type: 'date', timestamp: number }
+      if (typeof t.timestamp === "number") {
+        return formatDate(new Date(t.timestamp));
+      }
+
+      // iOS CalendarNotificationTrigger: { type: 'calendar', dateComponents: { year, month, day } }
+      const dc = t.dateComponents as
+        | { year?: number; month?: number; day?: number }
+        | undefined;
+      if (dc?.year != null && dc?.month != null && dc?.day != null) {
+        return formatDate(new Date(dc.year, dc.month - 1, dc.day));
+      }
+
+      // Fallback for legacy/unknown formats
       const ts =
-        (trigger as { value?: number }).value ??
-        (trigger as { date?: number }).date;
-      if (ts != null) {
-        return formatDate(new Date(ts)) === todayStr;
-      }
-      return false;
-    });
+        typeof t.value === "number"
+          ? t.value
+          : typeof t.date === "number"
+            ? t.date
+            : null;
+      if (ts !== null) return formatDate(new Date(ts));
 
-    const futureCancels = scheduled.filter((n) => {
-      const trigger = n.trigger as { value?: number; date?: number } | null;
-      if (!trigger) return true;
-      const ts = trigger.value ?? trigger.date;
-      if (ts != null) {
-        return formatDate(new Date(ts)) !== todayStr;
-      }
-      return true;
-    });
+      return null;
+    };
+
+    const hasTodayPending = scheduled.some(
+      (n) => getTriggerDateStr(n.trigger) === todayStr,
+    );
+
+    const futureCancels = scheduled.filter(
+      (n) => getTriggerDateStr(n.trigger) !== todayStr,
+    );
     for (const n of futureCancels) {
       await Notifications.cancelScheduledNotificationAsync(n.identifier);
     }

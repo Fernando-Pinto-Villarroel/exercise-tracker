@@ -37,7 +37,7 @@ function AppContent() {
 
       await Notifications.requestPermissionsAsync();
 
-      if (isOnboarded) {
+      if (useUserStore.getState().isOnboarded) {
         await initializeDailyReminders();
       }
 
