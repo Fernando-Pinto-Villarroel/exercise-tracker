@@ -598,6 +598,13 @@ export default function DayDetailScreen({ route }: any) {
                   {formatTimeShort(item.estimated_time!)}
                 </Text>
               )}
+              {hasSets &&
+                item.rest_time_between_sets &&
+                item.rest_time_between_sets > 0 && (
+                  <Text style={styles.exerciseStats}>
+                    {t("myExercises.restLabel")}: {formatTimeShort(item.rest_time_between_sets)}
+                  </Text>
+                )}
             </View>
           </View>
 
@@ -727,6 +734,13 @@ export default function DayDetailScreen({ route }: any) {
                 {formatTimeShort(exercise.estimated_time!)}
               </Text>
             )}
+            {hasSets &&
+              exercise.rest_time_between_sets &&
+              exercise.rest_time_between_sets > 0 && (
+                <Text style={styles.exerciseStats}>
+                  {t("myExercises.restLabel")}: {formatTimeShort(exercise.rest_time_between_sets)}
+                </Text>
+              )}
           </View>
         </View>
         <View style={styles.selectionIndicator}>
@@ -1142,7 +1156,7 @@ const createStyles = (theme: any) =>
       shadowRadius: 2,
       elevation: 2,
       marginBottom: 12,
-      minHeight: 120,
+      height: 116,
     },
     exerciseCardSelected: {
       borderWidth: 2,

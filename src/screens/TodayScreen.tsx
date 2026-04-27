@@ -14,6 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import RestSetTimer from "../components/RestSetTimer";
 import { SvgIcon } from "../components/SvgIcons";
 import TimePicker from "../components/TimePicker";
 import Timer from "../components/Timer";
@@ -489,6 +490,15 @@ export default function TodayScreen() {
                       </View>
                     </View>
                   </View>
+
+                  {exercise.sets && exercise.sets > 0 && exercise.rest_time_between_sets && exercise.rest_time_between_sets > 0 && (
+                    <View style={styles.progressContainer}>
+                      <Text style={styles.progressLabel}>
+                        {t("today.restTimer")}
+                      </Text>
+                      <RestSetTimer restTimeSeconds={exercise.rest_time_between_sets} />
+                    </View>
+                  )}
 
                   {hasSets && (
                     <View style={styles.progressContainer}>

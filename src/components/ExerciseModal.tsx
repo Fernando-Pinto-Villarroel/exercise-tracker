@@ -79,6 +79,8 @@ export default function ExerciseModal({
   const [reps, setReps] = useState("");
   const [estimatedTimeMinutes, setEstimatedTimeMinutes] = useState("");
   const [estimatedTimeSeconds, setEstimatedTimeSeconds] = useState("");
+  const [restTimeBetweenSetsMinutes, setRestTimeBetweenSetsMinutes] = useState("");
+  const [restTimeBetweenSetsSeconds, setRestTimeBetweenSetsSeconds] = useState("");
   const [trainingReferenceUrl, setTrainingReferenceUrl] = useState("");
   const [selectedIcon, setSelectedIcon] = useState(ICON_OPTIONS[0]);
 
@@ -121,6 +123,15 @@ export default function ExerciseModal({
         setEstimatedTimeSeconds("");
       }
 
+      if (exercise.rest_time_between_sets && exercise.rest_time_between_sets > 0) {
+        const restTotal = exercise.rest_time_between_sets;
+        setRestTimeBetweenSetsMinutes(Math.floor(restTotal / 60).toString());
+        setRestTimeBetweenSetsSeconds((restTotal % 60).toString());
+      } else {
+        setRestTimeBetweenSetsMinutes("");
+        setRestTimeBetweenSetsSeconds("");
+      }
+
       const iconFamily = exercise.icon_family || "image";
       const icon = ICON_OPTIONS.find(
         (opt) =>
@@ -139,6 +150,8 @@ export default function ExerciseModal({
       setReps("");
       setEstimatedTimeMinutes("");
       setEstimatedTimeSeconds("");
+      setRestTimeBetweenSetsMinutes("");
+      setRestTimeBetweenSetsSeconds("");
       setTrainingReferenceUrl("");
       setSelectedIcon(ICON_OPTIONS[0]);
     }
@@ -184,6 +197,28 @@ export default function ExerciseModal({
       }
     }
 
+    if (
+      (measurementType === "sets_reps" || measurementType === "both") &&
+      (restTimeBetweenSetsMinutes || restTimeBetweenSetsSeconds)
+    ) {
+      const restMins = parseInt(restTimeBetweenSetsMinutes || "0");
+      const restSecs = parseInt(restTimeBetweenSetsSeconds || "0");
+      if (
+        isNaN(restMins) ||
+        isNaN(restSecs) ||
+        restMins < 0 ||
+        restSecs < 0 ||
+        restMins > 999 ||
+        restSecs > 59
+      ) {
+        Alert.alert(
+          t("common.error"),
+          "Please enter valid rest time (minutes: 0-999, seconds: 0-59)"
+        );
+        return;
+      }
+    }
+
     try {
       const trimmedName = name.trim();
 
@@ -201,6 +236,14 @@ export default function ExerciseModal({
           return;
         }
       }
+
+      const hasRestTime =
+        (measurementType === "sets_reps" || measurementType === "both") &&
+        (restTimeBetweenSetsMinutes || restTimeBetweenSetsSeconds);
+      const restTimeTotalSeconds = hasRestTime
+        ? parseInt(restTimeBetweenSetsMinutes || "0") * 60 +
+          parseInt(restTimeBetweenSetsSeconds || "0")
+        : undefined;
 
       const exerciseData = {
         exercise_name: trimmedName,
@@ -220,6 +263,10 @@ export default function ExerciseModal({
               parseInt(estimatedTimeSeconds)
             : undefined,
         training_reference_url: trainingReferenceUrl.trim() || undefined,
+        rest_time_between_sets:
+          restTimeTotalSeconds && restTimeTotalSeconds > 0
+            ? restTimeTotalSeconds
+            : undefined,
         sort_order: 0,
       };
 
@@ -394,6 +441,45 @@ export default function ExerciseModal({
                     onChangeText={setReps}
                     keyboardType="numeric"
                   />
+                </View>
+              </View>
+            )}
+
+            {(measurementType === "sets_reps" || measurementType === "both") && (
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>
+                  {t("exerciseModal.restTimeBetweenSets")}
+                </Text>
+                <View style={styles.inputRow}>
+                  <View style={styles.inputGroupHalf}>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="MM"
+                      placeholderTextColor={theme.textTertiary}
+                      value={restTimeBetweenSetsMinutes}
+                      onChangeText={setRestTimeBetweenSetsMinutes}
+                      keyboardType="numeric"
+                    />
+                  </View>
+                  <Text
+                    style={{
+                      alignSelf: "center",
+                      marginHorizontal: 8,
+                      color: theme.text,
+                    }}
+                  >
+                    :
+                  </Text>
+                  <View style={styles.inputGroupHalf}>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="SS"
+                      placeholderTextColor={theme.textTertiary}
+                      value={restTimeBetweenSetsSeconds}
+                      onChangeText={setRestTimeBetweenSetsSeconds}
+                      keyboardType="numeric"
+                    />
+                  </View>
                 </View>
               </View>
             )}

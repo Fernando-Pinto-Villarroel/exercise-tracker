@@ -50,6 +50,7 @@
     "markAsUndone": "Marcar como Pendiente",
     "setProgress": "Progreso de Series (Referencia)",
     "timeProgress": "Progreso de Tiempo (Referencia)",
+    "restTimer": "Tiempo de Descanso Entre Series",
     "restDayTitle": "Día de Descanso",
     "restDayMessage": "Hoy es un día de descanso válido. Tómate el tiempo para recuperarte y recargar energías. El descanso es tan importante como el entrenamiento para tu progreso. ¡Disfruta tu día!"
   },
@@ -150,6 +151,16 @@
     "exerciseLimitMessage": "Puedes agregar un máximo de 20 ejercicios por día.",
     "restDayConfirmTitle": "¿Marcar como Día de Descanso?",
     "restDayConfirmMessage": "Esto eliminará todos los ejercicios planificados para este día. ¿Estás seguro de que quieres marcar este día como día de descanso?",
+    "exportRoutine": "Exportar Rutina",
+    "importRoutine": "Importar Rutina",
+    "exportRoutineSuccess": "Rutina exportada exitosamente",
+    "importRoutineTitle": "Importar Rutina",
+    "importRoutineMessage": "Esto actualizará tu plantilla semanal de ejercicios para los días incluidos. El historial de entrenamiento pasado no se verá afectado. El entrenamiento de hoy será regenerado si su día está incluido. ¿Continuar?",
+    "importRoutineSuccess": "Rutina importada exitosamente",
+    "exportRoutineError": "Error al exportar la rutina",
+    "importRoutineError": "Error al importar la rutina",
+    "invalidRoutineFile": "Formato de archivo de rutina inválido",
+    "restLabel": "Descanso",
     "days": {
       "monday": "Lunes",
       "tuesday": "Martes",
@@ -178,7 +189,8 @@
     "selectIcon": "Seleccionar Ícono",
     "updateExercise": "Actualizar Ejercicio",
     "error": "Error",
-    "exerciseExists": "Ya existe un ejercicio con este nombre para este día."
+    "exerciseExists": "Ya existe un ejercicio con este nombre para este día.",
+    "restTimeBetweenSets": "Tiempo de Descanso Entre Series (opcional)"
   },
   "settings": {
     "title": "Ajustes",

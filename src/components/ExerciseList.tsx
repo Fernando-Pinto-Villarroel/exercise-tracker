@@ -113,6 +113,13 @@ export default function ExerciseList({
                     {formatTime(exercise.estimated_time!)}
                   </Text>
                 )}
+                {hasSets &&
+                  exercise.rest_time_between_sets &&
+                  exercise.rest_time_between_sets > 0 && (
+                    <Text style={styles.exerciseStats}>
+                      Rest: {formatTime(exercise.rest_time_between_sets)}
+                    </Text>
+                  )}
               </View>
             </View>
 
@@ -168,7 +175,7 @@ const createStyles = (theme: any) =>
       shadowOpacity: 0.1,
       shadowRadius: 2,
       elevation: 2,
-      minHeight: 120,
+      height: 116,
     },
     iconContainer: {
       width: 48,

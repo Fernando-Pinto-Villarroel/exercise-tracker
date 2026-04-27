@@ -176,6 +176,41 @@ async function applyMigration5(database: SQLite.SQLiteDatabase): Promise<void> {
   console.log("Migration 5 applied successfully");
 }
 
+async function applyMigration6(database: SQLite.SQLiteDatabase): Promise<void> {
+  console.log("Applying migration 6: Adding rest_time_between_sets to weekly_plan and daily_snapshot");
+
+  const weeklyPlanInfo = await database.getAllAsync<{ name: string }>(
+    "PRAGMA table_info(weekly_plan)",
+  );
+  const hasWeeklyPlanRestTime = weeklyPlanInfo.some(
+    (col) => col.name === "rest_time_between_sets",
+  );
+
+  if (!hasWeeklyPlanRestTime) {
+    await database.execAsync(`
+      ALTER TABLE weekly_plan
+      ADD COLUMN rest_time_between_sets INTEGER;
+    `);
+  }
+
+  const dailySnapshotInfo = await database.getAllAsync<{ name: string }>(
+    "PRAGMA table_info(daily_snapshot)",
+  );
+  const hasDailySnapshotRestTime = dailySnapshotInfo.some(
+    (col) => col.name === "rest_time_between_sets",
+  );
+
+  if (!hasDailySnapshotRestTime) {
+    await database.execAsync(`
+      ALTER TABLE daily_snapshot
+      ADD COLUMN rest_time_between_sets INTEGER;
+    `);
+  }
+
+  await setSchemaVersion(database, 6);
+  console.log("Migration 6 applied successfully");
+}
+
 async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
   const currentVersion = await getCurrentSchemaVersion(database);
   console.log(`Current schema version: ${currentVersion}`);
@@ -198,6 +233,10 @@ async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
 
   if (currentVersion < 5) {
     await applyMigration5(database);
+  }
+
+  if (currentVersion < 6) {
+    await applyMigration6(database);
   }
 
   console.log("All migrations completed");

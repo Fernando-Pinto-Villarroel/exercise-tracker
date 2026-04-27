@@ -93,8 +93,8 @@ function SettingsMain({ navigation }: any) {
       );
 
       const exportData: ExportData = {
-        version: "1.4.0",
-        schema_version: 5,
+        version: "1.5.0",
+        schema_version: 6,
         exported_at: new Date().toISOString(),
         user_info: userInfo,
         body_records: bodyRecords,
@@ -373,7 +373,7 @@ function SettingsMain({ navigation }: any) {
 
     for (const plan of data.weekly_plan) {
       await db.runAsync(
-        "INSERT INTO weekly_plan (day_of_week, exercise_name, icon_name, icon_family, sets, reps, estimated_time, training_reference_url, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO weekly_plan (day_of_week, exercise_name, icon_name, icon_family, sets, reps, estimated_time, training_reference_url, rest_time_between_sets, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         [
           plan.day_of_week,
           plan.exercise_name,
@@ -383,6 +383,7 @@ function SettingsMain({ navigation }: any) {
           plan.reps ?? null,
           plan.estimated_time ?? null,
           plan.training_reference_url ?? null,
+          plan.rest_time_between_sets ?? null,
           plan.sort_order,
         ],
       );
@@ -399,7 +400,7 @@ function SettingsMain({ navigation }: any) {
 
     for (const snapshot of data.daily_snapshots) {
       await db.runAsync(
-        "INSERT INTO daily_snapshot (date, exercise_name, icon_name, icon_family, sets, reps, estimated_time, training_reference_url, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO daily_snapshot (date, exercise_name, icon_name, icon_family, sets, reps, estimated_time, training_reference_url, rest_time_between_sets, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         [
           snapshot.date,
           snapshot.exercise_name,
@@ -409,6 +410,7 @@ function SettingsMain({ navigation }: any) {
           snapshot.reps ?? null,
           snapshot.estimated_time ?? null,
           snapshot.training_reference_url ?? null,
+          snapshot.rest_time_between_sets ?? null,
           snapshot.sort_order,
         ],
       );
@@ -678,7 +680,7 @@ function SettingsMain({ navigation }: any) {
           </TouchableOpacity>
         </View>
         <Text style={styles.copyrightText}>
-          {t("settings.version", { version: "1.4.0" })}
+          {t("settings.version", { version: "1.5.0" })}
         </Text>
       </View>
     </ScrollView>

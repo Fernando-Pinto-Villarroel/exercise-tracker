@@ -50,6 +50,7 @@
     "markAsUndone": "Mark as Undone",
     "setProgress": "Sets Progress (Reference)",
     "timeProgress": "Time Progress (Reference)",
+    "restTimer": "Rest Time Between Sets",
     "restDayTitle": "Rest Day",
     "restDayMessage": "Today is a valid rest day. Take the time to recover and recharge your energy. Rest is just as important as training for your progress. Enjoy your day!"
   },
@@ -150,6 +151,16 @@
     "exerciseLimitMessage": "You can add a maximum of 20 exercises per day.",
     "restDayConfirmTitle": "Mark as Rest Day?",
     "restDayConfirmMessage": "This will remove all exercises planned for this day. Are you sure you want to mark this day as a rest day?",
+    "exportRoutine": "Export Routine",
+    "importRoutine": "Import Routine",
+    "exportRoutineSuccess": "Routine exported successfully",
+    "importRoutineTitle": "Import Routine",
+    "importRoutineMessage": "This will update your weekly workout template for the included days. Past training history will not be affected. Today's workout will be regenerated if its day is included. Continue?",
+    "importRoutineSuccess": "Routine imported successfully",
+    "exportRoutineError": "Failed to export routine",
+    "importRoutineError": "Failed to import routine",
+    "invalidRoutineFile": "Invalid routine file format",
+    "restLabel": "Rest",
     "days": {
       "monday": "Monday",
       "tuesday": "Tuesday",
@@ -178,7 +189,8 @@
     "selectIcon": "Select Icon",
     "updateExercise": "Update Exercise",
     "error": "Error",
-    "exerciseExists": "An exercise with this name already exists for this day."
+    "exerciseExists": "An exercise with this name already exists for this day.",
+    "restTimeBetweenSets": "Rest Time Between Sets (optional)"
   },
   "settings": {
     "title": "Settings",

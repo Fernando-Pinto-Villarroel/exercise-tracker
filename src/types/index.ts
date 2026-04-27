@@ -34,6 +34,7 @@ export interface Exercise {
   reps?: number;
   estimated_time?: number;
   training_reference_url?: string;
+  rest_time_between_sets?: number;
   sort_order: number;
 }
 
@@ -82,6 +83,15 @@ export interface ExportData {
   daily_snapshots: DailySnapshot[];
   daily_completions: DailyCompletion[];
   notification_settings?: NotificationSettings;
+}
+
+export interface RoutineExportData {
+  version: string;
+  schema_version: number;
+  exported_at: string;
+  type: "routine";
+  weekly_plan: WeeklyPlanExercise[];
+  weekly_rest_days: WeeklyRestDay[];
 }
 
 export interface ExerciseProgress {

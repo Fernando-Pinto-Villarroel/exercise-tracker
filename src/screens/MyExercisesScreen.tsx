@@ -1,6 +1,9 @@
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import * as DocumentPicker from "expo-document-picker";
+import * as FileSystem from "expo-file-system/legacy";
+import * as Sharing from "expo-sharing";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -22,7 +25,7 @@ import { SvgIcon } from "../components/SvgIcons";
 import { useTheme } from "../contexts/ThemeContext";
 import { getDatabase } from "../database/init";
 import { useExerciseStore } from "../store/exerciseStore";
-import { Exercise, WeeklyPlanExercise } from "../types";
+import { Exercise, RoutineExportData, WeeklyPlanExercise } from "../types";
 
 const iconFamilies = {
   Ionicons,
@@ -68,6 +71,8 @@ export default function MyExercisesScreen() {
     [],
   );
   const [copyFromDay, setCopyFromDay] = useState<number | null>(null);
+  const [isExportingRoutine, setIsExportingRoutine] = useState(false);
+  const [isImportingRoutine, setIsImportingRoutine] = useState(false);
 
   const DAYS = [
     t("myExercises.days.monday"),
@@ -306,6 +311,297 @@ export default function MyExercisesScreen() {
     setSelectedIds(new Set());
   };
 
+  const handleExportRoutine = async () => {
+    try {
+      setIsExportingRoutine(true);
+      const db = getDatabase();
+
+      const weeklyPlanData = await db.getAllAsync<WeeklyPlanExercise>(
+        "SELECT * FROM weekly_plan ORDER BY day_of_week, sort_order",
+      );
+      const weeklyRestDaysData = await db.getAllAsync<{
+        day_of_week: number;
+        created_at: string;
+      }>(
+        "SELECT day_of_week, created_at FROM weekly_rest_days WHERE removed_at IS NULL",
+      );
+
+      const exportData: RoutineExportData = {
+        version: "1.0.0",
+        schema_version: 6,
+        exported_at: new Date().toISOString(),
+        type: "routine",
+        weekly_plan: weeklyPlanData,
+        weekly_rest_days: weeklyRestDaysData,
+      };
+
+      const filename = `exercise_routine_${new Date().toISOString().split("T")[0]}.json`;
+      const filePath = `${FileSystem.documentDirectory ?? ""}${filename}`;
+
+      await FileSystem.writeAsStringAsync(
+        filePath,
+        JSON.stringify(exportData, null, 2),
+      );
+
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(filePath);
+      } else {
+        Alert.alert(
+          t("settings.success"),
+          t("myExercises.exportRoutineSuccess"),
+        );
+      }
+    } catch (error) {
+      console.error("Error exporting routine:", error);
+      Alert.alert(t("common.error"), t("myExercises.exportRoutineError"));
+    } finally {
+      setIsExportingRoutine(false);
+    }
+  };
+
+  const validateRoutineData = (data: any): string | null => {
+    if (!data || typeof data !== "object") {
+      return t("myExercises.invalidRoutineFile");
+    }
+
+    if (data.type !== "routine") {
+      return t("myExercises.invalidRoutineFile");
+    }
+
+    if (!data.version || !/^\d+\.\d+\.\d+$/.test(data.version)) {
+      return t("myExercises.invalidRoutineFile");
+    }
+
+    if (!Number.isInteger(data.schema_version) || data.schema_version < 0) {
+      return t("myExercises.invalidRoutineFile");
+    }
+
+    if (!data.exported_at || isNaN(new Date(data.exported_at).getTime())) {
+      return t("myExercises.invalidRoutineFile");
+    }
+
+    if (!Array.isArray(data.weekly_plan)) {
+      return t("myExercises.invalidRoutineFile");
+    }
+
+    for (const plan of data.weekly_plan) {
+      if (
+        plan.day_of_week == null ||
+        !Number.isInteger(plan.day_of_week) ||
+        plan.day_of_week < 0 ||
+        plan.day_of_week > 6
+      ) {
+        return t("settings.invalidDayOfWeek");
+      }
+      if (
+        !plan.exercise_name ||
+        typeof plan.exercise_name !== "string" ||
+        !plan.exercise_name.trim()
+      ) {
+        return t("settings.invalidWeeklyPlan");
+      }
+      if (!plan.icon_name || typeof plan.icon_name !== "string") {
+        return t("settings.invalidWeeklyPlan");
+      }
+      if (!plan.icon_family || typeof plan.icon_family !== "string") {
+        return t("settings.invalidWeeklyPlan");
+      }
+      if (
+        plan.sets != null &&
+        (!Number.isInteger(plan.sets) || plan.sets < 0 || plan.sets > 999)
+      ) {
+        return t("settings.invalidWeeklyPlan");
+      }
+      if (
+        plan.reps != null &&
+        (!Number.isInteger(plan.reps) || plan.reps < 0 || plan.reps > 999)
+      ) {
+        return t("settings.invalidWeeklyPlan");
+      }
+      if (
+        plan.estimated_time != null &&
+        (typeof plan.estimated_time !== "number" || plan.estimated_time < 0)
+      ) {
+        return t("settings.invalidWeeklyPlan");
+      }
+      if (
+        plan.rest_time_between_sets != null &&
+        (typeof plan.rest_time_between_sets !== "number" ||
+          plan.rest_time_between_sets < 0)
+      ) {
+        return t("settings.invalidWeeklyPlan");
+      }
+    }
+
+    if (!Array.isArray(data.weekly_rest_days)) {
+      return t("settings.invalidWeeklyRestDays");
+    }
+
+    for (const restDay of data.weekly_rest_days) {
+      if (
+        restDay.day_of_week == null ||
+        !Number.isInteger(restDay.day_of_week) ||
+        restDay.day_of_week < 0 ||
+        restDay.day_of_week > 6
+      ) {
+        return t("settings.invalidDayOfWeek");
+      }
+      if (
+        restDay.created_at &&
+        isNaN(new Date(restDay.created_at).getTime())
+      ) {
+        return t("settings.invalidRestDayDate");
+      }
+    }
+
+    return null;
+  };
+
+  const handleImportRoutine = async () => {
+    try {
+      setIsImportingRoutine(true);
+
+      const result = await DocumentPicker.getDocumentAsync({
+        type: "application/json",
+        copyToCacheDirectory: true,
+      });
+
+      if (result.canceled) {
+        setIsImportingRoutine(false);
+        return;
+      }
+
+      let importData: any;
+      try {
+        const fileContent = await FileSystem.readAsStringAsync(
+          result.assets[0].uri,
+        );
+        importData = JSON.parse(fileContent);
+      } catch {
+        Alert.alert(t("common.error"), t("myExercises.invalidRoutineFile"));
+        setIsImportingRoutine(false);
+        return;
+      }
+
+      const validationError = validateRoutineData(importData);
+      if (validationError) {
+        Alert.alert(t("common.error"), validationError);
+        setIsImportingRoutine(false);
+        return;
+      }
+
+      Alert.alert(
+        t("myExercises.importRoutineTitle"),
+        t("myExercises.importRoutineMessage"),
+        [
+          {
+            text: t("common.cancel"),
+            style: "cancel",
+            onPress: () => setIsImportingRoutine(false),
+          },
+          {
+            text: t("common.confirm"),
+            onPress: async () => {
+              try {
+                const db = getDatabase();
+                const routineData = importData as RoutineExportData;
+
+                const todayDayOfWeek = new Date().getDay();
+                const adjustedTodayDay =
+                  todayDayOfWeek === 0 ? 6 : todayDayOfWeek - 1;
+
+                const affectedDays = new Set<number>();
+                for (const plan of routineData.weekly_plan) {
+                  affectedDays.add(plan.day_of_week);
+                }
+                for (const restDay of routineData.weekly_rest_days) {
+                  affectedDays.add(restDay.day_of_week);
+                }
+
+                for (const day of affectedDays) {
+                  await db.runAsync(
+                    "DELETE FROM weekly_plan WHERE day_of_week = ?",
+                    [day],
+                  );
+                  await db.runAsync(
+                    "UPDATE weekly_rest_days SET removed_at = ? WHERE day_of_week = ? AND removed_at IS NULL",
+                    [new Date().toISOString(), day],
+                  );
+                }
+
+                for (const plan of routineData.weekly_plan) {
+                  await db.runAsync(
+                    "INSERT INTO weekly_plan (day_of_week, exercise_name, icon_name, icon_family, sets, reps, estimated_time, training_reference_url, rest_time_between_sets, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    [
+                      plan.day_of_week,
+                      plan.exercise_name,
+                      plan.icon_name,
+                      plan.icon_family,
+                      plan.sets ?? null,
+                      plan.reps ?? null,
+                      plan.estimated_time ?? null,
+                      plan.training_reference_url ?? null,
+                      plan.rest_time_between_sets ?? null,
+                      plan.sort_order ?? 0,
+                    ],
+                  );
+                }
+
+                for (const restDay of routineData.weekly_rest_days) {
+                  const existing = await db.getFirstAsync<{
+                    day_of_week: number;
+                  }>(
+                    "SELECT day_of_week FROM weekly_rest_days WHERE day_of_week = ?",
+                    [restDay.day_of_week],
+                  );
+                  if (existing) {
+                    await db.runAsync(
+                      "UPDATE weekly_rest_days SET removed_at = NULL WHERE day_of_week = ?",
+                      [restDay.day_of_week],
+                    );
+                  } else {
+                    await db.runAsync(
+                      "INSERT INTO weekly_rest_days (day_of_week, created_at) VALUES (?, ?)",
+                      [
+                        restDay.day_of_week,
+                        restDay.created_at || new Date().toISOString(),
+                      ],
+                    );
+                  }
+                }
+
+                if (affectedDays.has(adjustedTodayDay)) {
+                  await useExerciseStore.getState().createTodaySnapshot();
+                  useExerciseStore.getState().incrementWeeklyPlanCounter();
+                }
+
+                await loadWeeklyPlan();
+                await loadRestDays();
+
+                Alert.alert(
+                  t("settings.success"),
+                  t("myExercises.importRoutineSuccess"),
+                );
+              } catch (error) {
+                console.error("Error importing routine:", error);
+                Alert.alert(
+                  t("common.error"),
+                  t("myExercises.importRoutineError"),
+                );
+              } finally {
+                setIsImportingRoutine(false);
+              }
+            },
+          },
+        ],
+      );
+    } catch (error) {
+      console.error("Error importing routine:", error);
+      Alert.alert(t("common.error"), t("myExercises.importRoutineError"));
+      setIsImportingRoutine(false);
+    }
+  };
+
   const handleDragEnd = async ({ data }: { data: WeeklyPlanExercise[] }) => {
     try {
       const db = getDatabase();
@@ -388,7 +684,11 @@ export default function MyExercisesScreen() {
           ]}
         >
           <View style={styles.iconContainer}>
-            {getIconComponent(item.icon_family, item.icon_name, theme.primary)}
+            {getIconComponent(
+              item.icon_family,
+              item.icon_name,
+              theme.primary,
+            )}
           </View>
 
           <View style={styles.exerciseInfo}>
@@ -413,7 +713,11 @@ export default function MyExercisesScreen() {
                 <Text style={[styles.exerciseName, styles.exerciseNameLink]}>
                   {item.exercise_name}
                 </Text>
-                <Ionicons name="open-outline" size={16} color={theme.primary} />
+                <Ionicons
+                  name="open-outline"
+                  size={16}
+                  color={theme.primary}
+                />
               </TouchableOpacity>
             ) : (
               <Text style={styles.exerciseName}>{item.exercise_name}</Text>
@@ -429,6 +733,13 @@ export default function MyExercisesScreen() {
                   {formatTime(item.estimated_time!)}
                 </Text>
               )}
+              {hasSets &&
+                item.rest_time_between_sets &&
+                item.rest_time_between_sets > 0 && (
+                  <Text style={styles.exerciseStats}>
+                    {t("myExercises.restLabel")}: {formatTime(item.rest_time_between_sets)}
+                  </Text>
+                )}
             </View>
           </View>
 
@@ -610,6 +921,37 @@ export default function MyExercisesScreen() {
     );
   };
 
+  const renderRoutineButtons = () => (
+    <View style={styles.routineButtonRow}>
+      <TouchableOpacity
+        style={[
+          styles.routineButton,
+          isExportingRoutine && styles.buttonDisabled,
+        ]}
+        onPress={handleExportRoutine}
+        disabled={isExportingRoutine}
+      >
+        <Ionicons name="share-outline" size={16} color={theme.primary} />
+        <Text style={styles.routineButtonText}>
+          {t("myExercises.exportRoutine")}
+        </Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[
+          styles.routineButton,
+          isImportingRoutine && styles.buttonDisabled,
+        ]}
+        onPress={handleImportRoutine}
+        disabled={isImportingRoutine}
+      >
+        <Ionicons name="cloud-upload-outline" size={16} color={theme.primary} />
+        <Text style={styles.routineButtonText}>
+          {t("myExercises.importRoutine")}
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+
   return (
     <View style={styles.container}>
       <FlatList
@@ -691,9 +1033,10 @@ export default function MyExercisesScreen() {
         )}
       </View>
 
-      {!isSelectedDayRestDay && (
-        <View style={styles.fixedButtonContainer}>{renderButtons()}</View>
-      )}
+      <View style={styles.fixedButtonContainer}>
+        {!isSelectedDayRestDay && renderButtons()}
+        {!selectionMode && renderRoutineButtons()}
+      </View>
 
       <ExerciseModal
         visible={showModal}
@@ -741,7 +1084,7 @@ const createStyles = (theme: any) =>
       flex: 1,
       paddingHorizontal: 16,
       paddingTop: 16,
-      paddingBottom: 100,
+      paddingBottom: 140,
     },
     listContent: {
       paddingBottom: 16,
@@ -773,7 +1116,7 @@ const createStyles = (theme: any) =>
       shadowRadius: 2,
       elevation: 2,
       marginBottom: 12,
-      minHeight: 120,
+      height: 116,
     },
     exerciseCardSelected: {
       borderWidth: 2,
@@ -860,7 +1203,7 @@ const createStyles = (theme: any) =>
     buttonRow: {
       flexDirection: "row",
       gap: 12,
-      marginBottom: 24,
+      marginBottom: 8,
     },
     addButton: {
       flex: 1,
@@ -965,7 +1308,28 @@ const createStyles = (theme: any) =>
       right: 0,
       backgroundColor: theme.background,
       paddingHorizontal: 16,
-      paddingBottom: 4,
       paddingTop: 12,
+    },
+    routineButtonRow: {
+      flexDirection: "row",
+      gap: 12,
+      marginTop: 8,
+      marginBottom: 24,
+    },
+    routineButton: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 6,
+      borderWidth: 1,
+      borderColor: theme.primary,
+      borderRadius: 8,
+      paddingVertical: 10,
+    },
+    routineButtonText: {
+      color: theme.primary,
+      fontSize: 13,
+      fontWeight: "600",
     },
   });
