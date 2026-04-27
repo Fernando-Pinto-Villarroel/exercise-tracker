@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useTheme } from "../contexts/ThemeContext";
+import { playRestTimerCompleted } from "../services/soundService";
 
 interface RestSetTimerProps {
   restTimeSeconds: number;
@@ -26,6 +27,7 @@ export default function RestSetTimer({ restTimeSeconds }: RestSetTimerProps) {
         if (prev <= 1) {
           clearInterval(interval);
           setIsRunning(false);
+          playRestTimerCompleted();
           return 0;
         }
         return prev - 1;

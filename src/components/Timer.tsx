@@ -12,6 +12,7 @@ import {
   View,
 } from "react-native";
 import { useTheme } from "../contexts/ThemeContext";
+import { playGeneralTimerCompleted } from "../services/soundService";
 
 const TIMER_STORAGE_KEY = "timer_seconds";
 const TIMER_START_KEY = "timer_start_time";
@@ -78,6 +79,7 @@ export default function Timer({ resetTrigger }: { resetTrigger?: number }) {
           const newSeconds = Math.max(0, prev - 1);
           if (newSeconds === 0) {
             stopTimer();
+            playGeneralTimerCompleted();
           }
           return newSeconds;
         });

@@ -36,7 +36,7 @@
         {
           "icon": "./assets/images/AppIcons/playstore.png",
           "color": "#3b82f6",
-          "sounds": []
+          "sounds": ["./assets/sounds/device_notification.wav"]
         }
       ]
     ],

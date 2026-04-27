@@ -267,7 +267,7 @@ export const initializeDailyReminders = async (): Promise<void> => {
     await Notifications.setNotificationChannelAsync(DEFAULT_CONFIG.CHANNEL_ID, {
       name: "Daily Reminders",
       importance: Notifications.AndroidImportance.HIGH,
-      sound: "default",
+      sound: "device_notification.wav",
       vibrationPattern: [0, 250, 250, 250],
       enableVibrate: true,
     });
